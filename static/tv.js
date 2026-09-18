@@ -6,7 +6,7 @@ const error=text=>$('tv-error').textContent=text;
 const send=connect('tv',render,error);
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;document.body.classList.toggle('pinyin',!!state.pinyin);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(voiceGain)voiceGain.gain.value=state.vocal;
+ state=next;document.body.classList.toggle('pinyin',!!state.pinyin);document.body.classList.toggle('romanization',!!state.romanization);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(voiceGain)voiceGain.gain.value=state.vocal;
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${i.status}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -22,7 +22,7 @@ function render(next){
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
    seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals.wav`;voice.src=`/media/${item.id}/vocals.wav`;music.load();voice.load();
    $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=item.title;$('next-artist').textContent=item.artist;
-   item.lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,reading] of line.units||[]){const span=el('span',undefined,reading?'unit ruby':'unit');if(reading){const ruby=el('ruby',text);ruby.append(el('rt',reading));span.append(ruby);}else span.textContent=text;p.append(span);}$('lyrics').append(p);});$('no-lyrics').hidden=!!item.lyrics.length;$('lyrics').hidden=!item.lyrics.length;$('duration').textContent=clock(item.duration);
+   item.lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,reading] of line.units||[]){const span=el('span',undefined,reading?'unit ruby':'unit');if(reading){const ruby=el('ruby',text);ruby.append(el('rt',reading,/[\uac00-\ud7a3]/.test(text)?'ko':'zh'));span.append(ruby);}else span.textContent=text;p.append(span);}$('lyrics').append(p);});$('no-lyrics').hidden=!!item.lyrics.length;$('lyrics').hidden=!item.lyrics.length;$('duration').textContent=clock(item.duration);
   }else{video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').style.width='0%';}
  }
  if(state.current&&state.seek_id!==lastSeek){

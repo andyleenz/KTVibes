@@ -13,6 +13,7 @@ class State:
         self.offset = 0.0
         self.vocal = 0.1
         self.pinyin = True
+        self.romanization = True
         self.lyric_scale = 1.0
         self.seek_id = 0
         self.position = 0.0
@@ -23,7 +24,7 @@ class State:
 
     def snapshot(self):
         return {"current": self.current, "upcoming": self.upcoming, "playing": self.playing,
-                "offset": self.offset, "vocal": self.vocal, "pinyin": self.pinyin, "lyric_scale": self.lyric_scale, "seek_id": self.seek_id, "position": self.position,
+                "offset": self.offset, "vocal": self.vocal, "pinyin": self.pinyin, "romanization": self.romanization, "lyric_scale": self.lyric_scale, "seek_id": self.seek_id, "position": self.position,
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "revision": self.revision}
 
@@ -85,6 +86,8 @@ class State:
             self.seek_id += 1
         elif action == "lyric_scale":
             self.lyric_scale = max(0.6, min(1.8, float(message["value"])))
+        elif action == "romanization":
+            self.romanization = bool(message.get("value"))
         elif action == "pinyin":
             self.pinyin = bool(message.get("value"))
         elif action == "vocal":

@@ -54,6 +54,47 @@ def add_pinyin(lines: list[dict]) -> list[dict]:
             unit[3:] = [" ".join(filter(None, (next(readings) for _ in unit[0])))]
     return lines
 
+HANGUL = re.compile(r"[\uac00-\ud7a3]")
+# Revised Romanization of Korean, per jamo.
+INITIALS = "g kk n d tt r m b pp s ss  j jj ch k t p h".split(" ")
+VOWELS = "a ae ya yae eo e yeo ye o wa wae oe yo u wo we wi yu eu ui i".split()
+FINALS = ["", "k", "k", "k", "n", "n", "n", "t", "l", "k", "m", "l", "l", "l", "p", "l", "m", "p", "p", "t", "t", "ng", "t", "t", "k", "t", "p", "t"]
+_g2p = None
+
+def romanize(syllables: str) -> list[str]:
+    """Romanize Hangul syllables as sung. Input should already be the pronounced form."""
+    out, previous_final = [], 0
+    for char in syllables:
+        code = ord(char) - 0xAC00
+        initial, vowel, final = code // 588, code % 588 // 28, code % 28
+        onset = "l" if initial == 5 and previous_final == 8 else INITIALS[initial]  # ㄹㄹ -> ll
+        out.append(onset + VOWELS[vowel] + FINALS[final])
+        previous_final = final
+    return out
+
+def add_korean_romanization(lines: list[dict]) -> list[dict]:
+    """Romanize each Korean syllable from its sung pronunciation (눈물이 -> nun mu ri, 못하게 -> mo ta ge)."""
+    global _g2p
+    if _g2p is None:
+        from g2pk2 import G2p
+        _g2p = G2p()
+    for line in lines:
+        units = line.get("units")
+        if not units or not HANGUL.search(line["text"]):
+            continue
+        written = HANGUL.findall(line["text"])
+        spoken = HANGUL.findall(_g2p(line["text"]))
+        # If sound changes altered the syllable count, fall back to the written form.
+        readings = iter(romanize("".join(spoken if len(spoken) == len(written) else written)))
+        for unit in units:
+            syllables = HANGUL.findall(unit[0])
+            if syllables and not (len(unit) > 3 and unit[3]):
+                unit[3:] = [" ".join(next(readings) for _ in syllables)]
+            elif syllables:
+                for _ in syllables:
+                    next(readings)
+    return lines
+
 def envelope(samples, rate: int, hop: float = 0.05):
     """RMS of the (mono) vocal stem in hop-second frames."""
     import numpy as np

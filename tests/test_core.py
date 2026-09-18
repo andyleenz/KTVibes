@@ -142,3 +142,10 @@ class LyricsMatchTests(unittest.TestCase):
                             {'t': 3, 'text': '좋은', 'units': [['좋', 3, 4], ['은', 4, 5]]}])
         self.assertEqual([u[3] for u in lines[0]['units']], ['hái', 'shì', ''])
         self.assertEqual(len(lines[1]['units'][0]), 3)
+
+    def test_korean_romanization_follows_pronunciation(self):
+        from ktvibes.lyrics import add_korean_romanization, romanize
+        self.assertEqual(romanize('실라면'), ['sil', 'la', 'myeon'])
+        units = [['눈', 0, 1], ['물', 1, 2], ['이 ', 2, 3], ['좋', 3, 4], ['은', 4, 5]]
+        add_korean_romanization([{'t': 0, 'text': '눈물이 좋은', 'units': units}])
+        self.assertEqual([u[3] for u in units], ['nun', 'mu', 'ri', 'jo', 'eun'])

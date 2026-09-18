@@ -5,7 +5,7 @@ const send=connect('remote',render,message);
 function render(next){
  state=next;$('now-title').textContent=state.current?.title||'The stage is yours';$('now-artist').textContent=state.current?.artist||'Queue a song to get started.';
  $('player-status').textContent=state.player_connected?'TV CONNECTED':'OPEN /TV TO START SINGING';$('play').textContent=state.playing?'Pause':'Play';
- $('pinyin').checked=state.pinyin;state.received=Date.now()/1000;if(document.activeElement!==$('lyric-scale'))$('lyric-scale').value=state.lyric_scale;$('lyric-scale-value').textContent=`${Math.round(state.lyric_scale*100)}%`;$('scrub').max=state.current?.duration||1;$('scrub').disabled=!state.current;$('length').textContent=clock(state.current?.duration);showPosition();if(document.activeElement!==$('vocal'))$('vocal').value=state.vocal;
+ $('pinyin').checked=state.pinyin;$('romanization').checked=state.romanization;state.received=Date.now()/1000;if(document.activeElement!==$('lyric-scale'))$('lyric-scale').value=state.lyric_scale;$('lyric-scale-value').textContent=`${Math.round(state.lyric_scale*100)}%`;$('scrub').max=state.current?.duration||1;$('scrub').disabled=!state.current;$('length').textContent=clock(state.current?.duration);showPosition();if(document.activeElement!==$('vocal'))$('vocal').value=state.vocal;
  $('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;
  $('queue-count').textContent=state.upcoming.length;$('queue').replaceChildren();
  state.upcoming.forEach((item,index)=>{
@@ -33,3 +33,4 @@ function showPosition(){
 setInterval(showPosition,500);
 $('scrub').oninput=()=>{scrubbing=true;$('position').textContent=clock(Number($('scrub').value));};
 $('scrub').onchange=()=>{scrubbing=false;send({action:'seek',position:Number($('scrub').value)});};
+$('romanization').onchange=()=>send({action:'romanization',value:$('romanization').checked});

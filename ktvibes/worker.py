@@ -64,7 +64,7 @@ async def run(state, cache: Path):
             if item["lyrics"]:
                 try:
                     samples, rate = await asyncio.to_thread(sf.read, folder / "vocals.wav", dtype="float32")
-                    item["lyrics"] = lyrics.add_pinyin(lyrics.time_units(item["lyrics"], lyrics.envelope(samples, rate)))
+                    item["lyrics"] = lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.time_units(item["lyrics"], lyrics.envelope(samples, rate))))
                 except Exception:
                     log.exception("Word timing unavailable for %s", item["id"])
             meta.update(duration=item["duration"], artist=item["artist"], title=item["title"])
