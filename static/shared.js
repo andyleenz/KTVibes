@@ -1,10 +1,10 @@
 export const $ = id => document.getElementById(id);
 export function el(tag, text, className) { const node=document.createElement(tag); if(text!==undefined)node.textContent=text; if(className)node.className=className; return node; }
-export function connect(role, onState, onError) {
+export function connect(role, onState, onError, onOpen) {
   let socket;
   function open(){
     socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws?role=${role}`);
-    socket.onopen=()=>{$('connection').textContent='Connected';$('connection').classList.add('online');};
+    socket.onopen=()=>{$('connection').textContent='Connected';$('connection').classList.add('online');onOpen?.();};
     socket.onmessage=e=>{const data=JSON.parse(e.data);if(data.type==='state')onState(data);else onError(data.message);};
     socket.onclose=e=>{$('connection').textContent='Disconnected';$('connection').classList.remove('online');if(e.code!==4001)setTimeout(open,1500);};
   }

@@ -4,7 +4,7 @@ Home karaoke: pick YouTube songs on your phone, watch the original muted video o
 
 ## Run
 
-Requires `uv`, Node.js 22+ (Node 25 works), `ffmpeg`/`ffprobe`, an NVIDIA driver supporting CUDA 12.8, and network access. Python 3.12 is pinned; `uv` installs it when needed. PyTorch and torchaudio are pinned to 2.7.1 from the CUDA 12.8 index for the RTX 5070.
+Requires `uv`, Node.js 22+ (Node 25 works), `ffmpeg`/`ffprobe`, network access, and on Linux/Windows an NVIDIA driver supporting CUDA 12.8 (see macOS below). Python 3.12 is pinned; `uv` installs it when needed. PyTorch and torchaudio are pinned to 2.7.1 from the CUDA 12.8 index for the RTX 5070.
 
 ```bash
 cd ~/Work/KTVibes
@@ -12,6 +12,18 @@ uv sync
 uv run python -c "import torch; print(torch.__version__, torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 uv run uvicorn ktvibes.main:app --host 0.0.0.0 --port 8765
 ```
+
+### macOS (Apple Silicon)
+
+No NVIDIA driver is needed. On macOS, `uv sync` installs the standard PyTorch 2.7.1 wheels, and Demucs runs on the Mac GPU (MPS); forced alignment runs on the CPU. Other machines without CUDA fall back to the CPU for both. Install the tools with `brew install uv ffmpeg`, then:
+
+```bash
+uv sync
+uv run python -c "import torch; print(torch.__version__, torch.backends.mps.is_available())"
+uv run uvicorn ktvibes.main:app --host 0.0.0.0 --port 8765
+```
+
+uv's standalone Python on macOS has no CA bundle, so `ktvibes/__init__.py` sets `SSL_CERT_FILE` to certifi's bundle for model and NLTK downloads. Measured on an M1 Pro: separating a 6:00 song took 33.6 s with the model loaded, or 48.5 s on the first run, which also loads the model (the 80 MB weights were downloaded in that same run).
 
 Run one server process (no `--workers`): queue state and the GPU model live in memory.
 

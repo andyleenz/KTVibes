@@ -3,10 +3,15 @@ const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let guide,state,currentKey=null,context,musicGain,voiceGain,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
 const error=text=>$('tv-error').textContent=text;
-const send=connect('tv',render,error);
+// This screen remembers its own display settings and restores them each time it (re)connects.
+const SETTINGS='ktvibes.tv-settings';let restoring=false;
+const send=connect('tv',render,error,()=>restoring=true);
+function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
+function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify({lyric_scale:s.lyric_scale,vocal:s.vocal,guide:s.guide}));}catch{}}
+function restore(s){const mine=saved();for(const [action,value] of [['lyric_scale',mine.lyric_scale],['vocal',mine.vocal],['guide',mine.guide]])if(value!==undefined&&value!==s[action])send({action,value});}
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(voiceGain)voiceGain.gain.value=state.vocal;
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(voiceGain)voiceGain.gain.value=state.vocal;
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${i.status}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
