@@ -1,0 +1,33 @@
+[project]
+name = "ktvibes"
+version = "0.1.0"
+description = "At-home karaoke with a phone remote"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "yt-dlp[default]",
+    "demucs==4.0.1",
+    "torch==2.7.1",
+    "torchaudio==2.7.1",
+    "httpx",
+    "qrcode",
+    "soundfile",
+    "pypinyin>=0.55.0",
+]
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio"]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]

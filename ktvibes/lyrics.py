@@ -1,0 +1,134 @@
+"""Unicode LRC support. Run: uv run python -m ktvibes.lyrics ARTIST TITLE SECONDS"""
+import asyncio
+import json
+import re
+import sys
+
+STAMP = re.compile(r"\[(\d+):(\d+(?:\.\d+)?)\]")
+WORD_STAMP = re.compile(r"<(\d+):(\d+(?:\.\d+)?)>")
+# Chinese/Japanese/Korean highlight per character; other scripts per word.
+CJK = "\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef"
+UNIT = re.compile(rf"[{CJK}]\s*|[^\s{CJK}]+\s*|\s+")
+
+def split_units(text: str) -> list[str]:
+    return UNIT.findall(text)
+
+def weight(unit: str) -> int:
+    """Rough sung length: one per CJK character, one per vowel group in other words."""
+    return max(1, len(re.findall(r"[aeiouyà-ÿ]+", unit, re.I))) if re.search(rf"[^\s{CJK}]", unit) else 1
+
+def parse_lrc(raw: str) -> list[dict]:
+    offset = re.search(r"\[offset:([+-]?\d+)\]", raw, re.I)
+    shift = int(offset[1]) / 1000 if offset else 0
+    lines = []
+    for line in raw.splitlines():
+        stamps = STAMP.findall(line)
+        body = STAMP.sub("", line).strip()
+        # Enhanced LRC: "<mm:ss.xx>word" gives real per-word timing.
+        pieces = WORD_STAMP.split(body)
+        text = "".join(pieces[::3]).strip()
+        words = [[pieces[i + 2], max(0, int(pieces[i]) * 60 + float(pieces[i + 1]) + shift)] for i in range(1, len(pieces) - 2, 3) if pieces[i + 2]]
+        for minute, second in stamps:
+            entry = {"t": max(0, int(minute) * 60 + float(second) + shift), "text": text}
+            if words and len(stamps) == 1:
+                entry["units"] = [[w, start, None] for w, start in words]
+            lines.append(entry)
+    lines.sort(key=lambda line: line["t"])
+    for line, following in zip(lines, lines[1:] + [None]):
+        units = line.get("units")
+        if units:
+            for unit, after in zip(units, units[1:] + [None]):
+                unit[2] = after[1] if after else min(following["t"] if following else unit[1] + 1, unit[1] + 1.5)
+    return lines
+
+def add_pinyin(lines: list[dict]) -> list[dict]:
+    """Append tone-marked pinyin to each unit; whole-line context picks polyphone readings (还是 hái, 了解 liǎo)."""
+    from pypinyin import Style, lazy_pinyin
+    for line in lines:
+        units = line.get("units")
+        if not units or not re.search(r"[\u3400-\u9fff\uf900-\ufaff]", line["text"]):
+            continue
+        text = "".join(u[0] for u in units)
+        readings = iter(lazy_pinyin(text, style=Style.TONE, errors=lambda s: [""] * len(s)))
+        for unit in units:
+            unit[3:] = [" ".join(filter(None, (next(readings) for _ in unit[0])))]
+    return lines
+
+def envelope(samples, rate: int, hop: float = 0.05):
+    """RMS of the (mono) vocal stem in hop-second frames."""
+    import numpy as np
+    mono = np.asarray(samples, dtype=np.float32)
+    mono = mono.mean(axis=1) if mono.ndim == 2 else mono
+    size = max(1, int(rate * hop))
+    frames = mono[: len(mono) // size * size].reshape(-1, size)
+    return np.sqrt((frames ** 2).mean(axis=1))
+
+def time_units(lines: list[dict], energy, hop: float = 0.05) -> list[dict]:
+    """Spread each line's characters/words over the time the vocal stem is audible.
+
+    LRCLIB is mostly line-timed; the separated vocals tell us when singing
+    happens inside each line, so the wipe pauses on breaths and gaps.
+    """
+    import numpy as np
+    energy = np.asarray(energy)
+    floor = float(np.percentile(energy, 95)) * 0.04 if len(energy) else 0
+    for index, line in enumerate(lines):
+        if line.get("units") or not line["text"]:
+            continue
+        units = split_units(line["text"])
+        start = line["t"]
+        end = lines[index + 1]["t"] if index + 1 < len(lines) else start + 8
+        end = min(end, start + 15)
+        window = energy[int(start / hop): max(int(start / hop) + 1, int(end / hop))]
+        active = window > max(floor, float(np.percentile(window, 90)) * 0.25) if len(window) else window
+        if active.sum() < 4:
+            active = np.ones(max(1, int(min(end - start, len(units) * 0.4) / hop)), bool)
+        clock = np.cumsum(active) * hop  # singing time elapsed at each frame end
+        total = clock[-1]
+        weights = np.cumsum([0] + [weight(u) for u in units]) / sum(weight(u) for u in units)
+        def at(fraction, side):
+            # "right": first frame singing past this point (a unit starts when singing resumes);
+            # "left": frame where this point is reached (a unit ends when its singing finishes).
+            frame = int(np.searchsorted(clock, fraction * total + (1e-9 if side == "right" else -1e-9), side))
+            return round(start + min(frame, len(clock) - 1) * hop + (hop if side == "left" else 0), 2)
+        line["units"] = [[unit, at(weights[i], "right") if i else start, at(weights[i + 1], "left")] for i, unit in enumerate(units)]
+    return lines
+
+def variants(name: str) -> list[str]:
+    """'아이유(IU)' -> ['아이유(IU)', '아이유', 'IU']; '安靜 Silence' -> [..., '安靜', 'Silence'].
+
+    LRCLIB often stores only one script of a bilingual name.
+    """
+    parts = [name, *re.split(r"\s*[(（]\s*|\s*[)）]\s*", name)]
+    parts += re.findall(rf"[{CJK}][{CJK}\s]*", name) + re.findall(rf"[^\s{CJK}()（）][^{CJK}()（）]*", name)
+    return list(dict.fromkeys(p.strip() for p in parts if p.strip()))
+
+def rank(candidate: dict, titles: list[str], duration: float) -> tuple:
+    track = candidate.get("trackName", "").casefold()
+    return (not any(t.casefold() in track for t in titles), "instrumental" in track, abs(float(candidate["duration"]) - duration))
+
+async def fetch(artist: str, title: str, duration: float) -> dict:
+    import httpx
+    def fits(c):
+        # Some LRCLIB records put untimed text in syncedLyrics; require real timestamps.
+        return STAMP.search(c.get("syncedLyrics") or "") and abs(float(c.get("duration") or 0) - duration) <= 3
+    artists, titles = variants(artist), variants(title)
+    candidates = []
+    async with httpx.AsyncClient(base_url="https://lrclib.net", timeout=20, headers={"User-Agent": "KTVibes/0.1 (home karaoke)"}) as client:
+        response = await client.get("/api/get", params={"artist_name": artist, "track_name": title, "duration": round(duration)})
+        if response.status_code == 200:
+            candidates.append(response.json())
+        searches = [{"artist_name": a, "track_name": t} for a in artists for t in titles] + [{"q": f"{a} {t}"} for a in artists for t in titles]
+        for params in searches:
+            if any(map(fits, candidates)):
+                break
+            response = await client.get("/api/search", params=params)
+            response.raise_for_status()
+            candidates += response.json()
+    matches = [c for c in candidates if fits(c)]
+    best = min(matches, key=lambda c: rank(c, titles, duration)) if matches else {}
+    raw = best.get("syncedLyrics", "")
+    return {"raw": raw, "lines": parse_lrc(raw)}
+
+if __name__ == "__main__":
+    print(json.dumps(asyncio.run(fetch(sys.argv[1], sys.argv[2], float(sys.argv[3]))), ensure_ascii=False, indent=2))
