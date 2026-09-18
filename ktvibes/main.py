@@ -53,9 +53,9 @@ async def get_state():
     return state.snapshot()
 
 @app.get("/api/search")
-async def search(q: str = Query(min_length=1, max_length=200)):
+async def search(q: str = Query(min_length=1, max_length=200), page: int = Query(0, ge=0, le=9)):
     try:
-        return await asyncio.to_thread(youtube.search, q)
+        return await asyncio.to_thread(youtube.search, q, page)
     except Exception as exc:
         raise HTTPException(502, f"YouTube search failed: {exc}") from exc
 
@@ -130,7 +130,8 @@ async def websocket(ws: WebSocket):
                 if not isinstance(message, dict):
                     raise ValueError("Expected a control object")
                 for field in ("value", "delta", "position"):
-                    if field in message and not math.isfinite(float(message[field])):
+                    # Text values (guide modes) pass through; State.control converts numbers itself.
+                    if isinstance(message.get(field), (int, float)) and not math.isfinite(message[field]):
                         raise ValueError("Expected a finite number")
                 await state.control(message, ws)
             except (ValueError, TypeError, KeyError) as exc:

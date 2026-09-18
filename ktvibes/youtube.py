@@ -16,10 +16,13 @@ def parse_title(title: str, channel: str = "") -> dict:
     parts = re.split(r"\s+[-–—｜|]\s+", clean, maxsplit=1)
     return {"artist": parts[0] if len(parts) == 2 else re.sub(r"\s*- Topic$", "", channel), "title": parts[-1]}
 
-def search(query: str) -> list[dict]:
+def search(query: str, page: int = 0, size: int = 10) -> list[dict]:
+    """One page of results; YouTube search has no offset, so later pages fetch the earlier ones too."""
     import yt_dlp
-    with yt_dlp.YoutubeDL({"js_runtimes": {"node": {}}, "extract_flat": True, "quiet": True, "noprogress": True, "skip_download": True, "socket_timeout": 20}) as ydl:
-        result = ydl.extract_info(f"ytsearch10:{query}", download=False)
+    first, last = page * size + 1, (page + 1) * size
+    with yt_dlp.YoutubeDL({"js_runtimes": {"node": {}}, "extract_flat": True, "quiet": True, "noprogress": True, "skip_download": True,
+                           "socket_timeout": 20, "playlist_items": f"{first}-{last}"}) as ydl:
+        result = ydl.extract_info(f"ytsearch{last}:{query}", download=False)
     return [{"id": e["id"], "title": e.get("title", "Untitled"), "channel": e.get("channel") or e.get("uploader", ""),
              "duration": e.get("duration"), "thumbnail": f'https://i.ytimg.com/vi/{e["id"]}/mqdefault.jpg',
              "parsed": parse_title(e.get("title", ""), e.get("channel") or e.get("uploader", ""))}

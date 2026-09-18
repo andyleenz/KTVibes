@@ -16,6 +16,23 @@ class LyricsTests(unittest.TestCase):
         self.assertEqual(parse_title('봄날', '방탄소년단 - Topic'), {'artist': '방탄소년단', 'title': '봄날'})
 
 class QueueTests(unittest.IsolatedAsyncioTestCase):
+    async def test_guide_cycles_only_through_modes_with_content(self):
+        state = State()
+        a = await state.add('abcdefghijk', 'IU', '좋은 날')
+        a['status'], a['duration'] = 'ready', 100
+        a['lyrics'] = [{'t': 0, 'text': '좋은', 'units': [['좋', 0, 1, 'jo', ''], ['은', 1, 2, 'eun', '']]}]
+        state.promote()
+        self.assertEqual(state.guides(), ['off', 'latin'])
+        await state.control({'action': 'guide', 'value': 'cycle'})
+        self.assertEqual(state.guide, 'off')
+        await state.control({'action': 'guide', 'value': 'cycle'})
+        self.assertEqual(state.guide, 'latin')
+        with self.assertRaises(ValueError):
+            await state.control({'action': 'guide', 'value': 'klingon'})
+        state.guide = 'hangul'  # a mode this Korean song has nothing for
+        await state.control({'action': 'guide', 'value': 'cycle'})
+        self.assertEqual(state.guide, 'latin')
+
     async def test_seek_and_lyric_scale_are_clamped(self):
         state = State()
         with self.assertRaises(ValueError):
@@ -149,3 +166,30 @@ class LyricsMatchTests(unittest.TestCase):
         units = [['눈', 0, 1], ['물', 1, 2], ['이 ', 2, 3], ['좋', 3, 4], ['은', 4, 5]]
         add_korean_romanization([{'t': 0, 'text': '눈물이 좋은', 'units': units}])
         self.assertEqual([u[3] for u in units], ['nun', 'mu', 'ri', 'jo', 'eun'])
+
+    def test_aligner_letters_cover_all_scripts(self):
+        from ktvibes.align import spoken_letters
+        self.assertEqual(spoken_letters(['我', '好 ', '좋', '은 ', "Don't ", 'café', ', ']),
+                         ['wo', 'hao', 'jot', 'eun', "don't", 'cafe', ''])
+
+    def test_enhanced_lrc_voice_tag_and_end_stamp(self):
+        line = parse_lrc('[00:06.00]v2: <00:06.00>a<00:06.40>pateu <00:07.00>')[0]
+        self.assertEqual((line['text'], line['voice']), ('apateu', 'v2'))
+        self.assertEqual(line['units'], [['a', 6.0, 6.4], ['pateu ', 6.4, 7.0]])
+
+class GuideTests(unittest.TestCase):
+    def test_english_to_hangul(self):
+        from ktvibes.guides import english_hangul
+        self.assertEqual([english_hangul(w) for w in ['someone', 'kiss', 'lips', 'crazy', 'queen', 'sweet', "Don't,", 'tryna']],
+                         ['섬원', '키스', '립스', '크레이지', '퀸', '스위트', '돈트', ''])
+
+    def test_chinese_to_hangul_standard_table(self):
+        from ktvibes.guides import pinyin_hangul
+        self.assertEqual([pinyin_hangul(s) for s in ['qing', 'tian', 'zhou', 'jie', 'lun', 'zhi', 'si', 'yi', 'xue', 'lv']],
+                         ['칭', '톈', '저우', '제', '룬', '즈', '쓰', '이', '쉐', '뤼'])
+
+    def test_add_hangul_keeps_latin_slot(self):
+        from ktvibes.guides import add_hangul
+        units = [['晴', 0, 1, 'qíng'], ['天 ', 1, 2, 'tiān'], ['kiss', 2, 3]]
+        add_hangul([{'t': 0, 'text': '晴天 kiss', 'units': units}])
+        self.assertEqual([u[3:] for u in units], [['qíng', '칭'], ['tiān', '톈'], ['', '키스']])

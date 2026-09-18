@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 import soundfile as sf
-from . import youtube, lyrics
+from . import align, guides, youtube, lyrics
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,13 @@ async def run(state, cache: Path):
             if item["lyrics"]:
                 try:
                     samples, rate = await asyncio.to_thread(sf.read, folder / "vocals.wav", dtype="float32")
-                    item["lyrics"] = lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.time_units(item["lyrics"], lyrics.envelope(samples, rate))))
+                    try:
+                        # Forced alignment on the vocals; lines it cannot place keep the energy estimate.
+                        await asyncio.to_thread(align.align, item["lyrics"], samples, rate)
+                    except Exception:
+                        log.exception("Forced alignment unavailable for %s", item["id"])
+                    lyrics.time_units(item["lyrics"], lyrics.envelope(samples, rate))
+                    item["lyrics"] = guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(item["lyrics"])))
                 except Exception:
                     log.exception("Word timing unavailable for %s", item["id"])
             meta.update(duration=item["duration"], artist=item["artist"], title=item["title"])

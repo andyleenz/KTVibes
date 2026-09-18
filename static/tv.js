@@ -1,12 +1,12 @@
 import {$,el,connect,api,clock} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
-let state,currentKey=null,context,musicGain,voiceGain,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
+let guide,state,currentKey=null,context,musicGain,voiceGain,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
 const error=text=>$('tv-error').textContent=text;
 const send=connect('tv',render,error);
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;document.body.classList.toggle('pinyin',!!state.pinyin);document.body.classList.toggle('romanization',!!state.romanization);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(voiceGain)voiceGain.gain.value=state.vocal;
+ state=next;if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(voiceGain)voiceGain.gain.value=state.vocal;
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${i.status}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -22,7 +22,7 @@ function render(next){
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
    seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals.wav`;voice.src=`/media/${item.id}/vocals.wav`;music.load();voice.load();
    $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=item.title;$('next-artist').textContent=item.artist;
-   item.lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,reading] of line.units||[]){const span=el('span',undefined,reading?'unit ruby':'unit');if(reading){const ruby=el('ruby',text);ruby.append(el('rt',reading,/[\uac00-\ud7a3]/.test(text)?'ko':'zh'));span.append(ruby);}else span.textContent=text;p.append(span);}$('lyrics').append(p);});$('no-lyrics').hidden=!!item.lyrics.length;$('lyrics').hidden=!item.lyrics.length;$('duration').textContent=clock(item.duration);
+   item.lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul] of line.units||[]){const span=el('span',undefined,latin||hangul?'unit ruby':'unit');if(latin||hangul){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!item.lyrics.length;$('lyrics').hidden=!item.lyrics.length;$('duration').textContent=clock(item.duration);
   }else{video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').style.width='0%';}
  }
  if(state.current&&state.seek_id!==lastSeek){
@@ -103,3 +103,11 @@ document.querySelector('.track').onclick=e=>{
  const box=e.currentTarget.getBoundingClientRect();
  send({action:'seek',position:(e.clientX-box.left)/box.width*state.current.duration});
 };
+const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],hangul:['가','한글']};
+let badgeTimer;
+function showGuideBadge(mode){
+ const [icon,label]=GUIDE_BADGES[mode];$('guide-icon').textContent=icon;$('guide-label').textContent=label;
+ $('guide-badge').hidden=false;clearTimeout(badgeTimer);badgeTimer=setTimeout(()=>$('guide-badge').hidden=true,1500);
+}
+// "G" on a keyboard or remote also flips the guide.
+addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',value:'cycle'});});

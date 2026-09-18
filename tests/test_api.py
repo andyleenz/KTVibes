@@ -70,3 +70,9 @@ class APITests(unittest.TestCase):
                 self.assertEqual(new.receive_json()['type'], 'state')
                 self.assertEqual(old.receive_json()['message'], 'Another TV took over playback.')
                 self.assertTrue(self.main.state.player is not None)
+
+    def test_search_pages(self):
+        with patch.object(self.main.youtube, 'search', return_value=[]) as search:
+            self.assertEqual(self.client.get('/api/search', params={'q': '晴天', 'page': 2}).status_code, 200)
+            search.assert_called_once_with('晴天', 2)
+            self.assertEqual(self.client.get('/api/search', params={'q': 'x', 'page': 10}).status_code, 422)

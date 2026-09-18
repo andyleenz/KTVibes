@@ -5,6 +5,7 @@ import re
 import sys
 
 STAMP = re.compile(r"\[(\d+):(\d+(?:\.\d+)?)\]")
+VOICE = re.compile(r"(v\d+):\s*")
 WORD_STAMP = re.compile(r"<(\d+):(\d+(?:\.\d+)?)>")
 # Chinese/Japanese/Korean highlight per character; other scripts per word.
 CJK = "\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef"
@@ -25,20 +26,28 @@ def parse_lrc(raw: str) -> list[dict]:
         stamps = STAMP.findall(line)
         body = STAMP.sub("", line).strip()
         # Enhanced LRC: "<mm:ss.xx>word" gives real per-word timing.
+        # Enhanced LRC duet tags ("v1:", "v2:") name the singer; keep them out of the text.
+        voice = VOICE.match(body)
+        body = body[voice.end():] if voice else body
         pieces = WORD_STAMP.split(body)
         text = "".join(pieces[::3]).strip()
-        words = [[pieces[i + 2], max(0, int(pieces[i]) * 60 + float(pieces[i + 1]) + shift)] for i in range(1, len(pieces) - 2, 3) if pieces[i + 2]]
+        marks = [(pieces[i + 2], max(0, int(pieces[i]) * 60 + float(pieces[i + 1]) + shift)) for i in range(1, len(pieces) - 2, 3)]
+        # A trailing empty "<mm:ss>" marks when the last word ends.
+        words = [[w, start, marks[k + 1][1] if k + 1 < len(marks) else None] for k, (w, start) in enumerate(marks) if w]
         for minute, second in stamps:
             entry = {"t": max(0, int(minute) * 60 + float(second) + shift), "text": text}
+            if voice:
+                entry["voice"] = voice[1]
             if words and len(stamps) == 1:
-                entry["units"] = [[w, start, None] for w, start in words]
+                entry["units"], entry["exact"] = [list(w) for w in words], True
             lines.append(entry)
     lines.sort(key=lambda line: line["t"])
     for line, following in zip(lines, lines[1:] + [None]):
         units = line.get("units")
         if units:
             for unit, after in zip(units, units[1:] + [None]):
-                unit[2] = after[1] if after else min(following["t"] if following else unit[1] + 1, unit[1] + 1.5)
+                if unit[2] is None:
+                    unit[2] = after[1] if after else min(following["t"] if following else unit[1] + 1, unit[1] + 1.5)
     return lines
 
 def add_pinyin(lines: list[dict]) -> list[dict]:
