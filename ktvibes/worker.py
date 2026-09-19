@@ -12,6 +12,19 @@ def separate(source, destination):
     from .separate import separate as separate_audio
     return separate_audio(source, destination)
 
+def reporter(state, item, step):
+    """Progress callback for worker threads: record the step and fraction, broadcast at most twice a second."""
+    loop, last = asyncio.get_running_loop(), [0.0]
+    item["step"], item["progress"] = step, 0.0
+    def report(fraction):
+        def apply():
+            item["progress"] = fraction
+            if loop.time() - last[0] >= 0.5:
+                last[0] = loop.time()
+                asyncio.ensure_future(state.broadcast())
+        loop.call_soon_threadsafe(apply)
+    return report
+
 async def run(state, cache: Path):
     while True:
         state.wake.clear()
@@ -29,9 +42,10 @@ async def run(state, cache: Path):
                 meta = {}
             if not (folder / "video.mp4").is_file():
                 item["status"] = "downloading"
+                progress = reporter(state, item, "video")
                 await state.broadcast()
                 try:
-                    await asyncio.to_thread(youtube.download_video, item["id"], folder)
+                    await asyncio.to_thread(youtube.download_video, item["id"], folder, progress)
                 except Exception:
                     log.exception("Video unavailable for %s", item["id"])
                     item["video_warning"] = "Video unavailable; using the stage background."
@@ -39,13 +53,16 @@ async def run(state, cache: Path):
             stems_ready = all((folder / name).is_file() for name in ("vocals.wav", "no_vocals.wav"))
             if not stems_ready:
                 item["status"] = "downloading"
+                progress = reporter(state, item, "audio")
                 await state.broadcast()
                 if not (folder / "audio.m4a").is_file():
-                    meta.update(await asyncio.to_thread(youtube.download, item["id"], folder))
-                item["status"] = "separating"
+                    meta.update(await asyncio.to_thread(youtube.download, item["id"], folder, progress))
+                item["status"], item["step"], item["progress"] = "separating", None, None
                 await state.broadcast()
                 meta["separation_seconds"] = await asyncio.to_thread(separate, folder / "audio.m4a", folder)
             item["duration"] = sf.info(folder / "no_vocals.wav").duration
+            item["status"], item["step"], item["progress"] = "syncing", None, None
+            await state.broadcast()
             identity = [item["artist"], item["title"]]
             cached = (folder / "lyrics.lrc").read_text(encoding="utf-8") if (folder / "lyrics.lrc").is_file() else ""
             if meta.get("lyrics_identity") == identity and lyrics.parse_lrc(cached):
@@ -77,7 +94,7 @@ async def run(state, cache: Path):
             temporary = folder / "meta.tmp"
             temporary.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
             temporary.replace(meta_path)
-            item["status"] = "ready"
+            item["status"], item["step"], item["progress"] = "ready", None, None
             state.promote()
         except Exception as exc:
             log.exception("Preparation failed for %s", item["id"])

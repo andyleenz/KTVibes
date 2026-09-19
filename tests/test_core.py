@@ -14,6 +14,8 @@ class LyricsTests(unittest.TestCase):
         self.assertEqual(parse_title('아이유 - 좋은 날 (Official Audio)'), {'artist': '아이유', 'title': '좋은 날'})
         self.assertEqual(parse_title('周杰倫 Jay Chou【晴天 Sunny Day】-Official Music Video'), {'artist': '周杰倫 Jay Chou', 'title': '晴天 Sunny Day'})
         self.assertEqual(parse_title('봄날', '방탄소년단 - Topic'), {'artist': '방탄소년단', 'title': '봄날'})
+        self.assertEqual(parse_title('卓文萱 Genie Chuo&曹格 Gary Chaw【梁山伯與茱麗葉】華視偶像劇「戀愛女王」片尾曲', '滾石唱片 ROCK RECORDS'),
+                         {'artist': '卓文萱 Genie Chuo&曹格 Gary Chaw', 'title': '梁山伯與茱麗葉'})
 
 class QueueTests(unittest.IsolatedAsyncioTestCase):
     async def test_guide_cycles_only_through_modes_with_content(self):
@@ -45,18 +47,46 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await state.control({'action': 'lyric_scale', 'value': 9})
         self.assertEqual(state.lyric_scale, 1.8)
 
-    async def test_duplicate_songs_have_independent_identity(self):
+    async def test_duplicates_rejected_until_song_leaves_stage(self):
         state = State()
         a = await state.add('abcdefghijk', 'A', 'First')
-        b = await state.add('abcdefghijk', 'A', 'Second')
-        self.assertNotEqual(a['key'], b['key'])
-        a['status'] = b['status'] = 'ready'
+        with self.assertRaises(ValueError):
+            await state.add('abcdefghijk', 'A', 'Again')
+        a['status'] = 'ready'
         state.promote()
         self.assertIs(state.current, a)
+        self.assertIn('abcdefghijk', state.played)
         await state.control({'action': 'offset', 'delta': .5})
         await state.control({'action': 'skip'})
-        self.assertIs(state.current, b)
+        self.assertIsNone(state.current)
         self.assertEqual(state.offset, 0)
+        b = await state.add('abcdefghijk', 'A', 'Encore')
+        self.assertNotEqual(a['key'], b['key'])
+
+    async def test_queue_and_history_survive_restart(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'queue.json'
+            state = State()
+            state.restore(path, seed=lambda: {'zzzzzzzzzzz': 1.0})
+            self.assertEqual(state.played, {'zzzzzzzzzzz': 1.0})
+            a = await state.add('abcdefghijk', '周杰倫', '晴天')
+            await state.add('12345678901', '아이유', '좋은 날')
+            a['status'] = 'ready'
+            state.promote()
+            await state.control({'action': 'seek', 'position': 0})
+            state.position = 42.5
+            await state.broadcast()
+            again = State()
+            again.restore(path, seed=lambda: self.fail('history should come from the file'))
+            self.assertEqual([(i['id'], i['title'], i['status']) for i in again.upcoming],
+                             [('abcdefghijk', '晴天', 'queued'), ('12345678901', '좋은 날', 'queued')])
+            again.upcoming[0]['status'] = 'ready'
+            again.promote()
+            self.assertEqual(again.current['title'], '晴天')
+            self.assertEqual(again.position, 42.5)
+            self.assertIn('zzzzzzzzzzz', again.played)
 
     async def test_order_waits_for_first_and_skips_error(self):
         state = State()

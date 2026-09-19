@@ -1,10 +1,13 @@
 """All state mutations run on the event loop; queue entries have unique identities."""
 import asyncio
+import json
 import math
+from pathlib import Path
 import time
 import uuid
 
 GUIDES = ("off", "latin", "hangul")
+HISTORY = 200  # remembered plays, for the remote's "Recently sung" list
 
 def number(value) -> float:
     """Control values arrive as JSON; reject text and NaN/inf before clamping."""
@@ -30,6 +33,8 @@ class State:
         self.wake = asyncio.Event()
         self.revision = 0
         self.broadcast_lock = asyncio.Lock()
+        self.path = None  # queue.json; set by restore() so the queue survives restarts
+        self.played = {}  # video id -> unix time the song last went on stage
 
     def guides(self):
         """Guide modes with something to show for the current song (all of them when idle)."""
@@ -44,9 +49,42 @@ class State:
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "revision": self.revision}
 
+    def restore(self, path: Path, seed=lambda: {}):
+        """Reload the saved queue; songs are prepared again (fast from cache) and the current one resumes."""
+        self.path = path
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            saved = {}
+        # Before play history existed, fall back to whatever seed() knows (e.g. cache timestamps).
+        self.played = saved["played"] if isinstance(saved.get("played"), dict) else seed()
+        entries = saved.get("upcoming", [])
+        if saved.get("current"):
+            entries = [saved["current"], *entries]
+        for entry in entries:
+            item = self.entry(entry["id"], entry["artist"], entry["title"])
+            if entry is saved.get("current"):
+                item["resume"] = float(entry.get("position") or 0)
+            self.upcoming.append(item)
+        self.wake.set()
+
+    def save(self):
+        if self.path is None:
+            return
+        brief = lambda i: {"id": i["id"], "artist": i["artist"], "title": i["title"]}
+        data = {"current": self.current and {**brief(self.current), "position": self.position},
+                "upcoming": [brief(i) for i in self.upcoming if i["status"] != "error"], "played": self.played}
+        temporary = self.path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        temporary.replace(self.path)
+
     async def broadcast(self):
         async with self.broadcast_lock:
             self.revision += 1
+            try:
+                self.save()
+            except OSError:
+                pass  # a full disk should not stop the party
             message = {"type": "state", **self.snapshot()}
             async def send(ws):
                 try:
@@ -70,13 +108,25 @@ class State:
             if candidate and candidate["status"] == "ready":
                 self.upcoming.remove(candidate)
                 self.current = candidate
-                self.position = 0
+                self.position = candidate.pop("resume", 0)
+                self.played[candidate["id"]] = time.time()
+                if len(self.played) > HISTORY:
+                    self.played = dict(sorted(self.played.items(), key=lambda p: p[1])[-HISTORY:])
                 self.offset = 0
                 self.transition_until = max(self.transition_until, time.time() + 5)
 
-    async def add(self, video_id, artist, title):
-        item = {"key": uuid.uuid4().hex, "id": video_id, "artist": artist, "title": title,
+    @staticmethod
+    def entry(video_id, artist, title):
+        return {"key": uuid.uuid4().hex, "id": video_id, "artist": artist, "title": title,
                 "status": "queued", "lyrics": [], "duration": 0, "error": None}
+
+    def queued(self, video_id):
+        return any(i and i["id"] == video_id and i["status"] != "error" for i in (self.current, *self.upcoming))
+
+    async def add(self, video_id, artist, title):
+        if self.queued(video_id):
+            raise ValueError("That song is already in the queue")
+        item = self.entry(video_id, artist, title)
         self.upcoming.append(item)
         self.wake.set()
         await self.broadcast()

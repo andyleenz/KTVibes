@@ -11,8 +11,8 @@ ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 def parse_title(title: str, channel: str = "") -> dict:
     clean = re.sub(r"\s*[\[(（【][^\])）】]*(?:official|music video|lyrics?|mv|audio|官方|歌詞|歌词|뮤직비디오)[^\])）】]*[\])）】]", "", title, flags=re.I).strip()
     clean = re.sub(r"\s*[-–—|｜]?\s*(?:official\s+)?(?:music\s+video|mv|lyric video)\s*$", "", clean, flags=re.I).strip()
-    bracketed = re.fullmatch(r"(.+?)\s*【([^】]+)】", clean)
-    if bracketed:  # "周杰倫 Jay Chou【晴天 Sunny Day】"
+    bracketed = re.match(r"(.+?)\s*【([^】]+)】", clean)
+    if bracketed:  # "周杰倫 Jay Chou【晴天 Sunny Day】", even with a trailing "華視偶像劇…片尾曲"
         return {"artist": bracketed[1], "title": bracketed[2]}
     parts = re.split(r"\s+[-–—｜|]\s+", clean, maxsplit=1)
     return {"artist": parts[0] if len(parts) == 2 else re.sub(r"\s*- Topic$", "", channel), "title": parts[-1]}
@@ -29,9 +29,18 @@ def search(query: str, page: int = 0, size: int = 10) -> list[dict]:
              "parsed": parse_title(e.get("title", ""), e.get("channel") or e.get("uploader", ""))}
             for e in result.get("entries", []) if e and ID.fullmatch(e.get("id", ""))]
 
-def _extract(options: dict, video_id: str, attempts: int = 4) -> dict:
-    """Download with fresh stream URLs on HTTP 403, which YouTube returns intermittently."""
+def _extract(options: dict, video_id: str, progress=None, attempts: int = 4) -> dict:
+    """Download with fresh stream URLs on HTTP 403, which YouTube returns intermittently.
+
+    progress(fraction) is called from yt-dlp's download thread.
+    """
     import yt_dlp
+    if progress:
+        def hook(d):
+            total = d.get("total_bytes") or d.get("total_bytes_estimate")
+            if d.get("status") == "downloading" and total:
+                progress(min(1.0, d.get("downloaded_bytes", 0) / total))
+        options = {**options, "progress_hooks": [hook]}
     for attempt in range(attempts):
         try:
             with yt_dlp.YoutubeDL(options) as ydl:
@@ -41,16 +50,16 @@ def _extract(options: dict, video_id: str, attempts: int = 4) -> dict:
                 raise
             time.sleep(3 * (attempt + 1))
 
-def download(video_id: str, directory: Path) -> dict:
+def download(video_id: str, directory: Path, progress=None) -> dict:
     if not ID.fullmatch(video_id):
         raise ValueError("Invalid YouTube ID")
     directory.mkdir(parents=True, exist_ok=True)
     info = _extract({"js_runtimes": {"node": {}}, "format": "bestaudio[ext=m4a]/bestaudio", "outtmpl": str(directory / "audio.%(ext)s"),
                      "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
-                     "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "m4a"}]}, video_id)
+                     "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "m4a"}]}, video_id, progress)
     return {"duration": info.get("duration"), "source_title": info.get("title", "")}
 
-def download_video(video_id: str, directory: Path) -> None:
+def download_video(video_id: str, directory: Path, progress=None) -> None:
     """Cache browser-compatible H.264 video with no embedded audio."""
     if not ID.fullmatch(video_id):
         raise ValueError("Invalid YouTube ID")
@@ -60,7 +69,7 @@ def download_video(video_id: str, directory: Path) -> None:
         "js_runtimes": {"node": {}},
         "format": "bestvideo[ext=mp4][vcodec^=avc1][height<=1080]/best[ext=mp4][vcodec^=avc1][height<=720]",
         "outtmpl": str(source), "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
-    }, video_id)
+    }, video_id, progress)
     temporary = directory / "video.tmp.mp4"
     subprocess.run(["ffmpeg", "-nostdin", "-y", "-i", str(source), "-map", "0:v:0", "-an",
                     "-c:v", "copy", "-movflags", "+faststart", str(temporary)],

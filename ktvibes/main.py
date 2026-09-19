@@ -22,6 +22,7 @@ state = State()
 @asynccontextmanager
 async def lifespan(app):
     CACHE.mkdir(parents=True, exist_ok=True)
+    state.restore(CACHE / "queue.json", seed=lambda: {id: meta["prepared"] for id, meta in prepared_songs().items()})
     task = asyncio.create_task(worker.run(state, CACHE))
     try:
         yield
@@ -73,10 +74,9 @@ class Song(BaseModel):
             raise ValueError("Artist and title must not be blank")
         return value
 
-@app.get("/api/recent")
-async def recent(limit: int = Query(20, ge=1, le=50)):
-    """Prepared songs, newest first, so the remote can re-queue them without a search."""
-    songs = []
+def prepared_songs() -> dict:
+    """Cached songs with stems and confirmed details, by video id."""
+    songs = {}
     for meta_path in CACHE.glob("*/meta.json"):
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -85,15 +85,25 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
             continue
         video_id = meta_path.parent.name
         if youtube.ID.fullmatch(video_id) and meta.get("artist") and meta.get("title") and (meta_path.parent / "no_vocals.wav").is_file():
-            songs.append((prepared, {"id": video_id, "artist": meta["artist"], "title": meta["title"], "duration": meta.get("duration"),
-                                     "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"}))
-    return [song for _, song in sorted(songs, key=lambda s: s[0], reverse=True)[:limit]]
+            songs[video_id] = {"id": video_id, "artist": meta["artist"], "title": meta["title"], "duration": meta.get("duration"),
+                               "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg", "prepared": prepared}
+    return songs
+
+@app.get("/api/recent")
+async def recent(limit: int = Query(20, ge=1, le=50)):
+    """Songs that went on stage, most recent first, so the remote can re-queue them without a search."""
+    songs = prepared_songs()
+    played = sorted((when, video_id) for video_id, when in state.played.items() if video_id in songs)
+    return [{k: v for k, v in songs[video_id].items() if k != "prepared"} for _, video_id in reversed(played[-limit:])]
 
 @app.post("/api/queue", status_code=201)
 async def enqueue(song: Song):
     if len(state.upcoming) >= 100:
         raise HTTPException(409, "Queue is full")
-    return await state.add(song.id, song.artist, song.title)
+    try:
+        return await state.add(song.id, song.artist, song.title)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 @app.get("/media/{video_id}/{filename}")
 async def media(video_id: str, filename: str):

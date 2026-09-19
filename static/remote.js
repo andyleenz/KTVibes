@@ -1,13 +1,16 @@
 import {$,el,connect,api,clock} from './shared.js';
 let state;
 const GUIDE_NAMES={off:'Off',latin:'Romanization',hangul:'한글'};
-const message=text=>$('message').textContent=text;
+// Messages also flash in the mini-player, since the status line is off screen when it shows.
+let noteTimer;
+const message=text=>{$('message').textContent=text;$('mini-note').textContent=text;clearTimeout(noteTimer);noteTimer=setTimeout(()=>{noteTimer=null;showMini();},3000);};
 const send=connect('remote',render,message);
 function render(next){
  state=next;$('now-title').textContent=state.current?.title||'The stage is yours';$('now-artist').textContent=state.current?.artist||'Queue a song to get started.';
  $('player-status').textContent=state.player_connected?'TV CONNECTED':'OPEN /TV TO START SINGING';$('play').textContent=state.playing?'Pause':'Play';
  $('guide').textContent=`${GUIDE_NAMES[state.guide]} ⟳`;state.received=Date.now()/1000;if(document.activeElement!==$('lyric-scale'))$('lyric-scale').value=state.lyric_scale;$('lyric-scale-value').textContent=`${Math.round(state.lyric_scale*100)}%`;$('scrub').max=state.current?.duration||1;$('scrub').disabled=!state.current;$('length').textContent=clock(state.current?.duration);showPosition();if(document.activeElement!==$('vocal'))$('vocal').value=state.vocal;
  $('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;
+ showMini();
  $('queue-count').textContent=state.upcoming.length;$('queue').replaceChildren();
  state.upcoming.forEach((item,index)=>{
   const row=el('article',undefined,'queue-row');row.append(el('span',String(index+1).padStart(2,'0'),'number'));
@@ -34,7 +37,7 @@ const enqueue=song=>api('/api/queue',{method:'POST',headers:{'Content-Type':'app
 // One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs).
 function showResult(song,list=$('results')){
  const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');info.append(el('strong',song.title),el('small',`${song.channel} · ${clock(song.duration)}`));b.append(image,info,el('span','+'));
- b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});b.lastChild.textContent='✓';message(`Added ${song.parsed.title} to your setlist.`);}catch(error){message(error.message);}finally{b.disabled=false;}};
+ b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});b.lastChild.textContent='✓';message(`Added ${song.parsed.title} to your setlist.`);}catch(error){b.lastChild.textContent='!';message(error.message);}finally{b.disabled=false;}};
  list.append(b);
 }
 async function loadPage(){
@@ -63,3 +66,12 @@ setInterval(showPosition,500);
 $('scrub').oninput=()=>{scrubbing=true;$('position').textContent=clock(Number($('scrub').value));};
 $('scrub').onchange=()=>{scrubbing=false;send({action:'seek',position:Number($('scrub').value)});};
 $('guide').onclick=()=>send({action:'guide',value:'cycle'});
+// Sticky controls once "Now on stage" scrolls out of view.
+let stageVisible=true;
+function showMini(){
+ $('mini').hidden=stageVisible||!state?.current;document.body.classList.toggle('has-mini',!$('mini').hidden);
+ $('mini-title').textContent=state?.current?.title||'';$('mini-play').textContent=state?.playing?'Pause':'Play';
+ if(!noteTimer)$('mini-note').textContent=state?.current?.artist||'';
+}
+new IntersectionObserver(([entry])=>{stageVisible=entry.isIntersecting;showMini();}).observe(document.querySelector('.now'));
+$('mini-play').onclick=()=>$('play').click();$('mini-skip').onclick=()=>$('skip').click();

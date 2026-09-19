@@ -31,19 +31,27 @@ class APITests(unittest.TestCase):
             item.stop()
         self.temp.cleanup()
 
-    def test_recent_lists_prepared_songs_newest_first(self):
-        import json, os
+    def test_recent_lists_played_songs_newest_first(self):
+        import json
         cache = Path(self.temp.name)
-        for index, (video_id, stems) in enumerate([('aaaaaaaaaaa', True), ('bbbbbbbbbbb', True), ('ccccccccccc', False)]):
+        for index, (video_id, stems) in enumerate([('aaaaaaaaaaa', True), ('bbbbbbbbbbb', True), ('ccccccccccc', False), ('ddddddddddd', True)]):
             folder = cache / video_id
             folder.mkdir()
             (folder / 'meta.json').write_text(json.dumps({'artist': '아이유', 'title': f'Song {index}'}), encoding='utf-8')
-            os.utime(folder / 'meta.json', (index, index))
             if stems:
                 (folder / 'no_vocals.wav').touch()
+        # ddd is prepared but never played; ccc was played but its stems are gone.
+        self.main.state.played = {'aaaaaaaaaaa': 1.0, 'bbbbbbbbbbb': 2.0, 'ccccccccccc': 3.0}
         songs = self.client.get('/api/recent').json()
         self.assertEqual([s['id'] for s in songs], ['bbbbbbbbbbb', 'aaaaaaaaaaa'])
         self.assertEqual(songs[0]['artist'], '아이유')
+
+    def test_duplicate_queue_request_conflicts(self):
+        song = {'id': 'abcdefghijk', 'artist': 'IU', 'title': '좋은 날'}
+        self.assertEqual(self.client.post('/api/queue', json=song).status_code, 201)
+        response = self.client.post('/api/queue', json=song)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('already', response.json()['detail'])
 
     def test_unicode_input_validation_and_static_pages(self):
         for route in ('/', '/tv', '/static/tv.js', '/api/qr.svg'):

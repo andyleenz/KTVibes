@@ -161,14 +161,15 @@ async def fetch(artist: str, title: str, duration: float) -> dict:
     import httpx
     def fits(c):
         # Some LRCLIB records put untimed text in syncedLyrics; require real timestamps.
-        return STAMP.search(c.get("syncedLyrics") or "") and abs(float(c.get("duration") or 0) - duration) <= 3
+        # Music videos often run a few seconds longer than the album track; alignment re-times the lines.
+        return STAMP.search(c.get("syncedLyrics") or "") and abs(float(c.get("duration") or 0) - duration) <= 10
     artists, titles = variants(artist), variants(title)
     candidates = []
     async with httpx.AsyncClient(base_url="https://lrclib.net", timeout=20, headers={"User-Agent": "KTVibes/0.1 (home karaoke)"}) as client:
         response = await client.get("/api/get", params={"artist_name": artist, "track_name": title, "duration": round(duration)})
         if response.status_code == 200:
             candidates.append(response.json())
-        searches = [{"artist_name": a, "track_name": t} for a in artists for t in titles] + [{"q": f"{a} {t}"} for a in artists for t in titles]
+        searches = [{"artist_name": a, "track_name": t} for a in artists for t in titles] + [{"q": f"{a} {t}"} for a in artists for t in titles] + [{"track_name": t} for t in titles]
         failure = None
         for params in searches:
             if any(map(fits, candidates)):

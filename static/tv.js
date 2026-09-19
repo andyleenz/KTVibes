@@ -16,6 +16,7 @@ function render(next){
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${i.status}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
  if(!queued.length)$('on-deck').append(el('li','Queue a song from your phone','more'));
+ showPrep(queued);
  $('now-card').hidden=!state.current;
  // The idle screen already shows a large QR code.
  $('corner-join').hidden=!state.current;
@@ -116,3 +117,13 @@ function showGuideBadge(mode){
 }
 // "G" on a keyboard or remote also flips the guide.
 addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',value:'cycle'});});
+// Songs download and separate one at a time; show the one in progress so a wait never looks like a hang.
+const STEPS={queued:'Waiting to download',downloading:'Downloading',separating:'Separating vocals',syncing:'Finding lyrics'};
+function showPrep(queued){
+ const item=queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
+ $('prep').hidden=!item;if(!item)return;
+ const percent=item.progress?Math.round(item.progress*100):null;  // 0 while yt-dlp is still extracting
+ $('prep-step').textContent=`${STEPS[item.status]||item.status}${item.step?` ${item.step}`:''}${percent==null?'':` · ${percent}%`}`;
+ $('prep-title').textContent=item.title;
+ $('prep-bar').parentElement.classList.toggle('busy',percent==null);$('prep-bar').style.width=percent==null?'':`${percent}%`;
+}
