@@ -1,5 +1,5 @@
 import {$,el,connect,api,clock} from './shared.js';
-let state,selected;
+let state;
 const GUIDE_NAMES={off:'Off',latin:'Romanization',hangul:'한글'};
 const message=text=>$('message').textContent=text;
 const send=connect('remote',render,message);
@@ -19,7 +19,7 @@ function render(next){
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
  if(ready!==readyKeys){readyKeys=ready;loadRecent();}
 }
-// Songs already prepared on the server; picking one reuses the add dialog so details stay editable.
+// Songs already prepared on the server, newest first.
 let readyKeys;
 async function loadRecent(){
  try{
@@ -30,7 +30,13 @@ async function loadRecent(){
 }
 // Search in pages of 10; "Load more" appends the next page.
 let search={query:'',page:0,seen:new Set()};
-function showResult(song,list=$('results')){const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');info.append(el('strong',song.title),el('small',`${song.channel} · ${clock(song.duration)}`));b.append(image,info,el('span','+'));b.onclick=()=>{selected=song;$('artist').value=song.parsed.artist;$('title').value=song.parsed.title;$('edit-error').textContent='';$('edit').showModal();};list.append(b);}
+const enqueue=song=>api('/api/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title})});
+// One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs).
+function showResult(song,list=$('results')){
+ const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');info.append(el('strong',song.title),el('small',`${song.channel} · ${clock(song.duration)}`));b.append(image,info,el('span','+'));
+ b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});b.lastChild.textContent='✓';message(`Added ${song.parsed.title} to your setlist.`);}catch(error){message(error.message);}finally{b.disabled=false;}};
+ list.append(b);
+}
 async function loadPage(){
  const button=search.page?$('more'):$('search-button');button.disabled=true;message(search.page?'Loading more…':'Searching YouTube…');
  try{
@@ -42,8 +48,7 @@ async function loadPage(){
 }
 $('search-form').onsubmit=e=>{e.preventDefault();search={query:$('query').value.trim(),page:0,seen:new Set()};$('results').replaceChildren();$('more').hidden=true;loadPage();};
 $('more').onclick=()=>{search.page++;loadPage();};
-$('add-form').onsubmit=async e=>{e.preventDefault();$('add-button').disabled=true;try{await api('/api/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selected.id,artist:$('artist').value.trim(),title:$('title').value.trim()})});$('edit').close();message('Added to your setlist.');}catch(error){$('edit-error').textContent=error.message;}finally{$('add-button').disabled=false;}};
-$('cancel').onclick=()=>$('edit').close();$('play').onclick=()=>send({action:state?.playing?'pause':'play'});$('skip').onclick=()=>send({action:'skip'});
+$('play').onclick=()=>send({action:state?.playing?'pause':'play'});$('skip').onclick=()=>send({action:'skip'});
 $('earlier').onclick=()=>send({action:'offset',delta:-0.5});$('later').onclick=()=>send({action:'offset',delta:0.5});$('vocal').oninput=()=>send({action:'vocal',value:Number($('vocal').value)});
 $('lyric-scale').oninput=()=>send({action:'lyric_scale',value:Number($('lyric-scale').value)});
 // Estimate the TV position between its two-second progress reports.
