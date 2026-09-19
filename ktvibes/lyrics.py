@@ -169,12 +169,24 @@ async def fetch(artist: str, title: str, duration: float) -> dict:
         if response.status_code == 200:
             candidates.append(response.json())
         searches = [{"artist_name": a, "track_name": t} for a in artists for t in titles] + [{"q": f"{a} {t}"} for a in artists for t in titles]
+        failure = None
         for params in searches:
             if any(map(fits, candidates)):
                 break
-            response = await client.get("/api/search", params=params)
-            response.raise_for_status()
-            candidates += response.json()
+            # LRCLIB intermittently returns 5xx; retry, then move on to the next variant.
+            for attempt in range(3):
+                try:
+                    response = await client.get("/api/search", params=params)
+                    response.raise_for_status()
+                    candidates += response.json()
+                    break
+                except (httpx.TransportError, httpx.HTTPStatusError) as error:
+                    failure = error
+                    if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+                        break
+                    await asyncio.sleep(1 + attempt)
+        if failure and not candidates:
+            raise failure
     matches = [c for c in candidates if fits(c)]
     best = min(matches, key=lambda c: rank(c, titles, duration)) if matches else {}
     raw = best.get("syncedLyrics", "")

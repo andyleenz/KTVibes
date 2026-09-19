@@ -31,6 +31,20 @@ class APITests(unittest.TestCase):
             item.stop()
         self.temp.cleanup()
 
+    def test_recent_lists_prepared_songs_newest_first(self):
+        import json, os
+        cache = Path(self.temp.name)
+        for index, (video_id, stems) in enumerate([('aaaaaaaaaaa', True), ('bbbbbbbbbbb', True), ('ccccccccccc', False)]):
+            folder = cache / video_id
+            folder.mkdir()
+            (folder / 'meta.json').write_text(json.dumps({'artist': '아이유', 'title': f'Song {index}'}), encoding='utf-8')
+            os.utime(folder / 'meta.json', (index, index))
+            if stems:
+                (folder / 'no_vocals.wav').touch()
+        songs = self.client.get('/api/recent').json()
+        self.assertEqual([s['id'] for s in songs], ['bbbbbbbbbbb', 'aaaaaaaaaaa'])
+        self.assertEqual(songs[0]['artist'], '아이유')
+
     def test_unicode_input_validation_and_static_pages(self):
         for route in ('/', '/tv', '/static/tv.js', '/api/qr.svg'):
             self.assertEqual(self.client.get(route).status_code, 200)

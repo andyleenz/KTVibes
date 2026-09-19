@@ -16,10 +16,21 @@ function render(next){
   const remove=el('button','×');remove.setAttribute('aria-label',`Remove ${item.title}`);remove.onclick=()=>send({action:'remove',key:item.key});buttons.append(remove);row.append(buttons);$('queue').append(row);
  });
  if(!state.upcoming.length)$('queue').append(el('p','A great setlist starts with one song.','empty'));
+ const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
+ if(ready!==readyKeys){readyKeys=ready;loadRecent();}
+}
+// Songs already prepared on the server; picking one reuses the add dialog so details stay editable.
+let readyKeys;
+async function loadRecent(){
+ try{
+  const songs=await api('/api/recent');$('recent').replaceChildren();
+  songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent')));
+  if(!songs.length)$('recent').append(el('p','Songs you sing will show up here.','empty'));
+ }catch{}
 }
 // Search in pages of 10; "Load more" appends the next page.
 let search={query:'',page:0,seen:new Set()};
-function showResult(song){const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');info.append(el('strong',song.title),el('small',`${song.channel} · ${clock(song.duration)}`));b.append(image,info,el('span','+'));b.onclick=()=>{selected=song;$('artist').value=song.parsed.artist;$('title').value=song.parsed.title;$('edit-error').textContent='';$('edit').showModal();};$('results').append(b);}
+function showResult(song,list=$('results')){const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');info.append(el('strong',song.title),el('small',`${song.channel} · ${clock(song.duration)}`));b.append(image,info,el('span','+'));b.onclick=()=>{selected=song;$('artist').value=song.parsed.artist;$('title').value=song.parsed.title;$('edit-error').textContent='';$('edit').showModal();};list.append(b);}
 async function loadPage(){
  const button=search.page?$('more'):$('search-button');button.disabled=true;message(search.page?'Loading more…':'Searching YouTube…');
  try{

@@ -3,6 +3,7 @@ import json
 import re
 import sys
 import subprocess
+import time
 from pathlib import Path
 
 ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -28,15 +29,25 @@ def search(query: str, page: int = 0, size: int = 10) -> list[dict]:
              "parsed": parse_title(e.get("title", ""), e.get("channel") or e.get("uploader", ""))}
             for e in result.get("entries", []) if e and ID.fullmatch(e.get("id", ""))]
 
+def _extract(options: dict, video_id: str, attempts: int = 4) -> dict:
+    """Download with fresh stream URLs on HTTP 403, which YouTube returns intermittently."""
+    import yt_dlp
+    for attempt in range(attempts):
+        try:
+            with yt_dlp.YoutubeDL(options) as ydl:
+                return ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
+        except yt_dlp.utils.DownloadError as error:
+            if "403" not in str(error) or attempt == attempts - 1:
+                raise
+            time.sleep(3 * (attempt + 1))
+
 def download(video_id: str, directory: Path) -> dict:
     if not ID.fullmatch(video_id):
         raise ValueError("Invalid YouTube ID")
     directory.mkdir(parents=True, exist_ok=True)
-    import yt_dlp
-    with yt_dlp.YoutubeDL({"js_runtimes": {"node": {}}, "format": "bestaudio[ext=m4a]/bestaudio", "outtmpl": str(directory / "audio.%(ext)s"),
-                          "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
-                          "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "m4a"}]}) as ydl:
-        info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
+    info = _extract({"js_runtimes": {"node": {}}, "format": "bestaudio[ext=m4a]/bestaudio", "outtmpl": str(directory / "audio.%(ext)s"),
+                     "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
+                     "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "m4a"}]}, video_id)
     return {"duration": info.get("duration"), "source_title": info.get("title", "")}
 
 def download_video(video_id: str, directory: Path) -> None:
@@ -45,13 +56,11 @@ def download_video(video_id: str, directory: Path) -> None:
         raise ValueError("Invalid YouTube ID")
     directory.mkdir(parents=True, exist_ok=True)
     source = directory / "video-source.mp4"
-    import yt_dlp
-    with yt_dlp.YoutubeDL({
+    _extract({
         "js_runtimes": {"node": {}},
         "format": "bestvideo[ext=mp4][vcodec^=avc1][height<=1080]/best[ext=mp4][vcodec^=avc1][height<=720]",
         "outtmpl": str(source), "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
-    }) as ydl:
-        ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
+    }, video_id)
     temporary = directory / "video.tmp.mp4"
     subprocess.run(["ffmpeg", "-nostdin", "-y", "-i", str(source), "-map", "0:v:0", "-an",
                     "-c:v", "copy", "-movflags", "+faststart", str(temporary)],

@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
 import io
+import json
 import os
 from pathlib import Path
 import socket
@@ -71,6 +72,22 @@ class Song(BaseModel):
         if not value:
             raise ValueError("Artist and title must not be blank")
         return value
+
+@app.get("/api/recent")
+async def recent(limit: int = Query(20, ge=1, le=50)):
+    """Prepared songs, newest first, so the remote can re-queue them without a search."""
+    songs = []
+    for meta_path in CACHE.glob("*/meta.json"):
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            prepared = meta_path.stat().st_mtime
+        except (OSError, ValueError):
+            continue
+        video_id = meta_path.parent.name
+        if youtube.ID.fullmatch(video_id) and meta.get("artist") and meta.get("title") and (meta_path.parent / "no_vocals.wav").is_file():
+            songs.append((prepared, {"id": video_id, "artist": meta["artist"], "title": meta["title"], "duration": meta.get("duration"),
+                                     "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"}))
+    return [song for _, song in sorted(songs, key=lambda s: s[0], reverse=True)[:limit]]
 
 @app.post("/api/queue", status_code=201)
 async def enqueue(song: Song):
