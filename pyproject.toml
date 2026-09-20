@@ -20,6 +20,13 @@ dependencies = [
     "certifi>=2026.7.22",
 ]
 
+[project.scripts]
+ktvibes = "ktvibes.main:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [dependency-groups]
 dev = ["pytest", "pytest-asyncio"]
 

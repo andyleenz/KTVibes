@@ -10,7 +10,7 @@ Requires `uv`, Node.js 22+ (Node 25 works), `ffmpeg`/`ffprobe`, network access, 
 cd ~/Work/KTVibes
 uv sync
 uv run python -c "import torch; print(torch.__version__, torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
-uv run uvicorn ktvibes.main:app --host 0.0.0.0 --port 8765
+uv run ktvibes
 ```
 
 ### macOS (Apple Silicon)
@@ -20,12 +20,12 @@ No NVIDIA driver is needed. On macOS, `uv sync` installs the standard PyTorch 2.
 ```bash
 uv sync
 uv run python -c "import torch; print(torch.__version__, torch.backends.mps.is_available())"
-uv run uvicorn ktvibes.main:app --host 0.0.0.0 --port 8765
+uv run ktvibes
 ```
 
 uv's standalone Python on macOS has no CA bundle, so `ktvibes/__init__.py` sets `SSL_CERT_FILE` to certifi's bundle for model and NLTK downloads. Measured on an M1 Pro: separating a 6:00 song took 33.6 s with the model loaded, or 48.5 s on the first run, which also loads the model (the 80 MB weights were downloaded in that same run).
 
-Run one server process (no `--workers`): queue state and the GPU model live in memory.
+`uv run ktvibes` serves on port 8765 (set `KTVIBES_PORT` to change it). Run one server process (no `--workers`): queue state and the GPU model live in memory.
 
 - TV/PC: open `http://localhost:8765/tv`, click **Enable sound**, then optionally **Fullscreen**.
 - Phone: scan the TV QR code while on the same Wi-Fi, or open `http://<pc-ip>:8765/`.

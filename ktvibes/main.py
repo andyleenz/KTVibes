@@ -170,3 +170,9 @@ async def websocket(ws: WebSocket):
         if state.player is ws:
             state.player = None
         await state.broadcast()
+
+
+def run():
+    """`uv run ktvibes`: one process only, since queue state and the model live in memory."""
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("KTVIBES_PORT", 8765)))
