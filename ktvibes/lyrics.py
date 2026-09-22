@@ -113,6 +113,46 @@ def envelope(samples, rate: int, hop: float = 0.05):
     frames = mono[: len(mono) // size * size].reshape(-1, size)
     return np.sqrt((frames ** 2).mean(axis=1))
 
+def find_shift(lines: list[dict], energy, hop: float = 0.05, limit: float = 30.0) -> float:
+    """Seconds to add to every stamp so the lines start where the vocals do.
+
+    LRCLIB records follow the album track, and a music video often adds an intro;
+    alignment only searches near each line, so it cannot recover a whole-song shift.
+    Each candidate shift is scored by how much singing follows the shifted stamps
+    compared with just before them.
+    """
+    import numpy as np
+    energy = np.asarray(energy)
+    starts = np.array([line["t"] for line in lines if line["text"]])
+    if len(starts) < 10 or not len(energy):
+        return 0.0
+    active = (energy > np.percentile(energy, 95) * 0.15).astype(float)
+    total = np.concatenate([[0.0], np.cumsum(active)])
+    after, before = int(1 / hop), int(0.5 / hop)
+    def score(shift):
+        frames = np.round((starts + shift) / hop).astype(int)
+        # Only lines whose windows fit in the audio count; a shift that pushes many out is not a fit.
+        frames = frames[(frames >= before) & (frames + after <= len(active))]
+        if len(frames) < 0.75 * len(starts):
+            return -1.0
+        return float(np.mean((total[frames + after] - total[frames]) / after - (total[frames] - total[frames - before]) / before))
+    shifts = np.arange(-limit, limit + hop / 2, hop)
+    scores = np.array([score(shift) for shift in shifts])
+    best = int(scores.argmax())
+    # Measured on cached songs: correct stamps score 0.26-0.55 as they are, while a
+    # music video 3.3 s late scored 0.01 as is and 0.33 shifted; noise stays below 0.25.
+    # Offsets under a second are left to per-line alignment.
+    if scores[best] < 0.25 or score(0.0) > scores[best] / 2 or abs(shifts[best]) < 1:
+        return 0.0
+    return round(float(shifts[best]), 2)
+
+def shift_lines(lines: list[dict], shift: float) -> list[dict]:
+    for line in lines:
+        line["t"] = round(max(0.0, line["t"] + shift), 2)
+        for unit in line.get("units") or []:
+            unit[1], unit[2] = round(max(0.0, unit[1] + shift), 2), round(max(0.0, unit[2] + shift), 2)
+    return lines
+
 def time_units(lines: list[dict], energy, hop: float = 0.05) -> list[dict]:
     """Spread each line's characters/words over the time the vocal stem is audible.
 

@@ -17,6 +17,7 @@ from . import worker, youtube
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = Path(os.environ.get("KTVIBES_CACHE", ROOT / "cache"))
+PORT = int(os.environ.get("KTVIBES_PORT", 8765))
 state = State()
 
 @asynccontextmanager
@@ -57,9 +58,12 @@ async def get_state():
 @app.get("/api/search")
 async def search(q: str = Query(min_length=1, max_length=200), page: int = Query(0, ge=0, le=9)):
     try:
-        return await asyncio.to_thread(youtube.search, q, page)
+        results = await asyncio.to_thread(youtube.search, q, page)
     except Exception as exc:
         raise HTTPException(502, f"YouTube search failed: {exc}") from exc
+    # Prepared songs start right away; the remote marks them.
+    cached = prepared_songs()
+    return [{**result, "cached": result["id"] in cached} for result in results]
 
 class Song(BaseModel):
     id: str = Field(pattern=r"^[A-Za-z0-9_-]{11}$")
@@ -84,7 +88,7 @@ def prepared_songs() -> dict:
         except (OSError, ValueError):
             continue
         video_id = meta_path.parent.name
-        if youtube.ID.fullmatch(video_id) and meta.get("artist") and meta.get("title") and (meta_path.parent / "no_vocals.wav").is_file():
+        if youtube.ID.fullmatch(video_id) and meta.get("artist") and meta.get("title") and any((meta_path.parent / f"no_vocals.{ext}").is_file() for ext in ("flac", "wav")):
             songs[video_id] = {"id": video_id, "artist": meta["artist"], "title": meta["title"], "duration": meta.get("duration"),
                                "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg", "prepared": prepared}
     return songs
@@ -107,12 +111,12 @@ async def enqueue(song: Song):
 
 @app.get("/media/{video_id}/{filename}")
 async def media(video_id: str, filename: str):
-    if not youtube.ID.fullmatch(video_id) or filename not in ("vocals.wav", "no_vocals.wav", "video.mp4"):
+    if not youtube.ID.fullmatch(video_id) or filename not in ("vocals.flac", "no_vocals.flac", "video.mp4"):
         raise HTTPException(404)
     path = CACHE / video_id / filename
     if not path.is_file():
         raise HTTPException(404)
-    return FileResponse(path, media_type="video/mp4" if filename.endswith(".mp4") else "audio/wav")
+    return FileResponse(path, media_type="video/mp4" if filename.endswith(".mp4") else "audio/flac")
 
 def remote_url():
     if os.environ.get("KTVIBES_REMOTE_URL"):
@@ -123,7 +127,7 @@ def remote_url():
             host = sock.getsockname()[0]
     except OSError:
         host = "127.0.0.1"
-    return f"http://{host}:8765/"
+    return f"http://{host}:{PORT}/"
 
 @app.get("/api/config")
 async def config():
@@ -141,8 +145,8 @@ async def websocket(ws: WebSocket):
     role = ws.query_params.get("role", "remote")
     if role == "tv" and state.player is not None:
         # Newest TV wins: a reload must not be locked out by its own stale socket.
-        previous, state.player = state.player, None
-        state.clients.pop(previous, None)
+        previous = state.player
+        state.disconnect(previous)
         with suppress(Exception):
             await previous.send_json({"type": "error", "message": "Another TV took over playback."})
             await previous.close(code=4001)
@@ -166,13 +170,11 @@ async def websocket(ws: WebSocket):
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
-        state.clients.pop(ws, None)
-        if state.player is ws:
-            state.player = None
+        state.disconnect(ws)
         await state.broadcast()
 
 
 def run():
     """`uv run ktvibes`: one process only, since queue state and the model live in memory."""
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("KTVIBES_PORT", 8765)))
+    uvicorn.run(app, host="0.0.0.0", port=PORT)

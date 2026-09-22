@@ -1,11 +1,13 @@
 import asyncio
+import hashlib
 import json
 import logging
 from pathlib import Path
 import soundfile as sf
-from . import align, guides, youtube, lyrics
+from . import align, guides, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
+TIMING_VERSION = 2  # bump when alignment or guide output changes, so cached timing is rebuilt
 
 def separate(source, destination):
     # Keep model imports off the server startup path.
@@ -13,17 +15,60 @@ def separate(source, destination):
     return separate_audio(source, destination)
 
 def reporter(state, item, step):
-    """Progress callback for worker threads: record the step and fraction, broadcast at most twice a second."""
+    """Progress callback for worker threads: while `step` is the one on show, record the fraction; broadcast at most twice a second."""
     loop, last = asyncio.get_running_loop(), [0.0]
-    item["step"], item["progress"] = step, 0.0
     def report(fraction):
         def apply():
+            if item.get("step") != step:
+                return
             item["progress"] = fraction
             if loop.time() - last[0] >= 0.5:
                 last[0] = loop.time()
                 asyncio.ensure_future(state.broadcast())
         loop.call_soon_threadsafe(apply)
     return report
+
+def save_meta(folder: Path, meta: dict):
+    temporary = folder / "meta.tmp"
+    temporary.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(folder / "meta.json")
+
+def fetch_video(video_id, folder, progress):
+    """Runs alongside the audio work; a missing video only means the stage background."""
+    try:
+        youtube.download_video(video_id, folder, progress)
+    except Exception:
+        log.exception("Video unavailable for %s", video_id)
+        return "Video unavailable; using the stage background."
+
+def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) -> list[dict]:
+    """Word timing and guides for these lyrics, reused from timed.json when the LRC text is unchanged."""
+    key = f"{TIMING_VERSION}:{hashlib.sha256(raw.encode()).hexdigest()}"
+    try:
+        cached = json.loads((folder / "timed.json").read_text(encoding="utf-8"))
+        if cached.get("key") == key:
+            return cached["lines"]
+    except (OSError, ValueError, KeyError):
+        pass
+    samples, rate = sf.read(samples_path, dtype="float32")
+    energy = lyrics.envelope(samples, rate)
+    if shift := lyrics.find_shift(lines, energy):
+        log.info("Lyrics for %s shifted %+.2fs to match the vocals", folder.name, shift)
+        lyrics.shift_lines(lines, shift)
+    aligned = True
+    try:
+        # Forced alignment on the vocals; lines it cannot place keep the energy estimate.
+        align.align(lines, samples, rate)
+    except Exception:
+        log.exception("Forced alignment unavailable for %s", folder.name)
+        aligned = False
+    lyrics.time_units(lines, energy)
+    lines = guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lines)))
+    if aligned:  # an energy-only fallback should be retried once the aligner works again
+        temporary = folder / "timed.tmp"
+        temporary.write_text(json.dumps({"key": key, "lines": lines}, ensure_ascii=False), encoding="utf-8")
+        temporary.replace(folder / "timed.json")
+    return lines
 
 async def run(state, cache: Path):
     while True:
@@ -40,60 +85,59 @@ async def run(state, cache: Path):
                 meta = json.loads(meta_path.read_text())
             except (OSError, ValueError):
                 meta = {}
+            # The (larger, optional) video downloads while the audio is fetched and separated.
+            video = None
             if not (folder / "video.mp4").is_file():
-                item["status"] = "downloading"
-                progress = reporter(state, item, "video")
+                video = asyncio.ensure_future(asyncio.to_thread(fetch_video, item["id"], folder, reporter(state, item, "video")))
+            if not stems.ready(folder):
+                # Songs cached as float WAV convert in about a second instead of separating again.
+                gain = await asyncio.to_thread(stems.migrate, folder)
+                if gain is None:
+                    if not (folder / "audio.m4a").is_file():
+                        item["status"], item["step"], item["progress"] = "downloading", "audio", 0.0
+                        await state.broadcast()
+                        meta.update(await asyncio.to_thread(youtube.download, item["id"], folder, reporter(state, item, "audio")))
+                    item["status"], item["step"], item["progress"] = "separating", None, None
+                    await state.broadcast()
+                    meta["separation_seconds"], gain = await asyncio.to_thread(separate, folder / "audio.m4a", folder)
+                meta["stem_gain"] = gain
+                save_meta(folder, meta)  # the gain must survive even if a later step fails
+            if video and not video.done():
+                item["status"], item["step"], item["progress"] = "downloading", "video", 0.0
                 await state.broadcast()
-                try:
-                    await asyncio.to_thread(youtube.download_video, item["id"], folder, progress)
-                except Exception:
-                    log.exception("Video unavailable for %s", item["id"])
-                    item["video_warning"] = "Video unavailable; using the stage background."
+            if video and (warning := await video):
+                item["video_warning"] = warning
             item["video"] = (folder / "video.mp4").is_file()
-            stems_ready = all((folder / name).is_file() for name in ("vocals.wav", "no_vocals.wav"))
-            if not stems_ready:
-                item["status"] = "downloading"
-                progress = reporter(state, item, "audio")
-                await state.broadcast()
-                if not (folder / "audio.m4a").is_file():
-                    meta.update(await asyncio.to_thread(youtube.download, item["id"], folder, progress))
-                item["status"], item["step"], item["progress"] = "separating", None, None
-                await state.broadcast()
-                meta["separation_seconds"] = await asyncio.to_thread(separate, folder / "audio.m4a", folder)
-            item["duration"] = sf.info(folder / "no_vocals.wav").duration
+            item["duration"] = sf.info(folder / "no_vocals.flac").duration
+            item["gain"] = float(meta.get("stem_gain") or 1)
             item["status"], item["step"], item["progress"] = "syncing", None, None
             await state.broadcast()
             identity = [item["artist"], item["title"]]
             cached = (folder / "lyrics.lrc").read_text(encoding="utf-8") if (folder / "lyrics.lrc").is_file() else ""
+            raw = ""
             if meta.get("lyrics_identity") == identity and lyrics.parse_lrc(cached):
+                raw = cached
                 item["lyrics"] = lyrics.parse_lrc(cached)
             else:
                 try:
                     result = await lyrics.fetch(*identity, item["duration"])
-                    item["lyrics"] = result["lines"]
+                    raw, item["lyrics"] = result["raw"], result["lines"]
                     # Cache only hits, so a later lookup fix or LRCLIB addition is picked up.
                     if result["raw"]:
                         (folder / "lyrics.lrc").write_text(result["raw"], encoding="utf-8")
                         meta["lyrics_identity"] = identity
+                        meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
                 except Exception:
                     log.exception("Lyrics unavailable for %s", item["id"])
                     item["lyrics_warning"] = "Lyrics unavailable; audio is ready."
             if item["lyrics"]:
                 try:
-                    samples, rate = await asyncio.to_thread(sf.read, folder / "vocals.wav", dtype="float32")
-                    try:
-                        # Forced alignment on the vocals; lines it cannot place keep the energy estimate.
-                        await asyncio.to_thread(align.align, item["lyrics"], samples, rate)
-                    except Exception:
-                        log.exception("Forced alignment unavailable for %s", item["id"])
-                    lyrics.time_units(item["lyrics"], lyrics.envelope(samples, rate))
-                    item["lyrics"] = guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(item["lyrics"])))
+                    item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, folder / "vocals.flac", item["lyrics"])
                 except Exception:
                     log.exception("Word timing unavailable for %s", item["id"])
+            item["offset"] = float(meta.get("lyric_offset") or 0)
             meta.update(duration=item["duration"], artist=item["artist"], title=item["title"])
-            temporary = folder / "meta.tmp"
-            temporary.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-            temporary.replace(meta_path)
+            save_meta(folder, meta)
             item["status"], item["step"], item["progress"] = "ready", None, None
             state.promote()
         except Exception as exc:

@@ -130,6 +130,114 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await state.control({'action': 'reorder', 'keys': [b['key'], a['key']]})
         self.assertEqual(state.upcoming, [b, a])
 
+    async def test_removal_can_be_undone_in_place(self):
+        state = State()
+        a = await state.add('abcdefghijk', 'A', 'First')
+        b = await state.add('12345678901', 'B', 'Second')
+        await state.control({'action': 'remove', 'key': a['key']})
+        self.assertEqual(state.snapshot()['undo']['title'], 'First')
+        await state.control({'action': 'undo'})
+        self.assertEqual(state.upcoming, [a, b])
+        with self.assertRaises(ValueError):
+            await state.control({'action': 'undo'})
+        await state.control({'action': 'remove', 'key': a['key']})
+        await state.add('abcdefghijk', 'A', 'Again')
+        with self.assertRaises(ValueError):  # the song was queued again meanwhile
+            await state.control({'action': 'undo'})
+
+    async def test_failed_song_can_be_retried(self):
+        state = State()
+        a = await state.add('abcdefghijk', 'A', 'First')
+        a['status'], a['error'] = 'error', 'HTTP 403'
+        await state.control({'action': 'retry', 'key': a['key']})
+        self.assertEqual((a['status'], a['error']), ('queued', None))
+
+    async def test_lyrics_go_to_each_tv_once_per_song(self):
+        class Socket:
+            def __init__(self):
+                self.sent = []
+            async def send_json(self, message):
+                self.sent.append(message)
+        state = State()
+        tv, remote = Socket(), Socket()
+        state.clients = {tv: 'tv', remote: 'remote'}
+        state.player = tv
+        a = await state.add('abcdefghijk', 'A', 'First')
+        a['status'], a['lyrics'] = 'ready', [{'t': 0, 'text': 'la'}]
+        state.promote()
+        await state.broadcast()
+        await state.broadcast()
+        self.assertEqual([m['current'].get('lyrics') for m in tv.sent[-2:]], [a['lyrics'], None])
+        self.assertTrue(all('lyrics' not in (m['current'] or {}) for m in remote.sent))
+        self.assertTrue(all('lyrics' not in i for m in tv.sent for i in m['upcoming']))
+
+    async def test_audio_flag_only_from_player_and_cleared_on_disconnect(self):
+        state = State()
+        tv = object()
+        state.player = tv
+        await state.control({'action': 'audio', 'value': True}, object())
+        self.assertFalse(state.snapshot()['player_audio'])
+        await state.control({'action': 'audio', 'value': True}, tv)
+        self.assertTrue(state.snapshot()['player_audio'])
+        state.disconnect(tv)
+        self.assertFalse(state.audio)
+
+    async def test_lyric_offset_is_remembered_per_song(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            state = State()
+            state.restore(Path(folder) / 'queue.json')
+            (Path(folder) / 'abcdefghijk').mkdir()
+            meta = Path(folder) / 'abcdefghijk' / 'meta.json'
+            meta.write_text(json.dumps({'title': '晴天'}), encoding='utf-8')
+            a = await state.add('abcdefghijk', 'A', 'First')
+            a['status'], a['offset'] = 'ready', 1.0
+            state.promote()
+            self.assertEqual(state.offset, 1.0)
+            await state.control({'action': 'offset', 'delta': .5})
+            self.assertEqual(json.loads(meta.read_text(encoding='utf-8')), {'title': '晴天', 'lyric_offset': 1.5})
+
+class WorkerTests(unittest.TestCase):
+    def test_wav_stems_migrate_to_flac_with_gain(self):
+        import tempfile
+        from pathlib import Path
+        import numpy as np
+        import soundfile as sf
+        from ktvibes import stems
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            self.assertIsNone(stems.migrate(folder))
+            loud = np.full((4000, 2), 1.5, dtype='float32')  # above full scale, as Demucs stems can be
+            sf.write(folder / 'vocals.wav', loud / 3, 8000, subtype='FLOAT')
+            sf.write(folder / 'no_vocals.wav', loud, 8000, subtype='FLOAT')
+            gain = stems.migrate(folder)
+            self.assertTrue(stems.ready(folder))
+            self.assertFalse((folder / 'vocals.wav').exists())
+            restored, _ = sf.read(folder / 'no_vocals.flac', dtype='float32')
+            self.assertLess(np.abs(restored * gain - 1.5).max(), 1e-5)
+            vocals, _ = sf.read(folder / 'vocals.flac', dtype='float32')
+            self.assertLess(np.abs(vocals * gain - .5).max(), 1e-5)
+
+    def test_timed_lyrics_are_reused_until_the_lrc_changes(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import numpy as np
+        import soundfile as sf
+        from ktvibes import worker
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            sf.write(folder / 'vocals.wav', np.zeros((8000, 2), dtype='float32'), 8000)
+            with patch.object(worker.align, 'align') as align:
+                first = worker.timed_lyrics(folder, '[00:00.10]hello', folder / 'vocals.wav', parse_lrc('[00:00.10]hello'))
+                again = worker.timed_lyrics(folder, '[00:00.10]hello', folder / 'vocals.wav', parse_lrc('[00:00.10]hello'))
+                self.assertEqual(align.call_count, 1)
+                self.assertEqual(first, again)
+                worker.timed_lyrics(folder, '[00:00.10]goodbye', folder / 'vocals.wav', parse_lrc('[00:00.10]goodbye'))
+                self.assertEqual(align.call_count, 2)
+
 if __name__ == '__main__':
     unittest.main()
 
@@ -177,6 +285,25 @@ class LyricsMatchTests(unittest.TestCase):
         self.assertLessEqual(a_end, 2.1)
         self.assertGreaterEqual(b_start, 2.9)
         self.assertLessEqual(b_end, 4.1)
+
+    def test_whole_song_shift_found_from_vocal_onsets(self):
+        import numpy as np
+        from ktvibes.lyrics import find_shift, shift_lines
+        stamps = [4.0, 11.5, 17.0, 26.5, 33.0, 41.5, 47.0, 55.5, 61.0, 68.5, 74.0, 82.5]
+        lines = [{'t': t, 'text': 'la la'} for t in stamps]
+        def sung(offset):
+            energy = np.zeros(1900)  # 95 s of 50 ms frames
+            for t in stamps:
+                start = int((t + offset) / .05)
+                energy[start:start + 40] = 1  # two seconds of singing per line
+            return energy
+        self.assertAlmostEqual(find_shift(lines, sung(3.3)), 3.3, delta=.1)
+        self.assertEqual(find_shift(lines, sung(0)), 0)
+        self.assertEqual(find_shift(lines, sung(.3)), 0)  # small offsets are left to per-line alignment
+        self.assertEqual(find_shift(lines, np.random.default_rng(1).random(1900)), 0)  # no clear fit
+        lines[0]['units'] = [['la ', 4.0, 4.5]]
+        shift_lines(lines, 3.3)
+        self.assertEqual((lines[0]['t'], lines[0]['units'][0][1:]), (7.3, [7.3, 7.8]))
 
     def test_enhanced_lrc_word_stamps(self):
         line = parse_lrc('[00:01.00]<00:01.00>Hel<00:01.50>lo')[0]

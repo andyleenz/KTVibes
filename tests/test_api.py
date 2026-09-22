@@ -72,6 +72,8 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.content, b'2345')
         self.assertEqual(response.headers['content-type'], 'video/mp4')
         self.assertEqual(self.client.get('/media/abcdefghijk/meta.json').status_code, 404)
+        (folder / 'vocals.flac').write_bytes(b'fLaC')
+        self.assertEqual(self.client.get('/media/abcdefghijk/vocals.flac').headers['content-type'], 'audio/flac')
 
     def test_websocket_controls(self):
         with self.client.websocket_connect('/ws?role=tv') as tv:
@@ -92,6 +94,20 @@ class APITests(unittest.TestCase):
                 self.assertEqual(new.receive_json()['type'], 'state')
                 self.assertEqual(old.receive_json()['message'], 'Another TV took over playback.')
                 self.assertTrue(self.main.state.player is not None)
+
+    def test_remote_url_uses_configured_port(self):
+        with patch.object(self.main, 'PORT', 9999), patch.dict('os.environ', {'KTVIBES_REMOTE_URL': ''}):
+            self.assertTrue(self.main.remote_url().endswith(':9999/'))
+
+    def test_search_marks_prepared_songs(self):
+        folder = Path(self.temp.name) / 'aaaaaaaaaaa'
+        folder.mkdir()
+        (folder / 'meta.json').write_text('{"artist": "Joji", "title": "Glimpse of Us"}', encoding='utf-8')
+        (folder / 'no_vocals.wav').touch()
+        results = [{'id': 'aaaaaaaaaaa'}, {'id': 'bbbbbbbbbbb'}]
+        with patch.object(self.main.youtube, 'search', return_value=results):
+            found = self.client.get('/api/search', params={'q': 'joji'}).json()
+        self.assertEqual([r['cached'] for r in found], [True, False])
 
     def test_search_pages(self):
         with patch.object(self.main.youtube, 'search', return_value=[]) as search:

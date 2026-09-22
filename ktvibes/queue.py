@@ -8,6 +8,8 @@ import uuid
 
 GUIDES = ("off", "latin", "hangul")
 HISTORY = 200  # remembered plays, for the remote's "Recently sung" list
+UNDO_SECONDS = 15  # how long a removal can be taken back
+SAVE_EVERY = 10  # seconds between queue.json writes for position reports alone
 
 def number(value) -> float:
     """Control values arrive as JSON; reject text and NaN/inf before clamping."""
@@ -35,6 +37,10 @@ class State:
         self.broadcast_lock = asyncio.Lock()
         self.path = None  # queue.json; set by restore() so the queue survives restarts
         self.played = {}  # video id -> unix time the song last went on stage
+        self.audio = False  # the TV has enabled sound, so playback can actually start
+        self.undo = None  # the last removal, for the remote's Undo
+        self.saved_at = 0.0
+        self.lyrics_sent = {}  # TV socket -> key of the song whose lyrics it already has
 
     def guides(self):
         """Guide modes with something to show for the current song (all of them when idle)."""
@@ -43,11 +49,15 @@ class State:
             return list(GUIDES)
         return ["off"] + [mode for index, mode in ((3, "latin"), (4, "hangul")) if any(len(u) > index and u[index] for u in units)]
 
-    def snapshot(self):
-        return {"current": self.current, "upcoming": self.upcoming, "playing": self.playing,
+    def snapshot(self, lyrics=True):
+        """Lyrics are large and only the TV draws them, so broadcasts leave them out (see broadcast)."""
+        brief = lambda item: item if lyrics or item is None else {k: v for k, v in item.items() if k != "lyrics"}
+        return {"current": brief(self.current), "upcoming": [brief(i) for i in self.upcoming], "playing": self.playing,
                 "offset": self.offset, "vocal": self.vocal, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "seek_id": self.seek_id, "position": self.position,
                 "transition_until": self.transition_until, "server_time": time.time(),
-                "player_connected": self.player is not None, "revision": self.revision}
+                "player_connected": self.player is not None, "player_audio": self.player is not None and self.audio,
+                "undo": self.undo and {"title": self.undo["item"]["title"], "until": self.undo["until"]},
+                "revision": self.revision}
 
     def restore(self, path: Path, seed=lambda: {}):
         """Reload the saved queue; songs are prepared again (fast from cache) and the current one resumes."""
@@ -78,22 +88,35 @@ class State:
         temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         temporary.replace(self.path)
 
-    async def broadcast(self):
+    async def broadcast(self, persist=True):
         async with self.broadcast_lock:
             self.revision += 1
-            try:
-                self.save()
-            except OSError:
-                pass  # a full disk should not stop the party
-            message = {"type": "state", **self.snapshot()}
-            async def send(ws):
+            if persist:
                 try:
-                    await asyncio.wait_for(ws.send_json(message), timeout=2)
+                    self.save()
+                    self.saved_at = time.monotonic()
+                except OSError:
+                    pass  # a full disk should not stop the party
+            message = {"type": "state", **self.snapshot(lyrics=False)}
+            key = self.current and self.current["key"]
+            async def send(ws):
+                # A TV gets the current song's lyrics once per song (and again after reconnecting).
+                out = message
+                if key and self.clients.get(ws) == "tv" and self.lyrics_sent.get(ws) != key:
+                    out = {**message, "current": {**message["current"], "lyrics": self.current["lyrics"]}}
+                try:
+                    await asyncio.wait_for(ws.send_json(out), timeout=2)
+                    self.lyrics_sent[ws] = key
                 except Exception:
-                    self.clients.pop(ws, None)
-                    if self.player is ws:
-                        self.player = None
+                    self.disconnect(ws)
             await asyncio.gather(*(send(ws) for ws in list(self.clients)))
+
+    def disconnect(self, ws):
+        self.clients.pop(ws, None)
+        self.lyrics_sent.pop(ws, None)
+        if self.player is ws:
+            self.player = None
+            self.audio = False
 
     def advance(self):
         self.current = None
@@ -112,13 +135,37 @@ class State:
                 self.played[candidate["id"]] = time.time()
                 if len(self.played) > HISTORY:
                     self.played = dict(sorted(self.played.items(), key=lambda p: p[1])[-HISTORY:])
-                self.offset = 0
+                self.offset = candidate.get("offset", 0)
                 self.transition_until = max(self.transition_until, time.time() + 5)
 
     @staticmethod
     def entry(video_id, artist, title):
         return {"key": uuid.uuid4().hex, "id": video_id, "artist": artist, "title": title,
                 "status": "queued", "lyrics": [], "duration": 0, "error": None}
+
+    def remember_offset(self):
+        """Keep the lyric timing nudge in the song's meta.json, so it applies next time too."""
+        if self.path is None or not self.current:
+            return
+        self.current["offset"] = self.offset
+        meta_path = self.path.parent / self.current["id"] / "meta.json"
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta["lyric_offset"] = self.offset
+            temporary = meta_path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            temporary.replace(meta_path)
+        except (OSError, ValueError):
+            pass
+
+    def take_back(self):
+        """Put the last removed song back where it was, while the removal is still recent."""
+        undo, self.undo = self.undo, None
+        if not undo or time.time() > undo["until"]:
+            raise ValueError("Nothing to undo")
+        if self.queued(undo["item"]["id"]):
+            raise ValueError("That song is already in the queue")
+        self.upcoming.insert(min(undo["index"], len(self.upcoming)), undo["item"])
 
     def queued(self, video_id):
         return any(i and i["id"] == video_id and i["status"] != "error" for i in (self.current, *self.upcoming))
@@ -143,8 +190,15 @@ class State:
             self.playing = False
         elif action == "skip" or action == "ended":
             self.advance()
+        elif action == "undo":
+            self.take_back()
+        elif action == "audio":
+            if sender is not self.player:
+                return
+            self.audio = message.get("value") is True
         elif action == "offset":
             self.offset = max(-30, min(30, self.offset + number(message.get("delta", 0))))
+            self.remember_offset()
         elif action == "seek":
             if not self.current:
                 raise ValueError("Nothing is playing")
@@ -164,7 +218,16 @@ class State:
         elif action == "vocal":
             self.vocal = max(0, min(1, number(message["value"])))
         elif action == "remove":
-            self.upcoming = [i for i in self.upcoming if i["key"] != message.get("key")]
+            index = next((n for n, i in enumerate(self.upcoming) if i["key"] == message.get("key")), None)
+            if index is not None:
+                self.undo = {"item": self.upcoming.pop(index), "index": index, "until": time.time() + UNDO_SECONDS}
+        elif action == "retry":
+            item = next((i for i in self.upcoming if i["key"] == message.get("key") and i["status"] == "error"), None)
+            if item is None:
+                return
+            if self.queued(item["id"]):
+                raise ValueError("That song is already in the queue")
+            item.update(status="queued", error=None, step=None, progress=None)
         elif action == "reorder":
             keys = message.get("keys", [])
             if len(keys) != len(self.upcoming) or set(keys) != {i["key"] for i in self.upcoming}:
@@ -177,4 +240,5 @@ class State:
             raise ValueError("Unknown control")
         self.promote()
         self.wake.set()
-        await self.broadcast()
+        # Position reports arrive every two seconds; saving them occasionally is enough to resume after a restart.
+        await self.broadcast(persist=action != "progress" or time.monotonic() - self.saved_at >= SAVE_EVERY)

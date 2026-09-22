@@ -3,11 +3,11 @@ from pathlib import Path
 import sys
 import threading
 import time
-import soundfile as sf
 import torch
 from demucs.apply import apply_model
 from demucs.audio import AudioFile
 from demucs.pretrained import get_model
+from . import stems as stem_files
 
 _model = None
 _lock = threading.Lock()
@@ -19,7 +19,8 @@ def _device() -> str:
         return "mps"
     return "cpu"
 
-def separate(source: Path, destination: Path) -> float:
+def separate(source: Path, destination: Path) -> tuple[float, float]:
+    """Write vocals.flac and no_vocals.flac; returns (seconds taken, playback gain)."""
     global _model
     started = time.monotonic()
     with _lock:
@@ -35,12 +36,9 @@ def separate(source: Path, destination: Path) -> float:
         vocals = stems[index]
         instrumental = sum(stems[i] for i in range(len(stems)) if i != index)
         destination.mkdir(parents=True, exist_ok=True)
-        # Float WAV avoids clipping the individual separated stems.
-        for name, data in (("vocals", vocals), ("no_vocals", instrumental)):
-            temporary = destination / f"{name}.tmp.wav"
-            sf.write(temporary, data.T.numpy(), _model.samplerate, subtype="FLOAT")
-            temporary.replace(destination / f"{name}.wav")
-    return time.monotonic() - started
+        gain = stem_files.write(destination, vocals.T.numpy(), instrumental.T.numpy(), _model.samplerate)
+    return time.monotonic() - started, gain
 
 if __name__ == "__main__":
-    print(f"Separation: {separate(Path(sys.argv[1]), Path(sys.argv[2])):.1f}s")
+    seconds, gain = separate(Path(sys.argv[1]), Path(sys.argv[2]))
+    print(f"Separation: {seconds:.1f}s, playback gain {gain:.3f}")

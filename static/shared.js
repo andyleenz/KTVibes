@@ -11,5 +11,15 @@ export function connect(role, onState, onError, onOpen) {
   open();
   return message=>{if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(message));else onError('Reconnecting. Please try again.');};
 }
-export async function api(path, options){const response=await fetch(path,options);const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Please check the song details.');return data;}
+export async function api(path, options){
+  const response=await fetch(path,options);let data;
+  // A proxy or crash can answer with plain text; report the status rather than a JSON parse error.
+  try{data=await response.json();}catch{throw new Error(`Server error (${response.status}). Please try again.`);}
+  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Please check the song details.');return data;
+}
 export const clock = seconds => `${Math.floor((seconds||0)/60)}:${String(Math.floor((seconds||0)%60)).padStart(2,'0')}`;
+// Sliders fire many input events; send at most one every `ms`, always ending on the final value.
+export function throttle(fn, ms=120){let last=0,timer;return value=>{clearTimeout(timer);const wait=last+ms-Date.now();if(wait<=0){last=Date.now();fn(value);}else timer=setTimeout(()=>{last=Date.now();fn(value);},wait);};}
+// Preparation status, as both screens describe it.
+const STEPS={queued:'Waiting to download',downloading:'Downloading',separating:'Separating vocals',syncing:'Finding lyrics',ready:'Ready',error:'Failed'};
+export function prepLabel(item){const percent=item.progress?Math.round(item.progress*100):null;return {percent,text:`${STEPS[item.status]||item.status}${item.step?` ${item.step}`:''}${percent==null?'':` · ${percent}%`}`};}
