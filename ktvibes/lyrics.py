@@ -153,6 +153,23 @@ def shift_lines(lines: list[dict], shift: float) -> list[dict]:
             unit[1], unit[2] = round(max(0.0, unit[1] + shift), 2), round(max(0.0, unit[2] + shift), 2)
     return lines
 
+def line_starts(lines: list[dict], lead: float = 0.3) -> list[dict]:
+    """When each line takes over on the TV, from its sung words rather than its LRC stamp.
+
+    A stamp can come before the previous line's last word is sung ("bark after dark"
+    ends at 29.33, the next stamp is 29.03) or after a line's first word; a line
+    becomes active shortly before its first word, but not before the previous
+    line's last word ends, and never after its own first word.
+    """
+    previous_end = previous_start = 0.0
+    for line in lines:
+        units = line.get("units")
+        first = units[0][1] if units else line["t"]
+        start = min(max(first - lead if units else first, previous_end), first)
+        line["start"] = previous_start = round(max(start, previous_start), 2)
+        previous_end = units[-1][2] if units else line["t"]
+    return lines
+
 def time_units(lines: list[dict], energy, hop: float = 0.05) -> list[dict]:
     """Spread each line's characters/words over the time the vocal stem is audible.
 

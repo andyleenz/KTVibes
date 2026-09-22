@@ -7,7 +7,7 @@ import soundfile as sf
 from . import align, guides, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
-TIMING_VERSION = 2  # bump when alignment or guide output changes, so cached timing is rebuilt
+TIMING_VERSION = 3  # bump when alignment or guide output changes, so cached timing is rebuilt
 
 def separate(source, destination):
     # Keep model imports off the server startup path.
@@ -133,6 +133,7 @@ async def run(state, cache: Path):
             if item["lyrics"]:
                 try:
                     item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, folder / "vocals.flac", item["lyrics"])
+                    lyrics.line_starts(item["lyrics"])  # cheap, so kept out of the timing cache
                 except Exception:
                     log.exception("Word timing unavailable for %s", item["id"])
             item["offset"] = float(meta.get("lyric_offset") or 0)

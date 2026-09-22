@@ -85,7 +85,8 @@ function frame(now){
   if(state.current){
    if(!music.paused&&!voice.paused&&Math.abs(voice.currentTime-music.currentTime)>0.08)voice.currentTime=music.currentTime;
    const time=music.currentTime+state.offset;const lines=lyrics;let index=-1;
-   for(let i=0;i<lines.length&&lines[i].t<=time;i++)index=i;
+   // Lines switch on their sung words (start), so a stamp never cuts off the previous line's last word.
+   for(let i=0;i<lines.length&&(lines[i].start??lines[i].t)<=time;i++)index=i;
    // The countdown hides this panel: wait for layout before measuring a line.
    // Each song starts at the beginning, without inheriting the previous scroll.
    if(!waiting&&(!lyricsPositioned||index!==activeLine)){
@@ -102,7 +103,7 @@ function frame(now){
     lyricsPositioned=true;
    }
    // Karaoke count-in: lyrics stay hidden through the intro, then dots count down to the first line.
-   const remaining=firstLine>=0?lines[firstLine].t-time:0;
+   const remaining=firstLine>=0?(lines[firstLine].start??lines[firstLine].t)-time:0;
    $('lyrics').classList.toggle('waiting',remaining>COUNT_IN);
    const lead=$('lyrics').children[firstLine],dots=remaining>0&&remaining<=COUNT_IN?'●'.repeat(Math.min(3,Math.ceil(remaining))):'';
    if(lead&&lead.dataset.dots!==dots)lead.dataset.dots=dots;

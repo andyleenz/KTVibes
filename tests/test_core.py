@@ -305,6 +305,16 @@ class LyricsMatchTests(unittest.TestCase):
         shift_lines(lines, 3.3)
         self.assertEqual((lines[0]['t'], lines[0]['units'][0][1:]), (7.3, [7.3, 7.8]))
 
+    def test_line_switches_after_last_word_and_before_first(self):
+        from ktvibes.lyrics import line_starts
+        lines = [{'t': 27.08, 'text': 'Go ahead and bark after dark', 'units': [['Go ', 26.8, 26.9], ['dark', 29.23, 29.33]]},
+                 {'t': 29.03, 'text': 'Fallen star', 'units': [['Fallen ', 30.04, 30.58], ['star', 30.68, 31.16]]},
+                 {'t': 31.0, 'text': 'overlap', 'units': [['overlap', 31.1, 31.5]]},
+                 {'t': 40.0, 'text': ''}]
+        line_starts(lines)
+        # Sanctuary: the stamp for "Fallen star" (29.03) cut off "after dark", sung until 29.33.
+        self.assertEqual([line['start'] for line in lines], [26.5, 29.74, 31.1, 40.0])
+
     def test_enhanced_lrc_word_stamps(self):
         line = parse_lrc('[00:01.00]<00:01.00>Hel<00:01.50>lo')[0]
         self.assertEqual(line['text'], 'Hello')

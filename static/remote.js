@@ -24,10 +24,17 @@ function render(next){
 // a button out from under a tap; preparation progress updates in place.
 let queueShape,badges=new Map();
 function showQueue(){
- $('queue-count').textContent=state.upcoming.length;
- const shape=JSON.stringify(state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.step,i.error]));
+ $('queue-count').textContent=state.upcoming.length+(state.current?1:0);
+ const shape=JSON.stringify([state.current?.key,state.current?.title,...state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.step,i.error])]);
  if(shape!==queueShape){
   queueShape=shape;badges=new Map();$('queue').replaceChildren();
+  // The song on stage heads the queue, with its own Skip.
+  if(state.current){
+   const row=el('article',undefined,'queue-row current'),mark=el('span',undefined,'number');mark.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
+   const info=el('div',undefined,'song-info');info.append(el('h3',state.current.title),el('p',state.current.artist),el('span','Now playing','badge ready'));
+   const skip=el('button','Skip ↗','queue-skip');skip.setAttribute('aria-label',`Skip ${state.current.title}`);skip.onclick=()=>send({action:'skip'});
+   row.append(mark,info,skip);$('queue').append(row);
+  }
   const move=(from,to)=>{const keys=state.upcoming.map(i=>i.key);keys.splice(to,0,...keys.splice(from,1));send({action:'reorder',keys});};
   state.upcoming.forEach((item,index)=>{
    const row=el('article',undefined,'queue-row');row.append(el('span',String(index+1).padStart(2,'0'),'number'));
@@ -39,7 +46,7 @@ function showQueue(){
    for(const [label,to,name] of [['⤒',0,'to play next'],['↑',index-1,'up'],['↓',index+1,'down']]){const b=el('button',label);b.setAttribute('aria-label',`Move ${item.title} ${name}`);b.disabled=to<0||to>=state.upcoming.length||to===index;b.onclick=()=>move(index,to);buttons.append(b);}
    const remove=el('button','×');remove.setAttribute('aria-label',`Remove ${item.title}`);remove.onclick=()=>{undoTitle=item.title;send({action:'remove',key:item.key});};buttons.append(remove);row.append(buttons);$('queue').append(row);
   });
-  if(!state.upcoming.length)$('queue').append(el('p','A great setlist starts with one song.','empty'));
+  if(!state.upcoming.length&&!state.current)$('queue').append(el('p','A great setlist starts with one song.','empty'));
  }
  for(const item of state.upcoming){const badge=badges.get(item.key);if(badge)badge.textContent=item.status==='ready'||item.status==='error'?item.status:prepLabel(item).text;}
 }
@@ -53,10 +60,13 @@ function showUndo(){
 }
 $('toast-undo').onclick=()=>{undoTitle=null;$('toast').hidden=true;send({action:'undo'});};
 // Songs already prepared on the server, newest first.
-let readyKeys;
+// Rebuilt only when the list itself changes, so a just-tapped song keeps its added/failed icon.
+let readyKeys,recentShape;
 async function loadRecent(){
  try{
-  const songs=await api('/api/recent');$('recent').replaceChildren();
+  const songs=await api('/api/recent'),shape=songs.map(song=>song.id).join();
+  if(shape===recentShape)return;
+  recentShape=shape;$('recent').replaceChildren();
   songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent')));
   if(!songs.length)$('recent').append(el('p','Songs you sing will show up here.','empty'));
  }catch{}
@@ -64,10 +74,13 @@ async function loadRecent(){
 // Search in pages of 10; "Load more" appends the next page.
 let search={query:'',page:0,seen:new Set()};
 const enqueue=song=>api('/api/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title})});
+// Result button states: add, added, failed.
+const ICONS={add:'<path d="M12 5v14M5 12h14"/>',added:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',failed:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'};
+function icon(node,name){node.className=`result-icon ${name}`;node.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;}
 // One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs).
 function showResult(song,list=$('results')){
- const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');const title=el('strong',song.title);if(song.cached)title.append(el('span','READY','tag'));info.append(title,el('small',`${song.channel} · ${clock(song.duration)}`));b.append(image,info,el('span','+'));
- b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});b.lastChild.textContent='✓';message(`Added ${song.parsed.title} to your setlist.`);}catch(error){b.lastChild.textContent='!';message(error.message);}finally{b.disabled=false;}};
+ const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');const title=el('strong',song.title);if(song.cached)title.append(el('span','READY','tag'));info.append(title,el('small',`${song.channel} · ${clock(song.duration)}`));const status=el('span');icon(status,'add');b.append(image,info,status);
+ b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});icon(status,'added');message(`Added ${song.parsed.title} to your setlist.`);}catch(error){icon(status,'failed');message(error.message);}finally{b.disabled=false;}};
  list.append(b);
 }
 async function loadPage(){
