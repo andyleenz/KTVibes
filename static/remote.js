@@ -115,8 +115,10 @@ function showDock(){
  $('now-title').textContent=state?.current?.title||'Nothing playing';
  if(!noteTimer)$('now-artist').textContent=state?.current?.artist||'';
 }
-function openDock(open){$('mini-panel').hidden=!open;$('mini-more').setAttribute('aria-expanded',open);try{localStorage.setItem('ktvibes.dock-open',open?'1':'');}catch{}}
+function openDock(open){$('mini').classList.toggle('open',open);$('mini-panel').inert=!open;$('mini-more').setAttribute('aria-expanded',open);try{localStorage.setItem('ktvibes.dock-open',open?'1':'');}catch{}}
 try{openDock(!!localStorage.getItem('ktvibes.dock-open'));}catch{}
-$('mini-more').onclick=()=>openDock($('mini-panel').hidden);
+$('mini-more').onclick=()=>openDock(!$('mini').classList.contains('open'));
+// Restoring the saved state on load shouldn't animate; later toggles do.
+requestAnimationFrame(()=>requestAnimationFrame(()=>$('mini').classList.add('animate')));
 // Keep the page's end clear of the dock, whatever its height.
 new ResizeObserver(()=>document.body.style.setProperty('--dock',`${$('mini').offsetHeight}px`)).observe($('mini'));
