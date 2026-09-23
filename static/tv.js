@@ -184,3 +184,19 @@ function showPrep(queued){
  $('idle-prep-step').textContent=text;$('idle-prep-title').textContent=item.title;
  const bar=$('idle-prep-bar');bar.parentElement.classList.toggle('busy',percent==null);bar.parentElement.style.setProperty('--p',percent==null?0:percent/100);
 }
+// A floating remote for whoever sits at the TV computer: an always-on-top Picture-in-Picture window
+// where the browser supports it (it stays over fullscreen), otherwise a small popup. Tap again to close.
+let remoteWindow=null;
+$('open-remote').onclick=async()=>{
+ if(remoteWindow&&!remoteWindow.closed){remoteWindow.close();remoteWindow=null;return;}
+ try{
+  if('documentPictureInPicture' in window){
+   remoteWindow=await documentPictureInPicture.requestWindow({width:390,height:844});
+   const frame=remoteWindow.document.createElement('iframe');frame.src='/';frame.title='KTVibes remote';
+   frame.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0';
+   remoteWindow.document.body.style.cssText='margin:0;background:#111313';remoteWindow.document.body.append(frame);
+   remoteWindow.addEventListener('pagehide',()=>{remoteWindow=null;});
+  }else remoteWindow=open('/','ktvibes-remote',`popup,width=390,height=844,left=${screenX+outerWidth-430},top=${screenY+80}`);
+ }catch(e){error(e.message);}
+};
+

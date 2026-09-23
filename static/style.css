@@ -117,4 +117,11 @@ input[type=range]:disabled{opacity:.4}
 .swipe .swipe-delete{position:absolute;top:1px;right:1px;bottom:1px;width:88px;height:auto;padding:0;border:0;border-radius:16px;background:#e5484d;color:#fff;font-weight:700;font-size:14px}
 .swipe:has(.swipe-delete:focus-visible) .result{transform:translateX(-96px)}
 @media(prefers-reduced-motion:reduce){.swipe .result{transition:none}}
+/* Small floating-remote launcher, bottom right; the vocals slider shifts left to make room. */
+.open-remote{position:fixed;right:4vw;bottom:19px;z-index:3;display:grid;place-items:center;width:36px;height:36px;padding:0;border-radius:18px;border:1px solid #ffffff26;background:#0006;color:#fffc;opacity:.7;transition:opacity .2s,border-radius .3s cubic-bezier(.42,1.67,.21,.9)}
+.open-remote:hover,.open-remote:focus-visible{opacity:1}.open-remote:active{border-radius:10px}
+.open-remote svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.open-remote circle{fill:currentColor;stroke:none}
+.tv-bottom label{right:calc(4vw + 52px)}
+.tv-bottom{padding-right:calc(4vw + 302px)}
 
