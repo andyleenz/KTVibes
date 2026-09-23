@@ -28,12 +28,11 @@ function showQueue(){
  const shape=JSON.stringify([state.current?.key,state.current?.title,...state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.step,i.error])]);
  if(shape!==queueShape){
   queueShape=shape;badges=new Map();$('queue').replaceChildren();
-  // The song on stage heads the queue, with its own Skip.
+  // The song on stage heads the queue.
   if(state.current){
    const row=el('article',undefined,'queue-row current'),mark=el('span',undefined,'number');mark.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
    const info=el('div',undefined,'song-info');info.append(el('h3',state.current.title),el('p',state.current.artist),el('span','Now playing','badge ready'));
-   const skip=el('button','Skip ↗','queue-skip');skip.setAttribute('aria-label',`Skip ${state.current.title}`);skip.onclick=()=>send({action:'skip'});
-   row.append(mark,info,skip);$('queue').append(row);
+   row.append(mark,info);$('queue').append(row);  // Skip lives in the player below.
   }
   const move=(from,to)=>{const keys=state.upcoming.map(i=>i.key);keys.splice(to,0,...keys.splice(from,1));send({action:'reorder',keys});};
   state.upcoming.forEach((item,index)=>{
@@ -46,7 +45,7 @@ function showQueue(){
    for(const [label,to,name] of [['⤒',0,'to play next'],['↑',index-1,'up'],['↓',index+1,'down']]){const b=el('button',label);b.setAttribute('aria-label',`Move ${item.title} ${name}`);b.disabled=to<0||to>=state.upcoming.length||to===index;b.onclick=()=>move(index,to);buttons.append(b);}
    const remove=el('button','×');remove.setAttribute('aria-label',`Remove ${item.title}`);remove.onclick=()=>{undoTitle=item.title;send({action:'remove',key:item.key});};buttons.append(remove);row.append(buttons);$('queue').append(row);
   });
-  if(!state.upcoming.length&&!state.current)$('queue').append(el('p','A great setlist starts with one song.','empty'));
+  if(!state.upcoming.length&&!state.current)$('queue').append(el('p','Nothing queued.','empty'));
  }
  for(const item of state.upcoming){const badge=badges.get(item.key);if(badge)badge.textContent=item.status==='ready'||item.status==='error'?item.status:prepLabel(item).text;}
 }
@@ -68,7 +67,7 @@ async function loadRecent(){
   if(shape===recentShape)return;
   recentShape=shape;$('recent').replaceChildren();
   songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent')));
-  if(!songs.length)$('recent').append(el('p','Songs you sing will show up here.','empty'));
+  if(!songs.length)$('recent').append(el('p','Nothing sung yet.','empty'));
  }catch{}
 }
 // Search in pages of 10; "Load more" appends the next page.
@@ -80,7 +79,7 @@ function icon(node,name){node.className=`result-icon ${name}`;node.innerHTML=`<s
 // One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs).
 function showResult(song,list=$('results')){
  const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');const title=el('strong',song.title);if(song.cached)title.append(el('span','READY','tag'));info.append(title,el('small',`${song.channel} · ${clock(song.duration)}`));const status=el('span');icon(status,'add');b.append(image,info,status);
- b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});icon(status,'added');message(`Added ${song.parsed.title} to your setlist.`);}catch(error){icon(status,'failed');message(error.message);}finally{b.disabled=false;}};
+ b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});icon(status,'added');message(`Added ${song.parsed.title}.`);}catch(error){icon(status,'failed');message(error.message);}finally{b.disabled=false;}};
  list.append(b);
 }
 async function loadPage(){
@@ -89,7 +88,7 @@ async function loadPage(){
   const results=(await api(`/api/search?q=${encodeURIComponent(search.query)}&page=${search.page}`)).filter(s=>!search.seen.has(s.id));
   results.forEach(s=>{search.seen.add(s.id);showResult(s);});
   $('more').hidden=results.length===0||search.page>=9;
-  message(search.seen.size?'Choose a song to add it to your setlist.':'No songs found. Try another title.');
+  message(search.seen.size?'':'No songs found.');
  }catch(error){message(error.message);}finally{button.disabled=false;}
 }
 $('search-form').onsubmit=e=>{e.preventDefault();search={query:$('query').value.trim(),page:0,seen:new Set()};$('results').replaceChildren();$('more').hidden=true;loadPage();};
@@ -114,7 +113,7 @@ $('guide').onclick=()=>send({action:'guide',value:'cycle'});
 // The sticky dock holds every playback control: play/skip always in reach, the rest one tap away.
 function showDock(){
  $('now-title').textContent=state?.current?.title||'Nothing playing';
- if(!noteTimer)$('now-artist').textContent=state?.current?.artist||'Queue a song to get started.';
+ if(!noteTimer)$('now-artist').textContent=state?.current?.artist||'';
 }
 function openDock(open){$('mini-panel').hidden=!open;$('mini-more').setAttribute('aria-expanded',open);try{localStorage.setItem('ktvibes.dock-open',open?'1':'');}catch{}}
 try{openDock(!!localStorage.getItem('ktvibes.dock-open'));}catch{}

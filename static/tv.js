@@ -6,6 +6,49 @@ const error=text=>$('tv-error').textContent=text;
 // This screen remembers its own display settings and restores them each time it (re)connects.
 const SETTINGS='ktvibes.tv-settings';let restoring=false;
 // On (re)connect, also tell the server whether sound is on, so remotes know if playback can start.
+// Many music videos have black bars baked into the frame; sample a few frames, find the bars,
+// then zoom past them so the picture itself fills the screen. The smallest bars seen win, so a dark scene can't over-crop.
+const probe=document.createElement('canvas');probe.width=160;probe.height=90;const probeContext=probe.getContext('2d',{willReadFrequently:true});
+function fillFrame(v){
+ let bars,samples=0,lastSample=0;
+ const reset=()=>{bars=null;samples=0;lastSample=0;v.style.transform='';};
+ const apply=()=>{
+  if(!bars||!v.videoWidth)return;
+  const W=innerWidth,H=innerHeight,w=v.videoWidth,h=v.videoHeight,cw=w*(1-bars.left-bars.right),ch=h*(1-bars.top-bars.bottom);
+  const full=Math.max(W/w,H/h),crop=Math.max(W/cw,H/ch)*1.01,scale=crop/full;
+  const dx=(bars.right-bars.left)/2*w*crop,dy=(bars.bottom-bars.top)/2*h*crop;
+  v.style.transform=scale>1.01?`translate(${dx}px,${dy}px) scale(${scale})`:'';
+ };
+ const sample=()=>{
+  try{probeContext.drawImage(v,0,0,160,90);}catch{return;}
+  const {data}=probeContext.getImageData(0,0,160,90),dark=(x0,y0,x1,y1)=>{for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const i=(y*160+x)*4;if(data[i]+data[i+1]+data[i+2]>72)return false;}return true;};
+  let top=0,bottom=0,left=0,right=0;
+  while(top<45&&dark(0,top,160,top+1))top++;while(bottom<45&&dark(0,89-bottom,160,90-bottom))bottom++;
+  while(left<80&&dark(left,0,left+1,90))left++;while(right<80&&dark(159-right,0,160-right,90))right++;
+  if(top+bottom>60||left+right>110)return;  // a mostly black frame (fade, title card) says nothing about the bars
+  const found={top:top/90,bottom:bottom/90,left:left/160,right:right/160};
+  bars=bars?Object.fromEntries(Object.keys(found).map(k=>[k,Math.min(bars[k],found[k])])):found;samples++;apply();
+ };
+ v.addEventListener('loadstart',reset);
+ v.addEventListener('timeupdate',()=>{if(samples<8&&v.currentTime-lastSample>1.5||v.currentTime<lastSample){lastSample=v.currentTime;sample();}});
+ addEventListener('resize',apply);
+}
+fillFrame(video);
+// An empty stage loops random cached music videos, muted, behind the idle screen.
+const ambient=$('ambient');ambient.muted=true;fillFrame(ambient);let ambientIds=[],ambientOn=false;
+function nextAmbient(){
+ if(!ambientOn||!ambientIds.length){ambient.hidden=true;return;}
+ const last=ambient.dataset.id,choices=ambientIds.length>1?ambientIds.filter(id=>id!==last):ambientIds,id=choices[Math.floor(Math.random()*choices.length)];
+ ambient.dataset.id=id;ambient.src=`/media/${id}/video.mp4`;ambient.play().then(()=>{if(ambientOn)ambient.hidden=false;}).catch(()=>ambient.hidden=true);
+}
+function setAmbient(on){
+ if(on===ambientOn)return;ambientOn=on;
+ if(!on){ambient.pause();ambient.hidden=true;ambient.removeAttribute('src');ambient.load();return;}
+ // Refetch each time the stage empties, so songs downloaded since join the rotation.
+ api('/api/ambient').then(ids=>{ambientIds=ids;nextAmbient();}).catch(()=>{});
+}
+ambient.onended=nextAmbient;
+ambient.onerror=()=>{if(!ambientOn)return;ambientIds=ambientIds.filter(id=>id!==ambient.dataset.id);nextAmbient();};
 const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',value:enabled});});
 function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
 function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify({lyric_scale:s.lyric_scale,vocal:s.vocal,guide:s.guide}));}catch{}}
@@ -16,8 +59,8 @@ function render(next){
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
- if(!queued.length)$('on-deck').append(el('li','Queue a song from your phone','more'));
- showPrep(queued);
+ if(!queued.length)$('on-deck').append(el('li','Nothing queued','more'));
+ showPrep(queued);setAmbient(!state.current);
  $('now-card').hidden=!state.current;
  // The idle screen already shows a large QR code.
  $('corner-join').hidden=!state.current;
@@ -52,7 +95,7 @@ $('fullscreen').onclick=()=>{const result=document.fullscreenElement?document.ex
 const sendVocal=throttle(value=>send({action:'vocal',value}));
 $('vocal').oninput=()=>sendVocal(Number($('vocal').value));
 music.onwaiting=()=>{buffering=true;voice.pause();video.pause();};
-music.onplaying=()=>{buffering=false;if(enabled&&state?.playing&&currentKey){voice.currentTime=music.currentTime;voice.play().catch(()=>error('Guide vocals could not resume. Pause and play to retry.'));}};
+music.onplaying=()=>{buffering=false;if(enabled&&state?.playing&&currentKey){voice.currentTime=music.currentTime;voice.play().catch(()=>error('Vocals could not resume. Pause and play to retry.'));}};
 music.onended=()=>{voice.pause();video.pause();send({action:'ended',key:currentKey});};
 for(const audio of [music,voice])audio.onerror=()=>{if(currentKey)error('Audio could not load. Check the server or skip this song.');};
 video.onerror=()=>{video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');};

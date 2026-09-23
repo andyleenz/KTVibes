@@ -100,6 +100,11 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
     played = sorted((when, video_id) for video_id, when in state.played.items() if video_id in songs)
     return [{k: v for k, v in songs[video_id].items() if k != "prepared"} for _, video_id in reversed(played[-limit:])]
 
+@app.get("/api/ambient")
+async def ambient():
+    """Cached music videos the TV loops, muted, behind an empty stage."""
+    return sorted(path.parent.name for path in CACHE.glob("*/video.mp4") if youtube.ID.fullmatch(path.parent.name))
+
 @app.post("/api/queue", status_code=201)
 async def enqueue(song: Song):
     if len(state.upcoming) >= 100:

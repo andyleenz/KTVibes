@@ -46,6 +46,14 @@ class APITests(unittest.TestCase):
         self.assertEqual([s['id'] for s in songs], ['bbbbbbbbbbb', 'aaaaaaaaaaa'])
         self.assertEqual(songs[0]['artist'], '아이유')
 
+    def test_ambient_lists_cached_videos(self):
+        cache = Path(self.temp.name)
+        for video_id in ('bbbbbbbbbbb', 'aaaaaaaaaaa', 'not-an-id'):
+            (cache / video_id).mkdir()
+            (cache / video_id / 'video.mp4').touch()
+        (cache / 'ccccccccccc').mkdir()  # audio only
+        self.assertEqual(self.client.get('/api/ambient').json(), ['aaaaaaaaaaa', 'bbbbbbbbbbb'])
+
     def test_duplicate_queue_request_conflicts(self):
         song = {'id': 'abcdefghijk', 'artist': 'IU', 'title': '좋은 날'}
         self.assertEqual(self.client.post('/api/queue', json=song).status_code, 201)
