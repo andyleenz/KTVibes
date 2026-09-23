@@ -124,4 +124,4 @@ input[type=range]:disabled{opacity:.4}
 .open-remote circle{fill:currentColor;stroke:none}
 .tv-bottom label{right:calc(4vw + 52px)}
 .tv-bottom{padding-right:calc(4vw + 302px)}
-
+#results:not(:empty){margin-top:12px}

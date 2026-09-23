@@ -134,9 +134,20 @@ async function loadPage(){
   results.forEach(s=>{search.seen.add(s.id);showResult(s);});
   $('more').hidden=results.length===0||search.page>=9;
   message(search.seen.size?'':'No songs found.');
+  if(!search.page)showResults();
  }catch(error){message(error.message);}finally{button.disabled=false;}
 }
-$('search-form').onsubmit=e=>{e.preventDefault();search={query:$('query').value.trim(),page:0,seen:new Set()};$('results').replaceChildren();$('more').hidden=true;loadPage();};
+$('search-form').onsubmit=e=>{
+ e.preventDefault();search={query:$('query').value.trim(),page:0,seen:new Set()};$('results').replaceChildren();$('more').hidden=true;loadPage();
+ $('query').blur();showResults();  // drop the keyboard so results have the screen
+};
+// Search stays pinned but results don't: from further down, bring them up under the bar.
+// Runs again once results render, since scroll anchoring keeps the view on the content below them.
+function showResults(){
+ const first=$('message').textContent?$('message'):$('results');
+ const gap=first.getBoundingClientRect().top-($('search-form').getBoundingClientRect().bottom+parseFloat(getComputedStyle(first).marginTop));
+ if(gap<0)scrollBy({top:gap,behavior:REDUCED.matches?'auto':'smooth'});
+}
 $('more').onclick=()=>{search.page++;loadPage();};
 $('play').onclick=()=>send({action:state?.playing?'pause':'play'});$('skip').onclick=()=>send({action:'skip'});
 $('earlier').onclick=()=>send({action:'offset',delta:-0.5});$('later').onclick=()=>send({action:'offset',delta:0.5});const sendVocal=throttle(value=>send({action:'vocal',value})),sendScale=throttle(value=>send({action:'lyric_scale',value}));
