@@ -35,6 +35,27 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await state.control({'action': 'guide', 'value': 'cycle'})
         self.assertEqual(state.guide, 'latin')
 
+    async def test_breather_only_between_songs(self):
+        import time
+        state = State()
+        first = await state.add('abcdefghijk', 'A', 'First')
+        first['status'] = 'ready'
+        state.promote()
+        # From an empty stage the song starts at once; its intro carries the title card.
+        self.assertLessEqual(state.transition_until, time.time())
+        second = await state.add('bbbbbbbbbbb', 'B', 'Second')
+        second['status'] = 'ready'
+        await state.control({'action': 'skip'})
+        self.assertIs(state.current, second)
+        self.assertAlmostEqual(state.transition_until - time.time(), 4, delta=0.5)
+        # A song that was still preparing when the last one ended starts without a pause once ready.
+        await state.control({'action': 'skip'})
+        third = await state.add('ccccccccccc', 'C', 'Third')
+        state.transition_until = 0
+        third['status'] = 'ready'
+        state.promote()
+        self.assertLessEqual(state.transition_until, time.time())
+
     async def test_seek_and_lyric_scale_are_clamped(self):
         state = State()
         with self.assertRaises(ValueError):

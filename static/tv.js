@@ -1,7 +1,7 @@
 import {$,el,connect,api,clock,throttle,prepLabel,syncRanges} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
-let guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
+let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
 const error=text=>$('tv-error').textContent=text;
 // This screen remembers its own display settings and restores them each time it (re)connects.
 const SETTINGS='ktvibes.tv-settings';let restoring=false;
@@ -72,7 +72,7 @@ function render(next){
    video.hidden=!item.video;$('video-shade').hidden=!item.video;document.body.classList.toggle('has-video',!!item.video);
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
    lyrics=item.lyrics||[];firstLine=lyrics.findIndex(line=>line.text);stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals.flac`;voice.src=`/media/${item.id}/vocals.flac`;music.load();voice.load();
-   $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=item.title;$('next-artist').textContent=item.artist;
+   $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-artist').textContent=$('card-artist').textContent=item.artist;
    lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul] of line.units||[]){const span=el('span',undefined,latin||hangul?'unit ruby':'unit');if(latin||hangul){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;$('duration').textContent=clock(item.duration);
   }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
  }
@@ -117,7 +117,10 @@ function frame(now){
  if(state){
   const waiting=state.current&&(Date.now()/1000+serverSkew)<state.transition_until;
   $('idle').hidden=!!state.current;$('up-next').hidden=!waiting;$('performance').hidden=!state.current||waiting;
-  if(waiting)$('countdown').textContent=Math.ceil(state.transition_until-(Date.now()/1000+serverSkew));
+  // Between songs, the bar drains over the breather.
+  if(waiting){const left=state.transition_until-(Date.now()/1000+serverSkew);breather=Math.max(breather,left);$('breather-bar').style.width=`${left/breather*100}%`;}else breather=0;
+  if(!state.current||waiting)document.body.classList.remove('intro');
+  document.body.classList.toggle('between',!!waiting);
   video.hidden=!state.current?.video||!!waiting||!!video.error;
   $('video-shade').hidden=video.hidden;
   if(state.current&&!waiting&&enabled&&state.playing)start();
@@ -130,7 +133,7 @@ function frame(now){
    const time=music.currentTime+state.offset;const lines=lyrics;let index=-1;
    // Lines switch on their sung words (start), so a stamp never cuts off the previous line's last word.
    for(let i=0;i<lines.length&&(lines[i].start??lines[i].t)<=time;i++)index=i;
-   // The countdown hides this panel: wait for layout before measuring a line.
+   // The breather hides this panel: wait for layout before measuring a line.
    // Each song starts at the beginning, without inheriting the previous scroll.
    if(!waiting&&(!lyricsPositioned||index!==activeLine)){
     const firstPosition=!lyricsPositioned;
@@ -147,6 +150,10 @@ function frame(now){
    }
    // Karaoke count-in: lyrics stay hidden through the intro, then dots count down to the first line.
    const remaining=firstLine>=0?(lines[firstLine].start??lines[firstLine].t)-time:0;
+   // Title card over the intro, like a karaoke machine: it fades before the count-in dots,
+   // and a song whose lyrics start almost at once skips it.
+   const cardEnd=firstLine>=0?Math.min(12,time+remaining-COUNT_IN-0.5):8;
+   document.body.classList.toggle('intro',!waiting&&cardEnd>=3&&time<cardEnd);
    $('lyrics').classList.toggle('waiting',remaining>COUNT_IN);
    const lead=$('lyrics').children[firstLine],dots=remaining>0&&remaining<=COUNT_IN?'●'.repeat(Math.min(3,Math.ceil(remaining))):'';
    if(lead&&lead.dataset.dots!==dots)lead.dataset.dots=dots;

@@ -7,9 +7,10 @@ import time
 import uuid
 
 GUIDES = ("off", "latin", "hangul")
-HISTORY = 200  # remembered plays, for the remote's "Recently sung" list
+HISTORY = 200  # remembered plays, for the remote's "Recent" list
 UNDO_SECONDS = 15  # how long a removal can be taken back
 SAVE_EVERY = 10  # seconds between queue.json writes for position reports alone
+BREATHER = 4  # seconds between one song ending and the next starting
 
 def number(value) -> float:
     """Control values arrive as JSON; reject text and NaN/inf before clamping."""
@@ -17,6 +18,7 @@ def number(value) -> float:
     if not math.isfinite(result):
         raise ValueError("Expected a finite number")
     return result
+
 
 class State:
     def __init__(self):
@@ -122,7 +124,8 @@ class State:
         self.current = None
         self.position = 0
         self.offset = 0
-        self.transition_until = time.time() + 5
+        # A short breather between songs shows who's up next; a song on an empty stage starts at once.
+        self.transition_until = time.time() + BREATHER
         self.promote()
 
     def promote(self):
@@ -136,7 +139,6 @@ class State:
                 if len(self.played) > HISTORY:
                     self.played = dict(sorted(self.played.items(), key=lambda p: p[1])[-HISTORY:])
                 self.offset = candidate.get("offset", 0)
-                self.transition_until = max(self.transition_until, time.time() + 5)
 
     @staticmethod
     def entry(video_id, artist, title):
