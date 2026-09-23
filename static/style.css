@@ -85,4 +85,29 @@ input[type=range]:disabled{opacity:.4}
 .mini.animate.open .mini-panel-body{transition-delay:.05s}
 .mini.animate .mini-more{transition:transform .45s cubic-bezier(.42,1.67,.21,.9)}
 @media(prefers-reduced-motion:reduce){.mini.animate .mini-panel,.mini.animate .mini-panel-body,.mini.animate .mini-more{transition:none}}
+/* Remote, M3 Expressive: pill buttons squish to a squarer shape while pressed. */
+.remote button,.mini button,.toast button{border-radius:20px;transition:border-radius .3s cubic-bezier(.42,1.67,.21,.9),transform .3s cubic-bezier(.42,1.67,.21,.9),background-color .2s}
+.remote button:not(:disabled):active,.mini button:not(:disabled):active,.toast button:active{border-radius:8px;transform:scale(.96)}
+.remote .result{border-radius:16px}.remote .result:not(:disabled):active{border-radius:10px;transform:scale(.98)}
+.remote .searchbar{border-radius:24px}
+/* Search stays in reach while scrolling; the ring hides content passing behind it. */
+.remote .searchbar{position:sticky;top:calc(8px + env(safe-area-inset-top));z-index:3;box-shadow:0 0 0 8px var(--bg)}
+/* Added: the check springs in. */
+.result-icon.added svg{animation:pop .45s cubic-bezier(.42,1.67,.21,.9)}
+@keyframes pop{from{transform:scale(.3) rotate(-30deg);opacity:0}}
+/* Now playing: a tinted card with a bigger title. */
+.queue-row.current{margin:4px 0 8px;padding:16px;border:0;border-radius:24px;background:#d7fc7014}
+.queue-row.current h3{font-size:20px;line-height:1.2}.queue-row.current .number{width:22px}
+.queue-row.current+.queue-row{border-top:0}
+/* Dock: thumbnail and a play button whose shape morphs, circle when paused, rounded square when playing. */
+.mini-thumb{width:40px;height:40px;flex:none;border-radius:10px;object-fit:cover;background:var(--panel)}
+.mini .play{position:relative;width:48px;height:48px;padding:0;border-radius:24px;display:grid;place-items:center}
+.mini .play.playing{border-radius:14px}
+.mini .play:not(:disabled):active{border-radius:8px}
+.play svg{width:24px;height:24px;fill:currentColor;overflow:visible}
+.play .icon-play,.play .icon-pause{transform-origin:12px 12px;transform-box:view-box;transition:transform .4s cubic-bezier(.42,1.67,.21,.9),opacity .15s}
+.play .icon-pause{opacity:0;transform:rotate(-90deg) scale(.5)}
+.play.playing .icon-play{opacity:0;transform:rotate(90deg) scale(.5)}
+.play.playing .icon-pause{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.remote button,.mini button,.toast button,.play .icon-play,.play .icon-pause{transition:none}.result-icon.added svg{animation:none}}
 

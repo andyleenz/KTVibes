@@ -11,7 +11,7 @@ function render(next){
  state=next;
  // The header pill reports the TV, since that decides whether anything can play.
  $('connection').textContent=!state.player_connected?'Open /tv on your TV':state.player_audio?'TV ready':'Tap Enable sound on TV';$('connection').classList.toggle('warn',!state.player_audio);
- $('play').textContent=state.playing?'Pause':'Play';
+ $('play').classList.toggle('playing',!!state.playing);$('play').setAttribute('aria-label',state.playing?'Pause':'Play');
  for(const id of ['play','skip','earlier','later'])$(id).disabled=!state.current;
  $('guide').textContent=`${GUIDE_NAMES[state.guide]} ⟳`;state.received=Date.now()/1000;if(document.activeElement!==$('lyric-scale'))$('lyric-scale').value=state.lyric_scale;$('lyric-scale-value').textContent=`${Math.round(state.lyric_scale*100)}%`;$('scrub').max=state.current?.duration||1;$('scrub').disabled=!state.current;$('length').textContent=clock(state.current?.duration);showPosition();if(document.activeElement!==$('vocal'))$('vocal').value=state.vocal;
  $('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;syncRanges();
@@ -23,20 +23,23 @@ function render(next){
 // Rebuild the queue only when its songs or statuses change, so position reports never swap
 // a button out from under a tap; preparation progress updates in place.
 let queueShape,badges=new Map();
+const SPRING='cubic-bezier(.38,1.21,.22,1)',REDUCED=matchMedia('(prefers-reduced-motion: reduce)');
 function showQueue(){
  $('queue-count').textContent=state.upcoming.length+(state.current?1:0);
  const shape=JSON.stringify([state.current?.key,state.current?.title,...state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.step,i.error])]);
  if(shape!==queueShape){
+  // FLIP: remember where each row was, rebuild, then animate rows from their old spots.
+  const before=new Map([...$('queue').children].filter(row=>row.dataset.key).map(row=>[row.dataset.key,row.getBoundingClientRect().top]));
   queueShape=shape;badges=new Map();$('queue').replaceChildren();
   // The song on stage heads the queue.
   if(state.current){
-   const row=el('article',undefined,'queue-row current'),mark=el('span',undefined,'number');mark.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
+   const row=el('article',undefined,'queue-row current');row.dataset.key=state.current.key;const mark=el('span',undefined,'number');mark.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
    const info=el('div',undefined,'song-info');info.append(el('h3',state.current.title),el('p',state.current.artist),el('span','Now playing','badge ready'));
    row.append(mark,info);$('queue').append(row);  // Skip lives in the player below.
   }
   const move=(from,to)=>{const keys=state.upcoming.map(i=>i.key);keys.splice(to,0,...keys.splice(from,1));send({action:'reorder',keys});};
   state.upcoming.forEach((item,index)=>{
-   const row=el('article',undefined,'queue-row');row.append(el('span',String(index+1).padStart(2,'0'),'number'));
+   const row=el('article',undefined,'queue-row');row.dataset.key=item.key;row.append(el('span',String(index+1).padStart(2,'0'),'number'));
    const badge=el('span',undefined,`badge ${item.status}`);badges.set(item.key,badge);
    const info=el('div',undefined,'song-info');info.append(el('h3',item.title),el('p',item.artist),badge);
    if(item.error){const retry=el('button','Retry','retry');retry.onclick=()=>send({action:'retry',key:item.key});info.append(el('p',item.error,'error'),retry);}
@@ -46,6 +49,12 @@ function showQueue(){
    const remove=el('button','×');remove.setAttribute('aria-label',`Remove ${item.title}`);remove.onclick=()=>{undoTitle=item.title;send({action:'remove',key:item.key});};buttons.append(remove);row.append(buttons);$('queue').append(row);
   });
   if(!state.upcoming.length&&!state.current)$('queue').append(el('p','Nothing queued.','empty'));
+  if(before.size&&!REDUCED.matches)for(const row of $('queue').children){
+   if(!row.dataset.key)continue;
+   const was=before.get(row.dataset.key),top=row.getBoundingClientRect().top;
+   if(was===undefined)row.animate([{opacity:0,transform:'translateY(-12px) scale(.96)'},{opacity:1,transform:'none'}],{duration:450,easing:SPRING});
+   else if(Math.abs(was-top)>1)row.animate([{transform:`translateY(${was-top}px)`},{transform:'none'}],{duration:500,easing:SPRING});
+  }
  }
  for(const item of state.upcoming){const badge=badges.get(item.key);if(badge)badge.textContent=item.status==='ready'||item.status==='error'?item.status:prepLabel(item).text;}
 }
@@ -113,6 +122,7 @@ $('guide').onclick=()=>send({action:'guide',value:'cycle'});
 // The sticky dock holds every playback control: play/skip always in reach, the rest one tap away.
 function showDock(){
  $('now-title').textContent=state?.current?.title||'Nothing playing';
+ const thumb=state?.current?`https://i.ytimg.com/vi/${state.current.id}/mqdefault.jpg`:'';if($('now-thumb').getAttribute('src')!==thumb){if(thumb)$('now-thumb').src=thumb;else $('now-thumb').removeAttribute('src');}$('now-thumb').hidden=!thumb;
  if(!noteTimer)$('now-artist').textContent=state?.current?.artist||'';
 }
 function openDock(open){$('mini').classList.toggle('open',open);$('mini-panel').inert=!open;$('mini-more').setAttribute('aria-expanded',open);try{localStorage.setItem('ktvibes.dock-open',open?'1':'');}catch{}}
