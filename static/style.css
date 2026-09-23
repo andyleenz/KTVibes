@@ -56,3 +56,22 @@ body.returning .searchbar{margin-top:24px}
 .mini-panel .muted{font-size:12px;margin-top:4px}
 .badge::first-letter{text-transform:uppercase}
 #backdrop,#ambient{transition:transform .6s ease}
+/* Material 3 Expressive sliders: thick rounded track, bar handle with a gap on each side, stop dot at the end. */
+input[type=range]{--v:0;--track:16px;--handle:40px;--gap:6px;--pos:calc(var(--v)*(100% - 4px) + 2px);-webkit-appearance:none;appearance:none;background:none;height:var(--handle);min-height:0}
+input[type=range]::-webkit-slider-runnable-track{height:var(--track);border-radius:calc(var(--track)/2);background:radial-gradient(circle at calc(100% - var(--track)/2) 50%,var(--lime) 2px,transparent 2.5px),linear-gradient(to right,var(--lime) calc(var(--pos) - var(--gap)),transparent 0 calc(var(--pos) + var(--gap)),#ffffff26 0)}
+input[type=range]::-moz-range-track{height:var(--track);border-radius:calc(var(--track)/2);background:radial-gradient(circle at calc(100% - var(--track)/2) 50%,var(--lime) 2px,transparent 2.5px),linear-gradient(to right,var(--lime) calc(var(--pos) - var(--gap)),transparent 0 calc(var(--pos) + var(--gap)),#ffffff26 0)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:4px;height:var(--handle);margin-top:calc((var(--track) - var(--handle))/2);border-radius:2px;background:var(--lime);transition:width .1s}
+input[type=range]::-moz-range-thumb{width:4px;height:var(--handle);border:0;border-radius:2px;background:var(--lime)}
+input[type=range]:active::-webkit-slider-thumb{width:2px}
+input[type=range]:disabled{opacity:.4}
+.tv-bottom label input{--track:8px;--handle:24px;--gap:4px;height:24px}
+/* Material 3 Expressive progress: a thick filled track, a gap, the remaining track, and a stop dot. */
+.track,.idle-prep .prep-track{--p:0;position:relative;height:12px;padding:0;background:none;border-radius:0;overflow:visible;box-sizing:border-box}
+.track{margin:6px 0;cursor:pointer}
+.track::after,.idle-prep .prep-track::after{content:'';position:absolute;top:4px;right:0;height:4px;left:min(100%,calc(var(--p)*100% + 6px));border-radius:2px;background:radial-gradient(circle at calc(100% - 2px) 50%,var(--lime) 2px,transparent 2.5px),#ffffff33}
+#progress,.idle-prep .prep-bar{position:absolute;left:0;top:4px;height:4px;width:calc(var(--p)*100%);border-radius:2px;background:var(--lime)}
+.idle-prep .prep-bar{transition:width .4s}.idle-prep .prep-track::after{transition:left .4s}
+.idle-prep .prep-track.busy{overflow:hidden}.idle-prep .prep-track.busy::after{left:0}.idle-prep .prep-track.busy .prep-bar{width:30%}
+.mini-progress{--p:0;top:-2px;height:4px;padding:0 max(16px,calc(50% - 374px))}
+.mini-progress::after{content:'';position:absolute;top:0;height:4px;right:max(16px,calc(50% - 374px));left:calc(max(16px,calc(50% - 374px)) + var(--p)*(100% - 2*max(16px,calc(50% - 374px))) + 4px);border-radius:2px;background:radial-gradient(circle at calc(100% - 2px) 50%,var(--lime) 2px,transparent 2.5px),#ffffff26;transition:left .5s linear}
+#mini-progress{position:relative;border-radius:2px}

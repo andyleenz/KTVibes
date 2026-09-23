@@ -1,4 +1,4 @@
-import {$,el,connect,api,clock,throttle,prepLabel} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,syncRanges} from './shared.js';
 let state;
 // After the first visit, skip the welcome hero and go straight to search.
 try{if(localStorage.getItem('ktvibes.visited'))document.body.classList.add('returning');localStorage.setItem('ktvibes.visited','1');}catch{}
@@ -14,7 +14,7 @@ function render(next){
  $('play').textContent=state.playing?'Pause':'Play';
  for(const id of ['play','skip','earlier','later'])$(id).disabled=!state.current;
  $('guide').textContent=`${GUIDE_NAMES[state.guide]} ⟳`;state.received=Date.now()/1000;if(document.activeElement!==$('lyric-scale'))$('lyric-scale').value=state.lyric_scale;$('lyric-scale-value').textContent=`${Math.round(state.lyric_scale*100)}%`;$('scrub').max=state.current?.duration||1;$('scrub').disabled=!state.current;$('length').textContent=clock(state.current?.duration);showPosition();if(document.activeElement!==$('vocal'))$('vocal').value=state.vocal;
- $('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;
+ $('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;syncRanges();
  showDock();
  showQueue();showUndo();
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
@@ -103,8 +103,8 @@ function showPosition(){
  if(!state||scrubbing)return;
  const live=state.current&&state.playing&&state.position>0?Date.now()/1000-state.received:0;
  const position=Math.min(state.position+live,state.current?.duration||0);
- $('scrub').value=position;$('position').textContent=clock(position);
- $('mini-progress').style.width=`${state.current?.duration?position/state.current.duration*100:0}%`;
+ $('scrub').value=position;syncRanges();$('position').textContent=clock(position);
+ const fraction=state.current?.duration?position/state.current.duration:0;$('mini-progress').style.width=`${fraction*100}%`;$('mini-progress').parentElement.style.setProperty('--p',fraction);
 }
 setInterval(showPosition,500);
 $('scrub').oninput=()=>{scrubbing=true;$('position').textContent=clock(Number($('scrub').value));};

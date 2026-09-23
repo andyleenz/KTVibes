@@ -1,4 +1,4 @@
-import {$,el,connect,api,clock,throttle,prepLabel} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,syncRanges} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
@@ -55,7 +55,7 @@ function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify({lyric_sca
 function restore(s){const mine=saved();for(const [action,value] of [['lyric_scale',mine.lyric_scale],['vocal',mine.vocal],['guide',mine.guide]])if(value!==undefined&&value!==s[action])send({action,value});}
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -74,7 +74,7 @@ function render(next){
    lyrics=item.lyrics||[];firstLine=lyrics.findIndex(line=>line.text);stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals.flac`;voice.src=`/media/${item.id}/vocals.flac`;music.load();voice.load();
    $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=item.title;$('next-artist').textContent=item.artist;
    lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul] of line.units||[]){const span=el('span',undefined,latin||hangul?'unit ruby':'unit');if(latin||hangul){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;$('duration').textContent=clock(item.duration);
-  }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').style.width='0%';}
+  }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
  }
  if(state.current&&state.seek_id!==lastSeek){
   lastSeek=state.seek_id;
@@ -153,7 +153,7 @@ function frame(now){
    const units=lines[index]?.units,spans=$('lyrics').children[index]?.children;
    // KTV wipe: each character/word fills left to right over its sung interval.
    if(units&&spans)units.forEach(([,from,to],i)=>spans[i]?.style.setProperty('--p',Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)))));
-   $('elapsed').textContent=clock(music.currentTime);$('progress').style.width=`${Math.min(100,music.currentTime/(state.current.duration||1)*100)}%`;
+   $('elapsed').textContent=clock(music.currentTime);$('progress').parentElement.style.setProperty('--p',Math.min(1,music.currentTime/(state.current.duration||1)));
    if(now-lastReport>2000&&!music.paused){lastReport=now;send({action:'progress',key:currentKey,position:music.currentTime});}
   }
  }
@@ -182,5 +182,5 @@ function showPrep(queued){
  if(!item)return;
  const {percent,text}=prepLabel(item);  // no percent while yt-dlp is still extracting
  $('idle-prep-step').textContent=text;$('idle-prep-title').textContent=item.title;
- const bar=$('idle-prep-bar');bar.parentElement.classList.toggle('busy',percent==null);bar.style.width=percent==null?'':`${percent}%`;
+ const bar=$('idle-prep-bar');bar.parentElement.classList.toggle('busy',percent==null);bar.parentElement.style.setProperty('--p',percent==null?0:percent/100);
 }
