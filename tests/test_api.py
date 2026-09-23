@@ -46,6 +46,30 @@ class APITests(unittest.TestCase):
         self.assertEqual([s['id'] for s in songs], ['bbbbbbbbbbb', 'aaaaaaaaaaa'])
         self.assertEqual(songs[0]['artist'], '아이유')
 
+    def test_delete_song_removes_download_and_history(self):
+        import json
+        cache = Path(self.temp.name)
+        folder = cache / 'aaaaaaaaaaa'
+        folder.mkdir()
+        (folder / 'meta.json').write_text(json.dumps({'artist': 'IU', 'title': 'Blueming'}), encoding='utf-8')
+        (folder / 'no_vocals.flac').touch()
+        self.main.state.played = {'aaaaaaaaaaa': 1.0}
+        self.assertEqual(len(self.client.get('/api/recent').json()), 1)
+        self.assertEqual(self.client.delete('/api/songs/aaaaaaaaaaa').status_code, 200)
+        self.assertFalse(folder.exists())
+        self.assertEqual(self.main.state.played, {})
+        self.assertEqual(self.client.get('/api/recent').json(), [])
+        self.assertEqual(self.client.delete('/api/songs/aaaaaaaaaaa').status_code, 404)
+        self.assertEqual(self.client.delete('/api/songs/..%2F..%2Fetc').status_code, 404)
+
+    def test_delete_refuses_queued_song(self):
+        song = {'id': 'abcdefghijk', 'artist': 'IU', 'title': '좋은 날'}
+        (Path(self.temp.name) / song['id']).mkdir()
+        self.client.post('/api/queue', json=song)
+        response = self.client.delete(f"/api/songs/{song['id']}")
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue((Path(self.temp.name) / song['id']).is_dir())
+
     def test_ambient_lists_cached_videos(self):
         cache = Path(self.temp.name)
         for video_id in ('bbbbbbbbbbb', 'aaaaaaaaaaa', 'not-an-id'):

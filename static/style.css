@@ -110,4 +110,11 @@ input[type=range]:disabled{opacity:.4}
 .play.playing .icon-play{opacity:0;transform:rotate(90deg) scale(.5)}
 .play.playing .icon-pause{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){.remote button,.mini button,.toast button,.play .icon-play,.play .icon-pause{transition:none}.result-icon.added svg{animation:none}}
+/* Recent: swipe a row left to reveal Delete; keyboard focus on Delete reveals it too. */
+.swipe{position:relative}
+.swipe .result{position:relative;z-index:1;touch-action:pan-y;transition:transform .45s cubic-bezier(.38,1.21,.22,1),border-radius .3s cubic-bezier(.42,1.67,.21,.9)}
+.swipe.dragging .result{transition:none}
+.swipe .swipe-delete{position:absolute;top:1px;right:1px;bottom:1px;width:88px;height:auto;padding:0;border:0;border-radius:16px;background:#e5484d;color:#fff;font-weight:700;font-size:14px}
+.swipe:has(.swipe-delete:focus-visible) .result{transform:translateX(-96px)}
+@media(prefers-reduced-motion:reduce){.swipe .result{transition:none}}
 

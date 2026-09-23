@@ -75,7 +75,7 @@ async function loadRecent(){
   const songs=await api('/api/recent'),shape=songs.map(song=>song.id).join();
   if(shape===recentShape)return;
   recentShape=shape;$('recent').replaceChildren();
-  songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent')));
+  songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent'),row=>swipeable(row,song)));
   if(!songs.length)$('recent').append(el('p','Nothing sung yet.','empty'));
  }catch{}
 }
@@ -86,10 +86,46 @@ const enqueue=song=>api('/api/queue',{method:'POST',headers:{'Content-Type':'app
 const ICONS={add:'<path d="M12 5v14M5 12h14"/>',added:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',failed:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'};
 function icon(node,name){node.className=`result-icon ${name}`;node.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;}
 // One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs).
-function showResult(song,list=$('results')){
+function showResult(song,list=$('results'),wrap=row=>row){
  const b=el('button',undefined,'result');const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');const title=el('strong',song.title);if(song.cached)title.append(el('span','READY','tag'));info.append(title,el('small',`${song.channel} · ${clock(song.duration)}`));const status=el('span');icon(status,'add');b.append(image,info,status);
- b.onclick=async()=>{b.disabled=true;try{await enqueue({id:song.id,...song.parsed});icon(status,'added');message(`Added ${song.parsed.title}.`);}catch(error){icon(status,'failed');message(error.message);}finally{b.disabled=false;}};
- list.append(b);
+ b.onclick=async()=>{
+  // A swipe ends in a click; an open row closes on tap instead of queueing.
+  if(b.dataset.dragged){delete b.dataset.dragged;return;}if(b.parentElement?.classList.contains('open')){closeSwipe();return;}
+  b.disabled=true;try{await enqueue({id:song.id,...song.parsed});icon(status,'added');message(`Added ${song.parsed.title}.`);}catch(error){icon(status,'failed');message(error.message);}finally{b.disabled=false;}};
+ list.append(wrap(b));
+}
+// Recent songs swipe left to reveal Delete; tapping it deletes the download.
+const REVEAL=96;let openSwipe=null;
+function closeSwipe(){if(!openSwipe)return;openSwipe.classList.remove('open');openSwipe.querySelector('.result').style.transform='';openSwipe=null;}
+document.addEventListener('pointerdown',e=>{if(openSwipe&&!openSwipe.contains(e.target))closeSwipe();});
+function swipeable(row,song){
+ const wrap=el('div',undefined,'swipe'),del=el('button','Delete','swipe-delete');del.setAttribute('aria-label',`Delete ${song.title} from this device`);
+ wrap.append(row,del);
+ let start=null,dx=0,dragging=false;
+ row.addEventListener('pointerdown',e=>{delete row.dataset.dragged;if(e.pointerType==='mouse'&&e.button)return;start={x:e.clientX,y:e.clientY,base:wrap.classList.contains('open')?-REVEAL:0};dx=start.base;dragging=false;});
+ row.addEventListener('pointermove',e=>{
+  if(!start)return;const mx=e.clientX-start.x,my=e.clientY-start.y;
+  if(!dragging){if(Math.abs(my)>8&&Math.abs(my)>Math.abs(mx)){start=null;return;}if(Math.abs(mx)<8)return;dragging=true;row.setPointerCapture(e.pointerId);wrap.classList.add('dragging');if(openSwipe!==wrap)closeSwipe();}
+  dx=Math.max(-REVEAL*1.3,Math.min(0,start.base+mx));row.style.transform=`translateX(${dx}px)`;
+ });
+ const end=()=>{
+  if(!start)return;start=null;wrap.classList.remove('dragging');if(!dragging)return;
+  row.dataset.dragged='1';
+  if(dx<-REVEAL/2){wrap.classList.add('open');row.style.transform=`translateX(${-REVEAL}px)`;openSwipe=wrap;}
+  else{wrap.classList.remove('open');row.style.transform='';if(openSwipe===wrap)openSwipe=null;}
+ };
+ row.addEventListener('pointerup',end);row.addEventListener('pointercancel',end);
+ del.onclick=async()=>{
+  del.disabled=true;
+  try{
+   await api(`/api/songs/${song.id}`,{method:'DELETE'});
+   if(openSwipe===wrap)openSwipe=null;
+   if(!REDUCED.matches)await wrap.animate([{height:`${wrap.offsetHeight}px`,opacity:1},{height:'0px',opacity:0,marginBottom:'-8px'}],{duration:300,easing:'cubic-bezier(.3,0,.8,.15)'}).finished;
+   wrap.remove();recentShape=null;message(`Deleted ${song.title}.`);
+   if(!$('recent').children.length)loadRecent();
+  }catch(error){message(error.message);closeSwipe();}finally{del.disabled=false;}
+ };
+ return wrap;
 }
 async function loadPage(){
  const button=search.page?$('more'):$('search-button');button.disabled=true;message(search.page?'Loading more…':'Searching YouTube…');

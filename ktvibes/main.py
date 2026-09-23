@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager, suppress
 import io
 import json
 import os
+import shutil
 from pathlib import Path
 import socket
 import math
@@ -104,6 +105,22 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
 async def ambient():
     """Cached music videos the TV loops, muted, behind an empty stage."""
     return sorted(path.parent.name for path in CACHE.glob("*/video.mp4") if youtube.ID.fullmatch(path.parent.name))
+
+@app.delete("/api/songs/{video_id}")
+async def delete_song(video_id: str):
+    """Forget a song and delete its download; queueing it again downloads it fresh."""
+    folder = CACHE / video_id
+    if not youtube.ID.fullmatch(video_id) or not (folder.is_dir() or video_id in state.played):
+        raise HTTPException(404, "Song not found")
+    if state.queued(video_id):
+        raise HTTPException(409, "Remove it from the queue first")
+    state.played.pop(video_id, None)
+    if folder.is_symlink():
+        folder.unlink()
+    elif folder.is_dir():
+        await asyncio.to_thread(shutil.rmtree, folder)
+    await state.broadcast()
+    return {"deleted": video_id}
 
 @app.post("/api/queue", status_code=201)
 async def enqueue(song: Song):
