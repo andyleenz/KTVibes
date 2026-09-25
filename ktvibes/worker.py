@@ -70,6 +70,12 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         temporary.replace(folder / "timed.json")
     return lines
 
+class Removed(Exception):
+    """The song left the queue while it was being prepared."""
+
+# Video downloads still running, by video id: a song queued again reuses its download instead of starting a second.
+videos = {}
+
 async def run(state, cache: Path):
     while True:
         state.wake.clear()
@@ -78,6 +84,10 @@ async def run(state, cache: Path):
             await state.wake.wait()
             continue
         folder = cache / item["id"]
+        def check():
+            # A removed song stops holding up the queue; a download already running finishes on its own.
+            if item is not state.current and item not in state.upcoming:
+                raise Removed
         try:
             folder.mkdir(parents=True, exist_ok=True)
             meta_path = folder / "meta.json"
@@ -88,7 +98,9 @@ async def run(state, cache: Path):
             # The (larger, optional) video downloads while the audio is fetched and separated.
             video = None
             if not (folder / "video.mp4").is_file():
-                video = asyncio.ensure_future(asyncio.to_thread(fetch_video, item["id"], folder, reporter(state, item, "video")))
+                video = videos.get(item["id"])
+                if video is None or video.done():
+                    video = videos[item["id"]] = asyncio.ensure_future(asyncio.to_thread(fetch_video, item["id"], folder, reporter(state, item, "video")))
             if not stems.ready(folder):
                 # Songs cached as float WAV convert in about a second instead of separating again.
                 gain = await asyncio.to_thread(stems.migrate, folder)
@@ -97,14 +109,19 @@ async def run(state, cache: Path):
                         item["status"], item["step"], item["progress"] = "downloading", "audio", 0.0
                         await state.broadcast()
                         meta.update(await asyncio.to_thread(youtube.download, item["id"], folder, reporter(state, item, "audio")))
+                        check()
                     item["status"], item["step"], item["progress"] = "separating", None, None
                     await state.broadcast()
                     meta["separation_seconds"], gain = await asyncio.to_thread(separate, folder / "audio.m4a", folder)
                 meta["stem_gain"] = gain
                 save_meta(folder, meta)  # the gain must survive even if a later step fails
+            check()
             if video and not video.done():
                 item["status"], item["step"], item["progress"] = "downloading", "video", 0.0
                 await state.broadcast()
+                while not video.done():
+                    await asyncio.wait({video}, timeout=0.5)
+                    check()
             if video and (warning := await video):
                 item["video_warning"] = warning
             item["video"] = (folder / "video.mp4").is_file()
@@ -139,8 +156,13 @@ async def run(state, cache: Path):
             item["offset"] = float(meta.get("lyric_offset") or 0)
             meta.update(duration=item["duration"], artist=item["artist"], title=item["title"])
             save_meta(folder, meta)
+            check()
             item["status"], item["step"], item["progress"] = "ready", None, None
             state.promote()
+        except Removed:
+            # Undoing the removal puts it back as queued, to be prepared again (fast from cache).
+            log.info("Stopped preparing %s: removed from the queue", item["id"])
+            item["status"], item["step"], item["progress"] = "queued", None, None
         except Exception as exc:
             log.exception("Preparation failed for %s", item["id"])
             item["status"] = "error"

@@ -220,6 +220,50 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
             await state.control({'action': 'offset', 'delta': .5})
             self.assertEqual(json.loads(meta.read_text(encoding='utf-8')), {'title': '晴天', 'lyric_offset': 1.5})
 
+class WorkerRunTests(unittest.IsolatedAsyncioTestCase):
+    async def test_removed_song_stops_holding_up_the_queue(self):
+        import tempfile, threading
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from ktvibes import worker
+        release = threading.Event()
+        def fetch_video(video_id, folder, progress):
+            if video_id == 'aaaaaaaaaaa':
+                release.wait(10)  # a slow download that outlives its song's place in the queue
+        async def no_lyrics(*args):
+            return {'raw': '', 'lines': []}
+        state = State()
+        with tempfile.TemporaryDirectory() as temp, \
+             patch.object(worker, 'fetch_video', fetch_video), \
+             patch.object(worker.stems, 'ready', lambda folder: True), \
+             patch.object(worker.sf, 'info', lambda path: SimpleNamespace(duration=100)), \
+             patch.object(worker.lyrics, 'fetch', no_lyrics):
+            task = asyncio.create_task(worker.run(state, Path(temp)))
+            try:
+                slow = await state.add('aaaaaaaaaaa', 'A', 'Slow')
+                for _ in range(50):
+                    if slow.get('step') == 'video':
+                        break
+                    await asyncio.sleep(0.05)
+                self.assertEqual(slow.get('step'), 'video')
+                await state.control({'action': 'remove', 'key': slow['key']})
+                nxt = await state.add('bbbbbbbbbbb', 'B', 'Next')
+                for _ in range(60):
+                    if state.current is nxt:
+                        break
+                    await asyncio.sleep(0.05)
+                self.assertIs(state.current, nxt)
+                self.assertFalse(release.is_set())
+                # Undoing the removal prepares it again rather than leaving it half done.
+                self.assertEqual(slow['status'], 'queued')
+            finally:
+                release.set()
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+
+
 class WorkerTests(unittest.TestCase):
     def test_wav_stems_migrate_to_flac_with_gain(self):
         import tempfile
