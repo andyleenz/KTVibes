@@ -67,6 +67,10 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((state.position, state.seek_id), (100, 1))
         await state.control({'action': 'lyric_scale', 'value': 9})
         self.assertEqual(state.lyric_scale, 1.8)
+        await state.control({'action': 'speed', 'value': 3})
+        self.assertEqual(state.speed, 1.5)
+        await state.control({'action': 'key', 'value': -9})
+        self.assertEqual(state.key, -6)
 
     async def test_duplicates_rejected_until_song_leaves_stage(self):
         state = State()

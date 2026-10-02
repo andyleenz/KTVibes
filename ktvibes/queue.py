@@ -31,6 +31,8 @@ class State:
         self.vocal = 0.1
         self.guide = "latin"  # off | latin | hangul, shown above the lyrics
         self.lyric_scale = 1.0
+        self.speed = 1.0  # playback tempo, 0.5-1.5; pitch is kept
+        self.key = 0  # pitch shift in semitones, -6..+6
         self.seek_id = 0
         self.position = 0.0
         self.transition_until = 0.0
@@ -55,7 +57,7 @@ class State:
         """Lyrics are large and only the TV draws them, so broadcasts leave them out (see broadcast)."""
         brief = lambda item: item if lyrics or item is None else {k: v for k, v in item.items() if k != "lyrics"}
         return {"current": brief(self.current), "upcoming": [brief(i) for i in self.upcoming], "playing": self.playing,
-                "offset": self.offset, "vocal": self.vocal, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "seek_id": self.seek_id, "position": self.position,
+                "offset": self.offset, "vocal": self.vocal, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "player_audio": self.player is not None and self.audio,
                 "undo": self.undo and {"title": self.undo["item"]["title"], "until": self.undo["until"]},
@@ -124,6 +126,9 @@ class State:
         self.current = None
         self.position = 0
         self.offset = 0
+        # Tempo and key suit one singer and one song, so each song starts as recorded.
+        self.speed = 1.0
+        self.key = 0
         # A short breather between songs shows who's up next; a song on an empty stage starts at once.
         self.transition_until = time.time() + BREATHER
         self.promote()
@@ -208,6 +213,10 @@ class State:
             self.seek_id += 1
         elif action == "lyric_scale":
             self.lyric_scale = max(0.6, min(1.8, number(message["value"])))
+        elif action == "speed":
+            self.speed = round(max(0.5, min(1.5, number(message["value"]))), 2)
+        elif action == "key":
+            self.key = int(max(-6, min(6, round(number(message["value"])))))
         elif action == "guide":
             modes = self.guides()
             if message.get("value") == "cycle":

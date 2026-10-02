@@ -1,7 +1,7 @@
 import {$,el,connect,api,clock,throttle,prepLabel,syncRanges} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
-let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
+let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0;
 const error=text=>$('tv-error').textContent=text;
 // This screen remembers its own display settings and restores them each time it (re)connects.
 const SETTINGS='ktvibes.tv-settings';let restoring=false;
@@ -84,10 +84,18 @@ function render(next){
  if(!state.playing){music.pause();voice.pause();video.pause();}
 }
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
-function applyGain(){if(!musicGain)return;musicGain.gain.value=stemGain;voiceGain.gain.value=(state?.vocal??0.1)*stemGain;}
+// Speed changes tempo only (the browser keeps pitch); the key shift is applied by the worklet.
+function applyTempo(){const speed=state?.speed??1;for(const media of [music,voice,video]){media.defaultPlaybackRate=speed;if(media.playbackRate!==speed)media.playbackRate=speed;}if(shifter)shifter.parameters.get('ratio').value=2**((state?.key??0)/12);}
+function applyGain(){applyTempo();if(!musicGain)return;musicGain.gain.value=stemGain;voiceGain.gain.value=(state?.vocal??0.1)*stemGain;}
 $('enable-button').onclick=async()=>{
  try{
-  if(!context){context=new AudioContext();musicGain=context.createGain();voiceGain=context.createGain();context.createMediaElementSource(music).connect(musicGain).connect(context.destination);context.createMediaElementSource(voice).connect(voiceGain).connect(context.destination);applyGain();}
+  if(!context){
+   context=new AudioContext();musicGain=context.createGain();voiceGain=context.createGain();
+   // Both stems run through one pitch shifter for key changes; without worklets, play at the original key.
+   let out=context.destination;
+   try{await context.audioWorklet.addModule('/static/pitch.js');shifter=new AudioWorkletNode(context,'pitch-shifter',{outputChannelCount:[2]});shifter.connect(out);out=shifter;}catch(e){console.warn('Key change unavailable',e);}
+   context.createMediaElementSource(music).connect(musicGain).connect(out);context.createMediaElementSource(voice).connect(voiceGain).connect(out);applyGain();
+  }
   await context.resume();enabled=true;send({action:'audio',value:true});$('enable').hidden=true;$('audio-error').textContent='';
  }catch(e){$('audio-error').textContent=e.message;}
 };
