@@ -1,5 +1,6 @@
 # KTVibes installer for Windows (PowerShell):
-#   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex"
+# In PowerShell:
+#   irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex
 # Installs missing tools with winget, clones (or updates) KTVibes into ~\KTVibes, installs its
 # Python dependencies, and adds a `ktvibes` command.
 $ErrorActionPreference = "Stop"

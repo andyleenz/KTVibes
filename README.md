@@ -44,13 +44,13 @@ curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh |
 
 The script needs `git`, `ffmpeg` and Node.js 22+, and tells you how to install any that are missing (`brew install git ffmpeg node` on macOS). It installs [uv](https://docs.astral.sh/uv/), clones KTVibes to `~/KTVibes`, and adds a `ktvibes` command.
 
-**Windows** (PowerShell, untested so far; reports welcome)
+**Windows** (run in PowerShell; new, reports welcome)
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex"
+irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex
 ```
 
-This installs Git, FFmpeg, Node.js and uv with `winget` if they are missing.
+This installs Git, FFmpeg, Node.js and uv with `winget` if they are missing. Work-managed PCs may block scripts or `winget`; install on a personal machine.
 
 **Manual**
 
