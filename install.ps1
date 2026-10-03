@@ -23,4 +23,6 @@ New-Item -ItemType Directory -Force $bin | Out-Null
 Set-Content (Join-Path $bin "ktvibes.cmd") "@echo off`r`nsetlocal`r`ncd /d `"$dir`" && uv run --no-dev ktvibes %*"
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -notlike "*$bin*") { [Environment]::SetEnvironmentVariable("Path", "$userPath;$bin", "User") }
+$missing = @("ffmpeg", "ffprobe", "node") | Where-Object { -not (Get-Command $_ -ErrorAction SilentlyContinue) }
+if ($missing) { Write-Warning "Not on PATH yet: $($missing -join ', '). Open a NEW terminal before running ktvibes." }
 Write-Host "`nInstalled. Open a new terminal, run: ktvibes   then open http://localhost:8765/tv"

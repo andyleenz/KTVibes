@@ -260,4 +260,8 @@ async def websocket(ws: WebSocket):
 def run():
     """`uv run ktvibes`: one process only, since queue state and the model live in memory."""
     import uvicorn
+    if missing := worker.missing_tools():
+        # Common right after installing: the terminal predates the install and has a stale PATH.
+        print(f"WARNING: {', '.join(missing)} not found on PATH. Songs can't be prepared until it is installed.\n"
+              "If you just installed it, open a new terminal and run ktvibes again.", flush=True)
     uvicorn.run(app, host="0.0.0.0", port=PORT)

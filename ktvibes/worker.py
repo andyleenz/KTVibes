@@ -28,6 +28,11 @@ def reporter(state, item, step):
         loop.call_soon_threadsafe(apply)
     return report
 
+def missing_tools() -> list[str]:
+    """External programs KTVibes needs on PATH: ffmpeg/ffprobe for media, Node.js for YouTube extraction."""
+    import shutil
+    return [name for name, exe in (("ffmpeg", "ffmpeg"), ("ffprobe", "ffprobe"), ("Node.js", "node")) if not shutil.which(exe)]
+
 def save_meta(folder: Path, meta: dict):
     temporary = folder / "meta.tmp"
     temporary.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -166,6 +171,8 @@ async def run(state, cache: Path):
         except Exception as exc:
             log.exception("Preparation failed for %s", item["id"])
             item["status"] = "error"
-            item["error"] = str(exc)[-500:]
+            missing = missing_tools()
+            # A missing ffmpeg or Node.js surfaces as an obscure "WinError 2"; say what to fix instead.
+            item["error"] = f"{' and '.join(missing)} not found. Install, open a new terminal, restart KTVibes, then Retry." if missing else str(exc)[-500:]
             state.promote()
         await state.broadcast()
