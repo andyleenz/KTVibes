@@ -4,9 +4,17 @@ import re
 import sys
 import subprocess
 import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+def suggest(query: str) -> list[str]:
+    """YouTube's own search-box completions for a partial query."""
+    url = "https://suggestqueries.google.com/complete/search?" + urllib.parse.urlencode({"client": "firefox", "ds": "yt", "q": query})
+    with urllib.request.urlopen(url, timeout=3) as response:
+        return [s for s in json.loads(response.read().decode("utf-8", "replace"))[1] if isinstance(s, str) and not NOT_MUSIC.search(s)][:8]
 
 def parse_title(title: str, channel: str = "") -> dict:
     clean = re.sub(r"\s*[\[(（【][^\])）】]*(?:official|music video|lyrics?|mv|audio|官方|歌詞|歌词|뮤직비디오)[^\])）】]*[\])）】]", "", title, flags=re.I).strip()
@@ -16,6 +24,15 @@ def parse_title(title: str, channel: str = "") -> dict:
         return {"artist": bracketed[1], "title": bracketed[2]}
     parts = re.split(r"\s+[-–—｜|]\s+", clean, maxsplit=1)
     return {"artist": parts[0] if len(parts) == 2 else re.sub(r"\s*- Topic$", "", channel), "title": parts[-1]}
+
+# Searches are for songs to sing: these are rarely the song itself, or lack the vocals that separation needs.
+NOT_MUSIC = re.compile(r"\b(?:reactions?|react(?:s|ing)?|dance practice|dance break|choreography|tutorial|lesson|how to|"
+                       r"compilation|playlist|mix|nonstop|full album|karaoke|instrumental|inst\.|8d audio|sped up|slowed|"
+                       r"behind the scenes|interview|vlog|teaser|trailer|shorts?)\b|#shorts", re.I)
+
+def is_music(title: str, duration) -> bool:
+    """A plausible single song: 1-10 minutes, and not a reaction, lesson, mix or similar."""
+    return not NOT_MUSIC.search(title or "") and (duration is None or 60 <= duration <= 600)
 
 def search(query: str, page: int = 0, size: int = 10) -> list[dict]:
     """One page of results; YouTube search has no offset, so later pages fetch the earlier ones too."""
@@ -27,7 +44,7 @@ def search(query: str, page: int = 0, size: int = 10) -> list[dict]:
     return [{"id": e["id"], "title": e.get("title", "Untitled"), "channel": e.get("channel") or e.get("uploader", ""),
              "duration": e.get("duration"), "thumbnail": f'https://i.ytimg.com/vi/{e["id"]}/mqdefault.jpg',
              "parsed": parse_title(e.get("title", ""), e.get("channel") or e.get("uploader", ""))}
-            for e in result.get("entries", []) if e and ID.fullmatch(e.get("id", ""))]
+            for e in result.get("entries", []) if e and ID.fullmatch(e.get("id", "")) and is_music(e.get("title", ""), e.get("duration"))]
 
 def _extract(options: dict, video_id: str, progress=None, attempts: int = 4) -> dict:
     """Download with fresh stream URLs on HTTP 403, which YouTube returns intermittently.

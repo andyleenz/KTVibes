@@ -98,9 +98,50 @@ function showResult(song,list=$('results'),wrap=row=>row){
 const REVEAL=96;let openSwipe=null;
 function closeSwipe(){if(!openSwipe)return;openSwipe.classList.remove('open');openSwipe.querySelector('.result').style.transform='';openSwipe=null;}
 document.addEventListener('pointerdown',e=>{if(openSwipe&&!openSwipe.contains(e.target))closeSwipe();});
+// Lyrics picker: every LRCLIB version that fits the song (languages, editions), with its first lines.
+async function pickLyrics(song){
+ const sheet=el('div',undefined,'lyric-sheet'),panel=el('div',undefined,'lyric-sheet-panel'),list=el('div',undefined,'lyric-options'),close=el('button','Close');
+ const shut=()=>{sheet.classList.add('out');sheet.addEventListener('animationend',()=>sheet.remove(),{once:true});};
+ close.onclick=shut;sheet.onclick=e=>{if(e.target===sheet)shut();};
+ const head=el('div',undefined,'lyric-sheet-head');head.append(el('strong',`Lyrics · ${song.title}`),close);
+ list.append(el('p','Looking up every version…','muted'));panel.append(head,list);sheet.append(panel);document.body.append(sheet);
+ try{
+  const options=await api(`/api/songs/${song.id}/lyrics`);
+  list.replaceChildren(...(options.length?[]:[el('p','No synced lyrics found for this song.','muted')]));
+  // One row per language (its best version) first; other editions sit behind "Show all".
+  const seen=new Set(),extra=[];
+  for(const o of options){
+   const first=!seen.has(o.language);seen.add(o.language);
+   const b=el('button',undefined,'lyric-option'+(o.current?' current':'')),top=el('div');
+   top.append(el('b',o.language),el('span',[o.track,o.artist,o.album].filter(Boolean).join(' · ')),...(o.current?[el('em','In use')]:[]));
+   b.append(top,...o.preview.map(line=>el('small',line)),el('small',`${o.lines} lines`,'count'));
+   b.onclick=async()=>{
+    for(const other of list.children)other.disabled=true;b.classList.add('busy');
+    try{await api(`/api/songs/${song.id}/lyrics`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:o.id})});message(`Lyrics for ${song.title} set to ${o.language}.`);shut();}
+    catch(error){message(error.message);for(const other of list.children)other.disabled=false;b.classList.remove('busy');}
+   };
+   if(first||o.current)list.append(b);else extra.push(b);
+  }
+  if(extra.length){const all=el('button',`Show all ${options.length} versions`,'lyric-all');all.onclick=()=>{all.replaceWith(...extra);};list.append(all);}
+ }catch(error){list.replaceChildren(el('p',error.message,'error'));}
+}
+// A ⋯ button on each recent song opens its advanced actions.
+let openMenu=null;
+function closeMenu(){openMenu?.remove();openMenu=null;}
+document.addEventListener('pointerdown',e=>{if(openMenu&&!openMenu.contains(e.target)&&!e.target.closest('.song-more'))closeMenu();});
+function songMenu(wrap,song,del){
+ if(openMenu?.parentElement===wrap)return closeMenu();
+ closeMenu();closeSwipe();
+ const menu=el('div',undefined,'song-menu'),refetch=el('button','Lyrics language…'),remove=el('button','Delete download','danger');
+ menu.setAttribute('role','menu');for(const item of [refetch,remove])item.setAttribute('role','menuitem');
+ refetch.onclick=()=>{closeMenu();pickLyrics(song);};
+ remove.onclick=()=>{closeMenu();del.click();};
+ menu.append(refetch,remove);wrap.append(menu);openMenu=menu;refetch.focus();
+}
 function swipeable(row,song){
- const wrap=el('div',undefined,'swipe'),del=el('button','Delete','swipe-delete');del.setAttribute('aria-label',`Delete ${song.title} from this device`);
- wrap.append(row,del);
+ const wrap=el('div',undefined,'swipe'),del=el('button','Delete','swipe-delete'),more=el('button','⋯','song-more');del.setAttribute('aria-label',`Delete ${song.title} from this device`);
+ more.setAttribute('aria-label',`More actions for ${song.title}`);more.setAttribute('aria-haspopup','menu');more.onclick=()=>songMenu(wrap,song,del);
+ wrap.append(row,del,more);
  let start=null,dx=0,dragging=false;
  row.addEventListener('pointerdown',e=>{delete row.dataset.dragged;if(e.pointerType==='mouse'&&e.button)return;start={x:e.clientX,y:e.clientY,base:wrap.classList.contains('open')?-REVEAL:0};dx=start.base;dragging=false;});
  row.addEventListener('pointermove',e=>{
@@ -137,8 +178,30 @@ async function loadPage(){
   if(!search.page)showResults();
  }catch(error){message(error.message);}finally{button.disabled=false;}
 }
+// Autocomplete from YouTube's search box: type to see completions, tap or arrow+Enter to search one.
+let suggestTimer,suggestRun=0,suggestIndex=-1;
+function hideSuggestions(){$('suggestions').hidden=true;$('query').setAttribute('aria-expanded','false');suggestIndex=-1;}
+function pickSuggestion(text){$('query').value=text;hideSuggestions();$('search-form').requestSubmit();}
+function markSuggestion(index){const items=[...$('suggestions').children];suggestIndex=(index+items.length+1)%(items.length+1)-1;items.forEach((li,i)=>li.setAttribute('aria-selected',i===suggestIndex));}
+$('query').oninput=()=>{
+ clearTimeout(suggestTimer);const q=$('query').value.trim(),run=++suggestRun;
+ if(!q)return hideSuggestions();
+ suggestTimer=setTimeout(async()=>{
+  const list=await api(`/api/suggest?q=${encodeURIComponent(q)}`).catch(()=>[]);
+  if(run!==suggestRun||document.activeElement!==$('query'))return;
+  $('suggestions').replaceChildren(...list.map(text=>{const li=el('li',text);li.setAttribute('role','option');li.onpointerdown=e=>{e.preventDefault();pickSuggestion(text);};return li;}));
+  suggestIndex=-1;$('suggestions').hidden=!list.length;$('query').setAttribute('aria-expanded',String(!!list.length));
+ },150);
+};
+$('query').onkeydown=e=>{
+ if($('suggestions').hidden)return;
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();markSuggestion(suggestIndex+(e.key==='ArrowDown'?1:-1));}
+ else if(e.key==='Enter'&&suggestIndex>=0){e.preventDefault();pickSuggestion($('suggestions').children[suggestIndex].textContent);}
+ else if(e.key==='Escape')hideSuggestions();
+};
+$('query').onblur=()=>setTimeout(hideSuggestions,100);
 $('search-form').onsubmit=e=>{
- e.preventDefault();search={query:$('query').value.trim(),page:0,seen:new Set()};$('results').replaceChildren();$('more').hidden=true;loadPage();
+ e.preventDefault();suggestRun++;hideSuggestions();search={query:$('query').value.trim(),page:0,seen:new Set()};$('results').replaceChildren();$('more').hidden=true;loadPage();
  $('query').blur();showResults();  // drop the keyboard so results have the screen
 };
 // Search stays pinned but results don't: from further down, bring them up under the bar.
@@ -155,6 +218,7 @@ $('vocal').oninput=()=>sendVocal(Number($('vocal').value));
 const sendMusic=throttle(value=>send({action:'music',value}));$('music').oninput=()=>sendMusic(Number($('music').value));
 const sendSpeed=throttle(value=>send({action:'speed',value}));$('speed').oninput=()=>sendSpeed(Number($('speed').value));
 $('key-down').onclick=()=>send({action:'key',value:state.key-1});$('key-up').onclick=()=>send({action:'key',value:state.key+1});$('key-reset').onclick=()=>{send({action:'speed',value:1});send({action:'key',value:0});};
+$('lyric-version').onclick=()=>state?.current&&pickLyrics(state.current);
 $('lyric-scale').oninput=()=>sendScale(Number($('lyric-scale').value));
 // Estimate the TV position between its two-second progress reports.
 let scrubbing=false;

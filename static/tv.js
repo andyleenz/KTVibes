@@ -55,7 +55,7 @@ function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify({lyric_sca
 function restore(s){const mine=saved();for(const [action,value] of [['lyric_scale',mine.lyric_scale],['vocal',mine.vocal],['guide',mine.guide]])if(value!==undefined&&value!==s[action])send({action,value});}
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -71,17 +71,24 @@ function render(next){
    const item=state.current;
    video.hidden=!item.video;$('video-shade').hidden=!item.video;document.body.classList.toggle('has-video',!!item.video);
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
-   lyrics=item.lyrics||[];firstLine=lyrics.findIndex(line=>line.text);stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals.flac`;voice.src=`/media/${item.id}/vocals.flac`;music.load();voice.load();
+   stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals.flac`;voice.src=`/media/${item.id}/vocals.flac`;music.load();voice.load();
    $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-artist').textContent=$('card-artist').textContent=item.artist;
-   lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul] of line.units||[]){const span=el('span',undefined,latin||hangul?'unit ruby':'unit');if(latin||hangul){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;$('duration').textContent=clock(item.duration);
+   showLyrics(item);$('duration').textContent=clock(item.duration);
   }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
  }
+ else if(state.current&&(state.current.lyrics_rev||0)!==lyricsRev){$('lyrics').replaceChildren();activeLine=-1;lyricsPositioned=false;showLyrics(state.current);}
  if(state.current&&state.seek_id!==lastSeek){
   lastSeek=state.seek_id;
   if(music.readyState&&seekTo===null){music.currentTime=voice.currentTime=state.position;if(state.current.video&&video.readyState)video.currentTime=state.position;}else seekTo=state.position;
   lyricsPositioned=false;
  }
  if(!state.playing){music.pause();voice.pause();video.pause();}
+}
+// Lyrics for the song on stage; a remote can swap in another version mid-song (lyrics_rev).
+let lyricsRev=0;
+function showLyrics(item){
+ lyrics=item.lyrics||[];firstLine=lyrics.findIndex(line=>line.text);lyricsRev=item.lyrics_rev||0;
+ lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul] of line.units||[]){const span=el('span',undefined,latin||hangul?'unit ruby':'unit');if(latin||hangul){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
 }
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
 // Speed changes tempo only (the browser keeps pitch); the key shift is applied by the worklet.
@@ -102,6 +109,12 @@ $('enable-button').onclick=async()=>{
 $('fullscreen').onclick=()=>{const result=document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();result.catch(e=>error(e.message));};
 const sendVocal=throttle(value=>send({action:'vocal',value}));
 $('vocal').oninput=()=>sendVocal(Number($('vocal').value));
+// Bottom-bar controls for whoever sits at the TV computer.
+const sendMusic=throttle(value=>send({action:'music',value}));
+$('tv-music').oninput=()=>sendMusic(Number($('tv-music').value));
+$('tv-play').onclick=()=>send({action:state?.playing?'pause':'play'});
+$('tv-skip').onclick=()=>send({action:'skip'});
+$('tv-guide').onclick=()=>send({action:'guide',value:'cycle'});
 music.onwaiting=()=>{buffering=true;voice.pause();video.pause();};
 music.onplaying=()=>{buffering=false;if(enabled&&state?.playing&&currentKey){voice.currentTime=music.currentTime;voice.play().catch(()=>error('Vocals could not resume. Pause and play to retry.'));}};
 music.onended=()=>{voice.pause();video.pause();send({action:'ended',key:currentKey});};

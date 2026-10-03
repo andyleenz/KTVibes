@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 from ktvibes.lyrics import parse_lrc
-from ktvibes.youtube import parse_title
+from ktvibes.youtube import is_music, parse_title
 from ktvibes.queue import State
 
 class LyricsTests(unittest.TestCase):
@@ -16,6 +16,15 @@ class LyricsTests(unittest.TestCase):
         self.assertEqual(parse_title('봄날', '방탄소년단 - Topic'), {'artist': '방탄소년단', 'title': '봄날'})
         self.assertEqual(parse_title('卓文萱 Genie Chuo&曹格 Gary Chaw【梁山伯與茱麗葉】華視偶像劇「戀愛女王」片尾曲', '滾石唱片 ROCK RECORDS'),
                          {'artist': '卓文萱 Genie Chuo&曹格 Gary Chaw', 'title': '梁山伯與茱麗葉'})
+
+class MusicFilterTests(unittest.TestCase):
+    def test_keeps_songs_and_drops_other_videos(self):
+        self.assertTrue(is_music('BTS - Dynamite (Official MV)', 223))
+        self.assertTrue(is_music('晴天', None))
+        for title in ('BTS Dynamite Reaction!!', 'Dynamite Dance Practice', 'Dynamite (Instrumental)', 'Pink Venom #shorts'):
+            self.assertFalse(is_music(title, 200), title)
+        self.assertFalse(is_music('周杰倫最好聽的20首歌曲', 4000))
+        self.assertFalse(is_music('Intro', 30))
 
 class QueueTests(unittest.IsolatedAsyncioTestCase):
     async def test_guide_cycles_only_through_modes_with_content(self):
@@ -313,6 +322,20 @@ if __name__ == '__main__':
     unittest.main()
 
 class LyricsMatchTests(unittest.TestCase):
+    def test_original_script_beats_romanized_record(self):
+        from ktvibes import lyrics
+        romanized = {"trackName": "Spring Day", "duration": 274, "syncedLyrics": "[00:10.00] bogo sipda"}
+        hangul = {"trackName": "Spring Day", "duration": 276, "syncedLyrics": "[00:10.00] 보고 싶다"}
+        japanese = {"trackName": "Spring Day", "duration": 274, "syncedLyrics": "[00:10.00] 会いたい"}
+        best = min([romanized, japanese, hangul], key=lambda c: lyrics.rank(c, ["Spring Day"], 274, "ko"))
+        self.assertIs(best, hangul)
+
+    def test_script_tells_korean_japanese_and_chinese_apart(self):
+        from ktvibes import lyrics
+        self.assertEqual([lyrics.script(t) for t in ("보고 싶다", "会いたい", "晴天", "bogo sipda")], ["ko", "ja", "zh", "latin"])
+        self.assertEqual(lyrics.wanted_script("BTS (방탄소년단)", "Spring Day"), "ko")
+        self.assertIsNone(lyrics.wanted_script("NewJeans", "Super Shy"))
+
     def test_untimed_synced_lyrics_are_rejected(self):
         from unittest.mock import patch
         from ktvibes import lyrics

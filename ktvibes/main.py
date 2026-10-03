@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from .queue import State
-from . import worker, youtube
+from . import lyrics, worker, youtube
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = Path(os.environ.get("KTVIBES_CACHE", ROOT / "cache"))
@@ -55,6 +55,13 @@ async def tv():
 @app.get("/api/state")
 async def get_state():
     return state.snapshot()
+
+@app.get("/api/suggest")
+async def suggest(q: str = Query(min_length=1, max_length=200)):
+    try:
+        return await asyncio.to_thread(youtube.suggest, q)
+    except Exception:
+        return []  # completions are a nicety; never surface their failures
 
 @app.get("/api/search")
 async def search(q: str = Query(min_length=1, max_length=200), page: int = Query(0, ge=0, le=9)):
@@ -105,6 +112,60 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
 async def ambient():
     """Cached music videos the TV loops, muted, behind an empty stage."""
     return sorted(path.parent.name for path in CACHE.glob("*/video.mp4") if youtube.ID.fullmatch(path.parent.name))
+
+def song_meta(video_id: str) -> tuple[Path, dict]:
+    folder = CACHE / video_id
+    if not youtube.ID.fullmatch(video_id) or not (folder / "meta.json").is_file():
+        raise HTTPException(404, "Song not found")
+    meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+    if not meta.get("artist") or not meta.get("title") or not meta.get("duration"):
+        raise HTTPException(409, "This song isn't fully prepared yet")
+    return folder, meta
+
+async def lyric_versions(meta: dict) -> list[dict]:
+    try:
+        return await lyrics.candidates(meta["artist"], meta["title"], meta["duration"], (meta.get("source_title") or "",), exhaustive=True)
+    except Exception as exc:
+        raise HTTPException(502, f"Lyrics lookup failed: {exc}") from exc
+
+@app.get("/api/songs/{video_id}/lyrics")
+async def lyric_options(video_id: str):
+    """Every LRCLIB version that fits the song, best first, so the remote can pick a language or edition."""
+    folder, meta = song_meta(video_id)
+    current = (folder / "lyrics.lrc").read_text(encoding="utf-8") if (folder / "lyrics.lrc").is_file() else ""
+    options = []
+    for c in await lyric_versions(meta):
+        raw = c.get("syncedLyrics") or ""
+        lines = [line["text"] for line in lyrics.parse_lrc(raw) if line.get("text")]
+        options.append({"id": c.get("id"), "track": c.get("trackName"), "artist": c.get("artistName"), "album": c.get("albumName"),
+                        "language": lyrics.LANGUAGES[lyrics.script(raw)], "lines": len(lines), "preview": lines[:2], "current": raw == current})
+    return options
+
+class LyricChoice(BaseModel):
+    id: int
+
+@app.post("/api/songs/{video_id}/lyrics")
+async def choose_lyrics(video_id: str, choice: LyricChoice):
+    """Save the chosen version; the song on stage switches to it at once."""
+    folder, meta = song_meta(video_id)
+    chosen = next((c for c in await lyric_versions(meta) if c.get("id") == choice.id), None)
+    if not chosen:
+        raise HTTPException(404, "That lyrics version is no longer available")
+    if state.current and state.current["id"] == video_id:
+        # The song on stage switches right away: time the new lines, then resend lyrics to the TV.
+        lines = lyrics.parse_lrc(chosen["syncedLyrics"])
+        lines = await asyncio.to_thread(worker.timed_lyrics, folder, chosen["syncedLyrics"], folder / "vocals.flac", lines)
+        lyrics.line_starts(lines)
+        if state.current and state.current["id"] == video_id:
+            state.current.update(lyrics=lines, lyrics_rev=state.current.get("lyrics_rev", 0) + 1)
+            state.offset = 0
+            state.lyrics_sent.clear()
+            await state.broadcast()
+    (folder / "lyrics.lrc").write_text(chosen["syncedLyrics"], encoding="utf-8")
+    meta["lyrics_identity"] = [meta["artist"], meta["title"]]
+    meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
+    worker.save_meta(folder, meta)
+    return {"saved": choice.id}
 
 @app.delete("/api/songs/{video_id}")
 async def delete_song(video_id: str):

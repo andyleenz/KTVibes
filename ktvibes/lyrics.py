@@ -210,44 +210,85 @@ def variants(name: str) -> list[str]:
     parts += re.findall(rf"[{CJK}][{CJK}\s]*", name) + re.findall(rf"[^\s{CJK}()（）][^{CJK}()（）]*", name)
     return list(dict.fromkeys(p.strip() for p in parts if p.strip()))
 
-def rank(candidate: dict, titles: list[str], duration: float) -> tuple:
-    track = candidate.get("trackName", "").casefold()
-    return (not any(t.casefold() in track for t in titles), "instrumental" in track, abs(float(candidate["duration"]) - duration))
+NATIVE = re.compile(rf"[{CJK}]")
+KANA = re.compile(r"[぀-ヿ]")
+HAN = re.compile(r"[一-鿿]")
+LANGUAGES = {"ko": "Korean", "ja": "Japanese", "zh": "Chinese", "latin": "Latin script"}
 
-async def fetch(artist: str, title: str, duration: float) -> dict:
+def script(text: str) -> str:
+    """The script lyrics are written in. Kana marks Japanese even beside kanji; Han alone is Chinese."""
+    hangul, kana, han = len(HANGUL.findall(text)), len(KANA.findall(text)), len(HAN.findall(text))
+    if not hangul + kana + han:
+        return "latin"
+    if hangul >= kana + han:
+        return "ko"
+    return "ja" if kana else "zh"
+
+def wanted_script(*hints: str) -> str | None:
+    """The song's own language, judged from its artist, title and YouTube title; None if they are all Latin."""
+    found = script(" ".join(hints))
+    return None if found == "latin" else found
+
+def native(candidate: dict, want: str | None = None) -> bool:
+    """Lyrics in the wanted script (any CJK script when unknown), rather than romanized or another language."""
+    found = script(candidate.get("syncedLyrics") or "")
+    return found == want if want else found != "latin"
+
+def rank(candidate: dict, titles: list[str], duration: float, want: str | None = None) -> tuple:
+    track = candidate.get("trackName", "").casefold()
+    return (not any(t.casefold() in track for t in titles), "instrumental" in track, want is not None and not native(candidate, want),
+            abs(float(candidate["duration"]) - duration))
+
+def fits(candidate: dict, duration: float) -> bool:
+    # Some LRCLIB records put untimed text in syncedLyrics; require real timestamps.
+    # Music videos often run a few seconds longer than the album track; alignment re-times the lines.
+    return bool(STAMP.search(candidate.get("syncedLyrics") or "")) and abs(float(candidate.get("duration") or 0) - duration) <= 10
+
+async def candidates(artist: str, title: str, duration: float, hints: tuple[str, ...] = (), exhaustive: bool = False) -> list[dict]:
+    """LRCLIB records that fit the song. Stops at the first good one unless exhaustive (for the remote's picker)."""
     import httpx
-    def fits(c):
-        # Some LRCLIB records put untimed text in syncedLyrics; require real timestamps.
-        # Music videos often run a few seconds longer than the album track; alignment re-times the lines.
-        return STAMP.search(c.get("syncedLyrics") or "") and abs(float(c.get("duration") or 0) - duration) <= 10
     artists, titles = variants(artist), variants(title)
-    candidates = []
+    want = wanted_script(artist, title, *hints)
+    found = []
+    # Without a language hint, a record with CJK lyrics still suggests romanized ones are a poor second.
+    good = lambda c: fits(c, duration) and (native(c, want) if want else (native(c) or not any(map(native, found))))
     async with httpx.AsyncClient(base_url="https://lrclib.net", timeout=20, headers={"User-Agent": "KTVibes/0.1 (home karaoke)"}) as client:
         response = await client.get("/api/get", params={"artist_name": artist, "track_name": title, "duration": round(duration)})
         if response.status_code == 200:
-            candidates.append(response.json())
+            found.append(response.json())
         searches = [{"artist_name": a, "track_name": t} for a in artists for t in titles] + [{"q": f"{a} {t}"} for a in artists for t in titles] + [{"track_name": t} for t in titles]
         failure = None
         for params in searches:
-            if any(map(fits, candidates)):
+            # A song can have several LRCLIB records: romanized, or another language's version.
+            # Keep looking until one in the song's own script turns up.
+            if not exhaustive and any(map(good, found)):
                 break
             # LRCLIB intermittently returns 5xx; retry, then move on to the next variant.
             for attempt in range(3):
                 try:
                     response = await client.get("/api/search", params=params)
                     response.raise_for_status()
-                    candidates += response.json()
+                    found += response.json()
                     break
                 except (httpx.TransportError, httpx.HTTPStatusError) as error:
                     failure = error
                     if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
                         break
                     await asyncio.sleep(1 + attempt)
-        if failure and not candidates:
+        if failure and not found:
             raise failure
-    matches = [c for c in candidates if fits(c)]
-    best = min(matches, key=lambda c: rank(c, titles, duration)) if matches else {}
-    raw = best.get("syncedLyrics", "")
+    unique = {c.get("id") or id(c): c for c in found if fits(c, duration)}
+    if not want:
+        # Latin-only names (say "NewJeans - Super Shy"): the original language usually has the most records;
+        # translations and other-language releases fewer. Ties favour Korean, then Chinese.
+        votes = [script(c.get("syncedLyrics") or "") for c in unique.values()]
+        votes = [v for v in votes if v != "latin"]
+        want = max(("ko", "zh", "ja"), key=votes.count) if votes else None
+    return sorted(unique.values(), key=lambda c: rank(c, titles, duration, want))
+
+async def fetch(artist: str, title: str, duration: float, hints: tuple[str, ...] = ()) -> dict:
+    matches = await candidates(artist, title, duration, hints)
+    raw = matches[0].get("syncedLyrics", "") if matches else ""
     return {"raw": raw, "lines": parse_lrc(raw)}
 
 if __name__ == "__main__":

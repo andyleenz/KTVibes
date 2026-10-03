@@ -137,7 +137,7 @@ async def run(state, cache: Path):
                 item["lyrics"] = lyrics.parse_lrc(cached)
             else:
                 try:
-                    result = await lyrics.fetch(*identity, item["duration"])
+                    result = await lyrics.fetch(*identity, item["duration"], (meta.get("source_title") or "",))
                     raw, item["lyrics"] = result["raw"], result["lines"]
                     # Cache only hits, so a later lookup fix or LRCLIB addition is picked up.
                     if result["raw"]:
