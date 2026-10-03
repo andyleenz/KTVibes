@@ -15,14 +15,17 @@
 <meta name="theme-color" content="#111313">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"KTVibes","applicationCategory":"MultimediaApplication","operatingSystem":"Linux, macOS, Windows","offers":{"@type":"Offer","price":"0"},"url":"https://andyleenz.github.io/KTVibes/","codeRepository":"https://github.com/andyleenz/KTVibes","license":"https://opensource.org/licenses/MIT"}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@700&family=Noto+Sans+TC:wght@700&family=Noto+Sans+JP:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<!-- CJK fonts are huge; text= subsets them to just the glyphs on this page. -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700&family=Noto+Sans+TC:wght@700&family=Noto+Sans+JP:wght@700&display=swap&text=%E6%99%B4%E5%A4%A9%E6%B5%B7%E9%97%8A%E7%A9%BA%E6%96%87%EB%B4%84%EB%82%A0%E3%81%82%E3%82%8A%E3%81%8C%E3%81%A8%E3%81%86" rel="stylesheet">
+<script>document.documentElement.classList.add('js')</script>
 <style>
-:root{--bg:#111313;--surface:#1b1e1d;--surface2:#232826;--line:#343a36;--ink:#f2f3e8;--muted:#9aaba0;--lime:#d7fc70;--on-lime:#172013;
+:root{--bg:#111313;--surface:#1e2220;--surface2:#272d2a;--line:#343a36;--ink:#f2f3e8;--muted:#9aaba0;--lime:#d7fc70;--on-lime:#172013;
  --spring:cubic-bezier(.34,1.56,.64,1);--spring-soft:cubic-bezier(.38,1.21,.22,1);--emph:cubic-bezier(.2,0,0,1)}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit}
-h1,h2,h3{font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em;margin:0}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em;margin:0}h1,h2{text-wrap:balance}
 .wrap{max-width:1180px;margin:auto;padding:0 28px}
 
 /* Top bar */
@@ -35,24 +38,31 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
  transition:border-radius .35s var(--spring),transform .35s var(--spring),background .2s}
 .pill:active{border-radius:12px;transform:scale(.96)}
 .pill.primary{background:var(--lime);color:var(--on-lime)}.pill.primary:hover{border-radius:14px}
-.pill.tonal{background:#ffffff12;border:1px solid #ffffff1f}.pill.tonal:hover{background:#ffffff1c;border-radius:14px}
+/* Only the primary pill morphs; secondary ones just tint. */
+.pill.tonal{background:#ffffff12;border:1px solid #ffffff1f}.pill.tonal:hover{background:#ffffff1c}
 .pill svg{width:18px;height:18px;fill:currentColor}
+.navlinks{display:flex;align-items:center;gap:6px}.navlink{padding:10px 14px;text-decoration:none;font-weight:700;font-size:15px;color:var(--muted);transition:color .2s}.navlink:hover{color:var(--ink)}
+/* Keyboard users need to see where they are. */
+.pill:focus-visible,.navlink:focus-visible,.tabs button:focus-visible,.copy:focus-visible,summary:focus-visible,.script:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
 
 /* Hero */
-.hero{position:relative;padding:164px 0 40px;text-align:center;background:radial-gradient(ellipse 70% 60% at 50% 0%,#2a3826 0%,transparent 70%)}
+.hero{position:relative;padding:128px 0 40px;text-align:center;background:radial-gradient(ellipse 70% 60% at 50% 0%,#2a3826 0%,transparent 70%)}
 .eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--lime);text-transform:uppercase;margin-bottom:22px}
 .hero h1{font-size:clamp(46px,8vw,96px);line-height:.98;letter-spacing:-.045em;max-width:980px;margin:auto}
 /* The headline's last word fills like a KTV lyric. */
-.wipe{position:relative;display:inline-block;color:#ffffff38}
-.wipe::after{content:attr(data-text);position:absolute;inset:0;color:var(--lime);clip-path:inset(0 100% 0 0);animation:wipe 2.6s .6s var(--emph) infinite}
-@keyframes wipe{0%{clip-path:inset(0 100% 0 0)}55%,85%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 0);opacity:0}}
-.hero p.lead{font-size:20px;color:var(--muted);max-width:640px;margin:28px auto 36px}
+.wipe{position:relative;display:inline-block;color:#ffffff70}
+.wipe::after{content:attr(data-text);position:absolute;inset:0;color:var(--lime);clip-path:inset(0 100% 0 0);animation:wipe 1.6s .6s var(--emph) forwards}
+/* Plays once and stays filled, so the headline never ends half-faded. */
+@keyframes wipe{to{clip-path:inset(0 0 0 0)}}
+.hero p.lead{font-size:20px;color:var(--muted);max-width:640px;margin:20px auto 28px}
 .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.stage{position:relative;margin:72px auto 0;max-width:1100px}
+.stage{position:relative;margin:48px auto 0;max-width:1100px}
 .stage .tv{width:100%;height:auto;border-radius:28px;display:block;box-shadow:0 40px 120px #000c,0 0 0 1px #d7fc7026}
-.stage .phone{position:absolute;right:-10px;bottom:-60px;width:min(26%,250px);height:auto;border-radius:34px;box-shadow:0 30px 80px #000e,0 0 0 7px #1b1e1d,0 0 0 8px #ffffff26;
+.stage .phone{position:absolute;right:-40px;bottom:-80px;width:min(26%,250px);height:auto;border-radius:34px;box-shadow:0 30px 80px #000e,0 0 0 7px #1b1e1d,0 0 0 8px #ffffff26;
  animation:float 6s ease-in-out infinite}
-@keyframes float{50%{transform:translateY(-14px) rotate(-1deg)}}
+@keyframes float{50%{transform:translateY(-8px) rotate(-1deg)}}
+/* On phones the overlay would hide the TV's "Up next" and be tiny; stack it below instead. */
+@media(max-width:700px){.stage .phone{position:static;display:block;width:45%;margin:32px auto 0;animation:none}}
 
 /* Sections */
 section{padding:120px 0 0}
@@ -69,19 +79,19 @@ section{padding:120px 0 0}
 .card h3{font-size:24px;margin:22px 0 10px}.card p{margin:0;color:var(--muted)}
 .icon{display:grid;place-items:center;width:64px;height:64px;background:var(--lime);color:var(--on-lime);font:700 26px 'Space Grotesk',sans-serif;
  border-radius:22px;transition:border-radius .6s var(--spring),transform .6s var(--spring)}
-.card:hover .icon{border-radius:50%;transform:rotate(-12deg) scale(1.08)}
+.card:hover .icon{border-radius:50%;transform:rotate(-6deg) scale(1.08)}
 .card:nth-child(3n+2) .icon{border-radius:50% 50% 22px 50%}.card:nth-child(3n) .icon{border-radius:32px 10px}
 .icon svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Pronunciation guide demo: one line, guides swap with a spring. */
 .guides{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
-.lang{padding:30px 28px 26px;border-radius:32px;background:var(--surface);border:1px solid #ffffff0d;text-align:center;transition:border-radius .5s var(--spring),transform .5s var(--spring)}
-.lang:hover{border-radius:18px 56px;transform:scale(1.02)}
+.lang{padding:30px 28px 26px;border-radius:32px;background:var(--surface);border:1px solid #ffffff0d;text-align:center;transition:background .3s}
+.lang:hover{background:var(--surface2)}
 .lang small{display:block;font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
 .ruby{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
 .ruby span{display:flex;flex-direction:column;align-items:center;line-height:1.1}
 .ruby i{font-style:normal;font-size:15px;color:var(--lime);font-weight:500;min-height:18px}
-.ruby b{font:700 38px 'Noto Sans TC','Noto Sans KR','Noto Sans JP',sans-serif;color:#ffffff40;background:linear-gradient(90deg,var(--lime) 50%,#ffffff40 50%) 100% 0/200% 100% no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent}
+.ruby b{font:700 38px 'Noto Sans TC','Noto Sans KR','Noto Sans JP',sans-serif;color:#ffffff66;background:linear-gradient(90deg,var(--lime) 50%,#ffffff66 50%) 100% 0/200% 100% no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent}
 .lang.on .ruby b{animation:fill 1s var(--emph) forwards;animation-delay:calc(var(--i) * .22s)}
 @keyframes fill{to{background-position:0 0}}
 
@@ -90,48 +100,73 @@ section{padding:120px 0 0}
 .shot{border-radius:32px;overflow:hidden;background:var(--surface);display:grid;place-items:center;padding:28px}
 .shot img{width:100%;height:auto;max-width:330px;border-radius:26px;box-shadow:0 20px 60px #000a}
 .list{display:grid;gap:12px;align-content:start}
-.row{display:flex;gap:18px;align-items:flex-start;padding:22px 24px;border-radius:24px;background:var(--surface);transition:border-radius .45s var(--spring),transform .45s var(--spring)}
-.row:hover{border-radius:40px;transform:translateX(6px)}
-.row b{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:#d7fc701f;color:var(--lime);font:700 18px 'Space Grotesk',sans-serif}
+.row{display:flex;gap:18px;align-items:flex-start;padding:22px 24px;border-radius:24px;background:var(--surface);transition:background .3s}
+.row:hover{background:var(--surface2)}
+.row b{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:#d7fc701f;color:var(--lime);font:700 19px 'Space Grotesk','Noto Sans TC',sans-serif}.row b svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .row h3{font-size:19px}.row p{margin:4px 0 0;color:var(--muted);font-size:15px}
 
 /* Install */
 .install{border-radius:40px;background:linear-gradient(135deg,#202a1c,#161a17);padding:48px;border:1px solid #d7fc7022}
+#install{scroll-margin-top:90px}
+@media(max-width:600px){.install{padding:28px 20px;border-radius:28px}}
 .tabs{display:inline-flex;gap:4px;padding:5px;border-radius:999px;background:#0006;margin-bottom:22px}
-.tabs button{border:0;background:transparent;color:var(--muted);font:500 15px 'DM Sans',sans-serif;padding:10px 20px;border-radius:999px;cursor:pointer;transition:background .3s var(--spring),color .2s,border-radius .4s var(--spring)}
+.tabs button{border:0;background:transparent;color:var(--muted);font:500 15px 'DM Sans',sans-serif;padding:10px 20px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:background .3s var(--spring),color .2s,border-radius .4s var(--spring)}
 .tabs button[aria-selected=true]{background:var(--lime);color:var(--on-lime);font-weight:700}
 .tabs button:active{border-radius:10px}
-.cmd{display:flex;align-items:center;gap:12px;background:#0b0d0c;border:1px solid var(--line);border-radius:20px;padding:18px 18px 18px 24px;font:500 15px ui-monospace,'JetBrains Mono',monospace;overflow-x:auto}
-.cmd code{flex:1;white-space:nowrap;color:#e6f5c4}
+.cmd{display:flex;align-items:center;gap:12px;background:#0b0d0c;border:1px solid var(--line);border-radius:20px;padding:18px 18px 18px 24px;font:500 15px ui-monospace,'JetBrains Mono',monospace;overflow:hidden}
+/* Only the command scrolls, so the copy button never leaves the screen. */
+.cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;color:#e6f5c4;user-select:all;padding:4px 0}
+.script{display:inline-block;margin-top:10px;font-size:14px;color:var(--muted)}.script:hover{color:var(--ink)}
 .copy{flex:none;border:0;cursor:pointer;width:44px;height:44px;border-radius:14px;background:#ffffff14;color:var(--ink);display:grid;place-items:center;transition:border-radius .4s var(--spring),background .2s,transform .3s var(--spring)}
 .copy:hover{border-radius:50%}.copy.done{background:var(--lime);color:var(--on-lime);transform:scale(1.1) rotate(-8deg)}
 .copy svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .install p{color:var(--muted);margin:18px 0 0;font-size:15px}
 .install ol{margin:28px 0 0;padding-left:22px;color:var(--muted)}.install li{margin:6px 0}.install li b{color:var(--ink)}
 
-footer{padding:120px 0 60px;text-align:center;color:var(--muted);font-size:14px}
-footer .brand{font-size:44px;display:block;margin-bottom:18px}
+footer{padding:120px 24px 60px;text-align:center;color:var(--muted);font-size:14px}
+footer .brand{font-size:44px;display:block;margin-bottom:18px}footer .pill{margin:0 0 22px}
+
+/* Requirements and FAQ */
+.reqs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:40px}
+.req{padding:26px 28px;border-radius:28px;background:var(--surface);border:1px solid #ffffff0d}
+.req h3{font-size:19px;margin-bottom:8px}.req p{margin:0;color:var(--muted);font-size:15px}.req b{color:var(--ink);font-weight:500}
+.faq{display:grid;gap:12px}
+.faq details{border-radius:24px;background:var(--surface);border:1px solid #ffffff0d;transition:background .3s}.faq details[open]{background:var(--surface2)}
+.faq summary{cursor:pointer;list-style:none;padding:22px 26px;font:700 19px 'Space Grotesk',sans-serif;display:flex;justify-content:space-between;gap:16px;border-radius:24px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';color:var(--lime);font-size:24px;line-height:1;transition:transform .4s var(--spring)}.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{margin:0;padding:0 26px 22px;color:var(--muted);font-size:15px}
+/* A small spring as the answer opens. */
+.faq details[open] p{animation:open .5s var(--spring)}
+@keyframes open{from{opacity:0;transform:translateY(-8px) scale(.98)}}
 
 /* Scroll reveal: elements spring up into place. */
-.reveal{opacity:0;transform:translateY(40px) scale(.97);transition:opacity .6s var(--emph),transform .9s var(--spring-soft);transition-delay:calc(var(--d,0) * 70ms)}
-.reveal.in{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){*,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.ruby b{background-position:0 0}}
+/* Hidden only once JS is known to run, so content still shows if the script fails. */
+.js .reveal{opacity:0;transform:translateY(40px) scale(.97);transition:opacity .6s var(--emph),transform .6s var(--spring-soft);transition-delay:calc(var(--d,0) * 50ms)}
+.js .reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1;transform:none}.wipe::after{clip-path:none}.ruby b{background-position:0 0}}
+.demo{display:block;width:100%;height:auto;border-radius:32px;box-shadow:0 30px 90px #000a,0 0 0 1px #d7fc7026}
 </style>
 </head>
 <body>
-<nav><div class="wrap"><a class="brand" href="#">KT<span>Vibes</span></a>
- <a class="pill tonal" href="https://github.com/andyleenz/KTVibes"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div></nav>
+<nav><div class="wrap"><a class="brand" href="./">KT<span>Vibes</span></a>
+ <div class="navlinks"><a class="navlink" href="#install">Install</a><a class="pill tonal" href="https://github.com/andyleenz/KTVibes"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div></div></nav>
 
 <header class="hero"><div class="wrap">
  <span class="eyebrow reveal">Free · open source · self-hosted</span>
  <h1 class="reveal" style="--d:1">Turn any YouTube song into <span class="wipe" data-text="karaoke">karaoke</span></h1>
- <p class="lead reveal" style="--d:2">AI strips the vocals, synced lyrics fill as they're sung, and everyone queues songs from their phone. Pronunciation guides for Chinese, Cantonese, Korean and Japanese.</p>
+ <p class="lead reveal" style="--d:2">AI removes the vocals. Lyrics fill as they're sung. Everyone queues from their phone.</p>
  <div class="cta reveal" style="--d:3"><a class="pill primary" href="#install">Install</a><a class="pill tonal" href="https://github.com/andyleenz/KTVibes">View on GitHub</a></div>
  <div class="stage reveal" style="--d:4">
   <img class="tv" src="tv-hero.jpg" alt="KTVibes on a TV: Joji's Sanctuary with lyrics filling word by word" width="1920" height="1080">
-  <img class="phone" src="remote-queue.png" alt="KTVibes phone remote showing the queue" loading="lazy">
+  <img class="phone" src="remote-queue.png" alt="KTVibes phone remote showing the queue" width="585" height="1266" loading="lazy">
  </div>
 </div></header>
+
+<section id="demo"><div class="wrap">
+ <div class="section-head reveal"><h2>See it in action</h2><p>Queue a song from the phone, then raise the key. The TV keeps everyone in the loop.</p></div>
+ <video class="demo reveal" src="demo.mp4" autoplay muted loop playsinline preload="metadata" width="1280" height="720" aria-label="Demo: searching and queuing a song from the phone, then raising the key, while the TV plays"></video>
+</div></section>
 
 <section><div class="wrap">
  <div class="section-head reveal"><h2>A KTV room, in your living room</h2><p>Everything a karaoke box does, built from songs you already know.</p></div>
@@ -158,40 +193,68 @@ footer .brand{font-size:44px;display:block;margin-bottom:18px}
  <div class="shot reveal"><img src="remote-controls.png" alt="Remote controls: music, vocals, speed and key" loading="lazy"></div>
  <div class="list">
   <div class="section-head reveal" style="margin-bottom:12px"><h2>Your mix, your key</h2></div>
-  <div class="row reveal" style="--d:1"><b>1</b><div><h3>Music and vocals sliders</h3><p>Turn the original singer down to a whisper, or all the way off.</p></div></div>
-  <div class="row reveal" style="--d:2"><b>2</b><div><h3>Lyrics language picker</h3><p>K-pop song with a Japanese release? Pick which lyrics to show, live.</p></div></div>
-  <div class="row reveal" style="--d:3"><b>3</b><div><h3>Everything's cached</h3><p>Sing a song once and it starts instantly next time.</p></div></div>
-  <div class="row reveal" style="--d:4"><b>4</b><div><h3>On-screen cards</h3><p>Every change, from key to queue, pops up on the TV so the room knows.</p></div></div>
+  <div class="row reveal" style="--d:1"><b aria-hidden="true">♫</b><div><h3>Music and vocals sliders</h3><p>Turn the original singer down to a whisper, or all the way off.</p></div></div>
+  <div class="row reveal" style="--d:2"><b aria-hidden="true">文</b><div><h3>Lyrics language picker</h3><p>K-pop song with a Japanese release? Pick which lyrics to show, live.</p></div></div>
+  <div class="row reveal" style="--d:3"><b aria-hidden="true">⚡</b><div><h3>Everything's cached</h3><p>Sing a song once and it starts instantly next time.</p></div></div>
+  <div class="row reveal" style="--d:4"><b aria-hidden="true">◉</b><div><h3>On-screen cards</h3><p>Every change, from key to queue, pops up on the TV so the room knows.</p></div></div>
  </div>
 </div></section>
 
 <section id="install"><div class="wrap">
  <div class="install reveal">
-  <h2 style="font-size:clamp(32px,4.5vw,48px)">Install in one line</h2>
+  <h2 style="font-size:clamp(32px,4.5vw,48px)">Install in one command</h2>
   <p style="margin:10px 0 28px">Needs a computer connected to the TV. An NVIDIA GPU or Apple Silicon Mac makes songs ready in seconds.</p>
-  <div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-cmd="curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash">Linux · macOS</button><button role="tab" aria-selected="false" data-cmd="powershell -ExecutionPolicy ByPass -c &quot;irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex&quot;">Windows</button></div>
-  <div class="cmd"><code id="cmd">curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash</code>
+  <div class="tabs" role="tablist" aria-label="Operating system"><button role="tab" id="tab-unix" aria-controls="cmdbox" aria-selected="true" data-script="install.sh" data-cmd="curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash">macOS / Linux</button><button role="tab" id="tab-win" aria-controls="cmdbox" aria-selected="false" tabindex="-1" data-script="install.ps1" data-cmd="powershell -ExecutionPolicy ByPass -c &quot;irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex&quot;">Windows</button></div>
+  <div class="cmd" id="cmdbox" role="tabpanel"><code id="cmd">curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash</code>
    <button class="copy" id="copy" aria-label="Copy command"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="3"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></button></div>
+  <a class="script" id="script" href="https://github.com/andyleenz/KTVibes/blob/main/install.sh">View script ↗</a>
   <ol><li>Run <b>ktvibes</b></li><li>Open <b>http://localhost:8765/tv</b> on the TV and click <b>Enable sound</b></li><li>Scan the QR code with your phone and start queuing</li></ol>
  </div>
 </div></section>
 
-<footer><a class="brand" href="https://github.com/andyleenz/KTVibes">KT<span>Vibes</span></a>MIT licensed · for personal, at-home use · lyrics from <a href="https://lrclib.net">LRCLIB</a></footer>
+<section id="faq"><div class="wrap">
+ <div class="section-head reveal"><h2>Requirements &amp; FAQ</h2></div>
+ <div class="reqs">
+  <div class="req reveal"><h3>System</h3><p><b>Linux, macOS or Windows</b> (the Windows installer is new and untested). Needs git, ffmpeg and Node.js 22+; uv installs Python 3.12.</p></div>
+  <div class="req reveal" style="--d:1"><h3>GPU</h3><p><b>NVIDIA</b> (CUDA 12.8 driver) or <b>Apple Silicon</b>. CPU works, but is much slower.</p></div>
+  <div class="req reveal" style="--d:2"><h3>Speed</h3><p>Vocal separation took <b>5.3 s</b> for a 4:45 song on an RTX 5070 (model warm) and <b>33.6 s</b> for a 6:00 song on an M1 Pro. Word alignment takes 1–5 s per song.</p></div>
+  <div class="req reveal" style="--d:3"><h3>Disk</h3><p>First run downloads a ~80 MB separation model and a ~1.2 GB alignment model. Each cached song is about 70 MB.</p></div>
+  <div class="req reveal" style="--d:4"><h3>Docker</h3><p>Not yet. It's on the roadmap.</p></div>
+ </div>
+ <div class="faq reveal">
+  <details><summary>Is it legal?</summary><p>KTVibes downloads from YouTube with yt-dlp to your own machine, for personal at-home use. Respect artists' rights and YouTube's terms where you live. It ships no music.</p></details>
+  <details><summary>Does it need the internet?</summary><p>Yes, to search, download songs and fetch lyrics. Cached songs play from disk.</p></details>
+  <details><summary>Who can control it?</summary><p>Anyone on the same local network who scans the QR code. It isn't meant to be exposed to the internet.</p></details>
+  <details><summary>How is it different from PiKaraoke, Karaoke Eternal or UltraStar?</summary><p>AI vocal removal on any YouTube song, with an adjustable guide-vocal slider; a character-by-character KTV wipe timed to the vocals; and pinyin, jyutping, romaji and Hangul guides.</p></details>
+  <details><summary>Where do lyrics come from?</summary><p>LRCLIB, a community-run lyrics database. Some songs have none. You can pick another language version from the remote.</p></details>
+ </div>
+</div></section>
+
+<footer><a class="brand" href="https://github.com/andyleenz/KTVibes">KT<span>Vibes</span></a><a class="pill tonal" href="https://github.com/andyleenz/KTVibes"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>Star on GitHub</a><br>v0.1.0 · MIT licensed · for personal, at-home use · lyrics from <a href="https://lrclib.net">LRCLIB</a></footer>
 
 <script>
-// Spring elements into view as they scroll in; language cards replay their wipe each time.
+// Spring elements into view as they scroll in; language cards play their fill once, the first time they're seen.
 const seen=new IntersectionObserver(entries=>{for(const e of entries){
- if(e.target.classList.contains('lang')){e.target.classList.toggle('on',e.isIntersecting);if(e.isIntersecting)e.target.classList.add('in');continue;}
- if(e.isIntersecting){e.target.classList.add('in');seen.unobserve(e.target);}
+ if(e.isIntersecting){e.target.classList.add('in');if(e.target.classList.contains('lang'))e.target.classList.add('on');seen.unobserve(e.target);}
 }},{threshold:.2});
 document.querySelectorAll('.reveal').forEach(el=>seen.observe(el));
-const cmd=document.getElementById('cmd'),copy=document.getElementById('copy');
-document.querySelectorAll('.tabs button').forEach(tab=>tab.onclick=()=>{
- document.querySelectorAll('.tabs button').forEach(t=>t.setAttribute('aria-selected',t===tab));
- cmd.animate([{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:350,easing:'cubic-bezier(.34,1.56,.64,1)'});
+const cmd=document.getElementById('cmd'),copy=document.getElementById('copy'),script=document.getElementById('script');
+const tabs=[...document.querySelectorAll('.tabs button')];
+const still=matchMedia('(prefers-reduced-motion:reduce)');
+function pick(tab){
+ tabs.forEach(t=>{t.setAttribute('aria-selected',t===tab);t.tabIndex=t===tab?0:-1;});
+ if(!still.matches)cmd.animate([{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:350,easing:'cubic-bezier(.34,1.56,.64,1)'});
  cmd.textContent=tab.dataset.cmd;
+ script.href='https://github.com/andyleenz/KTVibes/blob/main/'+tab.dataset.script;
+}
+tabs.forEach((tab,i)=>{tab.onclick=()=>pick(tab);
+ // Standard tablist keys: arrows move between tabs.
+ tab.onkeydown=e=>{const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(!d)return;e.preventDefault();const n=tabs[(i+d+tabs.length)%tabs.length];pick(n);n.focus();};
 });
-copy.onclick=async()=>{try{await navigator.clipboard.writeText(cmd.textContent);copy.classList.add('done');setTimeout(()=>copy.classList.remove('done'),1400);}catch{}};
+copy.onclick=async()=>{try{await navigator.clipboard.writeText(cmd.textContent);copy.classList.add('done');copy.setAttribute('aria-label','Copied');
+ setTimeout(()=>{copy.classList.remove('done');copy.setAttribute('aria-label','Copy command');},1400);}
+ // No clipboard (http, old browser): select the text so Ctrl+C works.
+ catch{const r=document.createRange();r.selectNodeContents(cmd);const sel=getSelection();sel.removeAllRanges();sel.addRange(r);}};
 </script>
 </body>
 </html>
