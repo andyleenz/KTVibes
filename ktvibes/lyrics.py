@@ -117,7 +117,7 @@ def add_romaji(lines: list[dict]) -> list[dict]:
 CANTONESE = re.compile(r"[嘅咗唔冇佢啲喺嚟嘢噉哋睇諗啱乜嗰攞畀嗮揾搵嘥瞓攰咩㗎噃]")
 
 def cantonese(lines: list[dict]) -> bool:
-    """Written-Cantonese characters on a few lines mark a Cantopop song (one stray 係 is not enough)."""
+    """Written-Cantonese characters on a few lines mark a Cantopop song (one stray character is not enough)."""
     return sum(1 for line in lines if CANTONESE.search(line["text"])) >= 2
 
 def add_jyutping(lines: list[dict]) -> list[dict]:
