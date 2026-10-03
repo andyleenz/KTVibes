@@ -2,7 +2,7 @@
 
 **Turn any YouTube song into karaoke at home.** Pick songs on your phone, sing on the TV. KTVibes downloads the song, strips the vocals with AI, finds synced lyrics, and shows them with a KTV-style wipe. It adds pronunciation guides for Chinese, Cantonese, Korean and Japanese.
 
-![TV: Jay Chou with pinyin over each character](docs/tv-lyrics.jpg)
+![TV: Joji's Sanctuary, lyrics filling word by word](docs/tv-hero.jpg)
 
 <p align="center">
   <img src="docs/remote-queue.png" width="280" alt="Phone remote: queue and recent songs">
@@ -26,8 +26,8 @@
 - **Lyrics language picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show.
 
 <p align="center">
+  <img src="docs/tv-lyrics.jpg" width="49%" alt="TV: Jay Chou with pinyin over each character">
   <img src="docs/tv-korean.jpg" width="49%" alt="TV: Korean lyrics with romanization">
-  <img src="docs/tv-english.jpg" width="49%" alt="TV: Joji's Sanctuary with a Hangul pronunciation guide">
 </p>
 
 ## Install
