@@ -114,7 +114,7 @@ def add_romaji(lines: list[dict]) -> list[dict]:
     return lines
 
 # Characters that appear in written Cantonese but hardly ever in Mandarin lyrics.
-CANTONESE = re.compile(r"[嘅咗唔係冇佢啲喺嚟咁嘢噉哋睇諗啱乜嗰咪晒嘢呢度攞俾畀嗮諗揾搵嘥瞓攰咩喇啦囉㗎噃]")
+CANTONESE = re.compile(r"[嘅咗唔冇佢啲喺嚟嘢噉哋睇諗啱乜嗰攞畀嗮揾搵嘥瞓攰咩㗎噃]")
 
 def cantonese(lines: list[dict]) -> bool:
     """Written-Cantonese characters on a few lines mark a Cantopop song (one stray 係 is not enough)."""

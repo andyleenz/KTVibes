@@ -1,19 +1,97 @@
 # KTVibes
 
-Home karaoke: pick YouTube songs on your phone, watch the original muted video on the TV, and sing over a separated instrumental track. Synced lyrics appear at the bottom. English, Chinese (simplified/traditional), and Korean text are preserved throughout search, metadata, cache, and lyrics.
+**Turn any YouTube song into karaoke at home.** Pick songs on your phone, sing on the TV. KTVibes downloads the song, strips the vocals with AI, finds synced lyrics, and shows them with a KTV-style wipe. It adds pronunciation guides for Chinese, Cantonese, Korean and Japanese.
 
-## Run
+![TV: Jay Chou with pinyin over each character](docs/tv-lyrics.jpg)
 
-Requires `uv`, Node.js 22+ (Node 25 works), `ffmpeg`/`ffprobe`, network access, and on Linux/Windows an NVIDIA driver supporting CUDA 12.8 (see macOS below). Python 3.12 is pinned; `uv` installs it when needed. PyTorch and torchaudio are pinned to 2.7.1 from the CUDA 12.8 index for the RTX 5070.
+<p align="center">
+  <img src="docs/remote-queue.png" width="280" alt="Phone remote: queue and recent songs">
+  &nbsp;
+  <img src="docs/remote-controls.png" width="280" alt="Phone remote: music, vocals, speed and key controls">
+</p>
+
+## Features
+
+- **Any song on YouTube.** Search from your phone. Results skip reactions, dance practices, mixes and karaoke tracks.
+- **AI vocal removal** (Demucs) runs on an NVIDIA GPU or Apple Silicon. A **Vocals** slider keeps as much of the original singer as you want, and a **Music** slider sets the backing track.
+- **Synced lyrics** come from [LRCLIB](https://lrclib.net). Each character or word fills as it is sung, timed by forced alignment against the separated vocals.
+- **Pronunciation guides** sit above the lyrics. Cycle them with **G** or from the remote.
+  - Chinese: pinyin, and Hangul.
+  - Cantonese: jyutping. Songs written in Cantonese switch to it automatically.
+  - Korean: romanization of the sung pronunciation.
+  - Japanese: romaji.
+  - English: Hangul.
+- **Key and speed.** Shift the key ±6 semitones without changing tempo, or slow a song down without changing pitch.
+- **Phone remote.** Scan the QR code on the TV to join. Everyone shares one queue: reorder, undo removals, and re-add recent songs. The TV shows a popup card for every change.
+- **Lyrics language picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show.
+
+![TV: Korean lyrics with romanization](docs/tv-korean.jpg)
+
+## Install
+
+You need a computer connected to the TV, and phones on the same Wi-Fi. An NVIDIA GPU (CUDA 12.8 driver) or an Apple Silicon Mac makes song preparation fast. Without one, KTVibes falls back to the CPU, which is slower.
+
+**Linux / macOS**
 
 ```bash
-cd ~/Work/KTVibes
+curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash
+```
+
+The script needs `git`, `ffmpeg` and Node.js 22+, and tells you how to install any that are missing (`brew install git ffmpeg node` on macOS). It installs [uv](https://docs.astral.sh/uv/), clones KTVibes to `~/KTVibes`, and adds a `ktvibes` command.
+
+**Windows** (PowerShell, untested so far; reports welcome)
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex"
+```
+
+This installs Git, FFmpeg, Node.js and uv with `winget` if they are missing.
+
+**Manual**
+
+```bash
+git clone https://github.com/andyleenz/KTVibes.git && cd KTVibes
 uv sync
-uv run python -c "import torch; print(torch.__version__, torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 uv run ktvibes
 ```
 
-### macOS (Apple Silicon)
+The first song takes longer: the separation model (80 MB) and the alignment model (1.2 GB) download on first use.
+
+## Use
+
+1. Run `ktvibes`.
+2. On the TV computer, open `http://localhost:8765/tv` and click **Enable sound**. Click **Fullscreen** if you like.
+3. Scan the QR code with a phone, search for a song, and tap it to queue it.
+
+The first song starts as soon as it is ready. Later songs are prepared while earlier ones play. Re-queuing a song is instant because everything is cached in `cache/`.
+
+## Configuration
+
+| Variable | Default | |
+|---|---|---|
+| `KTVIBES_PORT` | `8765` | Server port |
+| `KTVIBES_REMOTE_URL` | detected | Address in the QR code. Set it if detection picks the wrong network, e.g. with a VPN: `http://<pc-ip>:8765/` |
+| `KTVIBES_CACHE` | `./cache` | Where songs are stored, about 70 MB each |
+
+Run a single server process: the queue and the GPU models live in memory.
+
+## Roadmap
+
+- Thai word splitting, for a word-by-word wipe.
+- Better kanji readings for Japanese romaji.
+- Docker image.
+
+## Notes
+
+KTVibes downloads from YouTube with [yt-dlp](https://github.com/yt-dlp/yt-dlp) for personal, at-home use. Respect the rights of artists and YouTube's terms where you live. Lyrics come from the community-run LRCLIB; coverage varies by song.
+
+## How it works
+
+### Running on different hardware
+
+Python 3.12 is pinned; `uv` installs it when needed. PyTorch and torchaudio 2.7.1 come from the CUDA 12.8 index on Linux and Windows.
+
+#### macOS (Apple Silicon)
 
 No NVIDIA driver is needed. On macOS, `uv sync` installs the standard PyTorch 2.7.1 wheels, and Demucs runs on the Mac GPU (MPS); forced alignment runs on the CPU. Other machines without CUDA fall back to the CPU for both. Install the tools with `brew install uv ffmpeg`, then:
 
@@ -25,20 +103,7 @@ uv run ktvibes
 
 uv's standalone Python on macOS has no CA bundle, so `ktvibes/__init__.py` sets `SSL_CERT_FILE` to certifi's bundle for model and NLTK downloads. Measured on an M1 Pro: separating a 6:00 song took 33.6 s with the model loaded, or 48.5 s on the first run, which also loads the model (the 80 MB weights were downloaded in that same run).
 
-`uv run ktvibes` serves on port 8765 (set `KTVIBES_PORT` to change it). Run one server process (no `--workers`): queue state and the GPU model live in memory.
-
-- TV/PC: open `http://localhost:8765/tv`, click **Enable sound**, then optionally **Fullscreen**.
-- Phone: scan the TV QR code while on the same Wi-Fi, or open `http://<pc-ip>:8765/`.
-- Search, select a result, correct artist/title if needed, and add it. Original-language names usually give the best lyric matches.
-- The first song starts when ready; a five-second card introduces each song. The worker prepares the rest of the queue during playback.
-- Pause, skip, reorder, or remove upcoming songs from the phone. **⤒** moves a song to play next, a removal can be undone for 15 seconds, and a failed song has a **Retry** button. Search results marked **READY** are already prepared and start right away. Drag the position slider on the phone, or click the TV progress bar, to jump within the song. **Lyric size** scales the TV lyrics from 60% to 180%.
-- The TV shows the current song at the top left and the next three songs at the top right. Guide vocals default to 10%; set to 0 for instrumental only. Positive lyric offsets show the lyrics earlier; negative offsets show them later.
-
-Set `KTVIBES_REMOTE_URL=http://<pc-ip>:8765/` if the detected address is wrong (for example with a VPN). `KTVIBES_CACHE=/some/path` changes the media cache directory. One TV controls playback at a time. The TV page opened most recently takes over, so reloading the TV never locks it out; multiple phone remotes are supported. A reloaded TV resumes near its last reported position after sound is enabled again.
-
-YouTube extraction explicitly enables Node and includes the [yt-dlp EJS components](https://github.com/yt-dlp/yt-dlp/wiki/EJS).
-
-## Media and lyrics
+### Media
 
 Each `cache/<youtube_id>/` holds `audio.m4a`, `video.mp4`, `vocals.flac`, `no_vocals.flac`, `lyrics.lrc`, `timed.json`, and `meta.json`. `timed.json` keeps the per-word timing and pronunciation guides, so re-queuing a song skips alignment; it is rebuilt when the lyrics change. The lyric timing nudge is saved in `meta.json` and applies the next time the song plays. The video is H.264, up to 1080p; embedded audio is stripped without re-encoding the video. Only the two separated tracks produce sound. The instrumental clock drives the guide vocals, video alignment, progress, and lyric highlighting. The video downloads alongside the audio and separation, and a failed video download falls back to the stage background; missing lyrics do not stop playback.
 
@@ -52,13 +117,15 @@ Measured against APT. (Rosé and Bruno Mars), the only LRCLIB record found with 
 
 Enhanced LRC duet tags (`v1:`, `v2:`) are removed from the displayed text and stored as the line's `voice`. A pronunciation guide sits above the lyrics and fills along with each character or word. The **Pronunciation guide** button on the remote, or the G key on the TV, cycles through the modes mid-song. The TV shows a badge for 1.5 s after each change. The cycle skips modes with nothing to show for the current song.
 
+- **Jyutping:** Cantonese readings for Chinese characters (`ToJyutping`). It is chosen automatically when the lyrics contain written-Cantonese characters such as 嘅, 咗 or 唔.
+- **Romanization (Japanese):** Japanese songs (any kana in the lyrics) get Hepburn romaji from `pykakasi`; a kanji word's reading sits on its first character, and some kanji readings are wrong.
 - **Romanization:** tone-marked pinyin for Chinese, generated by `pypinyin` from the whole line so that most polyphones read correctly (还是 hái, 了解 liǎo). Korean gets romanization of the sung pronunciation.
 - **한글:** Hangul for Chinese and English lines. Chinese follows the standard Korean spelling of Chinese sounds (晴天 칭톈, 周杰伦 저우제룬). English goes through the CMU pronouncing dictionary and simple Korean spelling rules (someone 섬원, crazy 크레이지). Words missing from the dictionary, such as `tryna`, get no guide. Unstressed vowels follow spoken English, so some words differ from the standard spelling (beautiful 뷰터펄, not 뷰티풀).
 - **Off.**
 
 Some readings are still wrong: for example, the particle 得 in 舍不得 shows `dé` instead of `de`. Translation is not added. Music videos with long intros may need the timing nudge, or may not have a duration-matched lyric record. Choose an audio version if the music video has extra scenes.
 
-## Checks
+## Development
 
 ```bash
 uv run python -m unittest discover -s tests -v
@@ -76,29 +143,15 @@ uv run python -c "from pathlib import Path; from ktvibes.youtube import download
 uv run python -m ktvibes.separate cache/fJ9rUzIMcZQ/audio.m4a cache/fJ9rUzIMcZQ
 ```
 
-## Verification (2026-09-18, RTX 5070, driver 610.57.04)
-
-Real providers and hardware, not fixtures:
-
-- `uv sync` completed. torch 2.7.1+cu128 reports CUDA available with arch list through `sm_120`; a 4096×4096 matmul on the GPU returned a result.
-- 14 unit/API tests pass, including the three API tests that were previously skipped. The word-timing test uses a synthetic energy envelope.
-- YouTube search returned results for `周杰伦 晴天`, `아이유 좋은 날`, and `Adele Someone Like You`.
-- Downloads: IU `V6WWJNpIJN4` and Adele `hLQl3WQQoQ0` gave 1920×1080 H.264 video with no audio stream. Jay Chou `DYptgVvkVLQ` gave 640×480, the best H.264 format that YouTube offers for that video.
-- Demucs htdemucs separation: 13.0 s for a 236 s song on first use (includes the 80 MB weight download and model load), 5.3 s for a 285 s song with a warm model.
-- LRCLIB returned synced lyrics for all three songs (Korean 36 lines, Chinese 41, English 44).
-- Browser (agent-browser, headed Chromium): the remote and TV ran in separate tabs. Sound was enabled on the TV, and songs were queued from the phone-sized remote in Korean and Chinese, with the artist and title edited before adding. Verified: status progression (downloading → ready, with 晴天 prepared while the IU song played), muted video playing in step with the instrumental and vocals (currentTime values within 0.01 s), the Korean highlighted line matching the lyrics burned into the video, per-character (Korean/Chinese) and per-word (English) fill, guide vocal level and offset changes reaching the TV, pause, skip, reorder, remove, the five-second Up next card, automatic advance at song end, and no console errors.
-- Not verified: audible mix quality (screenshots cannot hear audio), and the phone remote on a real phone over Wi-Fi (tested only at a phone-sized viewport on the same machine).
-
-Known limitations:
+### Known limitations
 
 - A hidden TV tab does not start the next song, because browsers pause `requestAnimationFrame` in hidden tabs. The song starts as soon as the tab is visible again. Keep the TV page in the foreground.
 - If the browser blocks autoplay (`NotAllowedError`), the Enable sound prompt appears again. Other start errors are logged to the console and retried.
 - Title parsing is a best guess. Always check the artist and title before adding a song; the original-script artist name or the name LRCLIB uses gives the best lyric matches.
 
-For a full browser check, open the remote and TV in separate tabs, enable sound, then queue two songs. Confirm downloading → separating → ready, muted video playback with instrumental audio, highlighted lyrics, guide vocals, both offset buttons, pause/resume, skip, reordering, and automatic advance. Verify the second track is ready while the first is playing. Screenshots alone cannot verify audible mixing or sync.
 
 ## Layout
 
 `ktvibes/main.py` serves the API, WebSocket, media range requests, QR, and static pages. `queue.py` owns state, and `worker.py` prepares one entry at a time. `youtube.py`, `lyrics.py`, and `separate.py` wrap the external providers. The frontend is plain HTML/CSS/JavaScript with no build step.
 
-Queue state resets on restart; the media cache persists. Microphone input, scoring, pitch shift, authentication, and persistent queues are outside this MVP. The remote is intended for your local network.
+The queue and the media cache persist across restarts. Microphone input, scoring and authentication are not included. The remote is intended for your local network.
