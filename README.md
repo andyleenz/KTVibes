@@ -60,7 +60,7 @@ uv sync
 uv run ktvibes
 ```
 
-The first song takes longer: the separation model (80 MB) and the alignment model (1.2 GB) download on first use.
+Plan for about 8 GB of disk: the install itself is 6.5 GB (mostly PyTorch with CUDA), and the first song downloads the separation model (80 MB) and the alignment model (1.2 GB). On a clean Ubuntu 24.04 machine the installer took under 5 minutes.
 
 ## Use
 
