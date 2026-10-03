@@ -136,3 +136,4 @@ body.intro .title-card{opacity:1;transform:none}
 #now-card{transition:opacity .4s}body.intro #now-card,body.between #now-card{opacity:0}
 @media(prefers-reduced-motion:reduce){.title-card{transition:opacity .3s;transform:none}}
 
+.mini .mini-handle{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;height:auto;padding:7px 0 0;background:transparent;border:0;border-radius:0;color:var(--lime);font-size:11px;letter-spacing:.5px}.mini-handle i{width:38px;height:4px;border-radius:2px;background:var(--muted)}.mini.open .mini-handle{color:var(--muted)}.mini .mini-row{padding-top:6px}

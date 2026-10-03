@@ -55,7 +55,7 @@ function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify({lyric_sca
 function restore(s){const mine=saved();for(const [action,value] of [['lyric_scale',mine.lyric_scale],['vocal',mine.vocal],['guide',mine.guide]])if(value!==undefined&&value!==s[action])send({action,value});}
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -86,7 +86,7 @@ function render(next){
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
 // Speed changes tempo only (the browser keeps pitch); the key shift is applied by the worklet.
 function applyTempo(){const speed=state?.speed??1;for(const media of [music,voice,video]){media.defaultPlaybackRate=speed;if(media.playbackRate!==speed)media.playbackRate=speed;}if(shifter)shifter.parameters.get('ratio').value=2**((state?.key??0)/12);}
-function applyGain(){applyTempo();if(!musicGain)return;musicGain.gain.value=stemGain;voiceGain.gain.value=(state?.vocal??0.1)*stemGain;}
+function applyGain(){applyTempo();if(!musicGain)return;musicGain.gain.value=(state?.music??1)*stemGain;voiceGain.gain.value=(state?.vocal??0.1)*stemGain;}
 $('enable-button').onclick=async()=>{
  try{
   if(!context){
@@ -182,8 +182,20 @@ document.querySelector('.track').onclick=e=>{
 };
 const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],hangul:['가','한글']};
 let badgeTimer;
-function showGuideBadge(mode){
- const [icon,label]=GUIDE_BADGES[mode];$('guide-icon').textContent=icon;$('guide-label').textContent=label;
+function showGuideBadge(mode){showBadge(...GUIDE_BADGES[mode]);}
+// Any adjustment from a remote flashes on screen, so the room sees what changed.
+const pct=v=>`${Math.round(v*100)}%`,BADGES={
+ music:v=>['♫',`Music ${pct(v)}`],vocal:v=>['🎤',`Vocals ${pct(v)}`],speed:v=>['⏱',`Speed ${pct(v)}`],
+ key:v=>[v>0?'♯':v<0?'♭':'♮',`Key ${v>0?'+':''}${v}`],
+ offset:v=>['⇆',`Lyric timing ${v>=0?'+':''}${v.toFixed(1)}s`],lyric_scale:v=>['Aa',`Lyric size ${pct(v)}`]};
+let shown=null;
+function showChanges(s){
+ const now=Object.fromEntries(Object.keys(BADGES).map(k=>[k,s[k]]));
+ // A new song resets speed, key and timing on its own; only announce changes made mid-song.
+ if(shown&&shown.song===(s.current?.key||null))for(const k in BADGES)if(now[k]!==undefined&&now[k]!==shown[k]){showBadge(...BADGES[k](now[k]));break;}
+ shown={...now,song:s.current?.key||null};
+}
+function showBadge(icon,label){$('guide-icon').textContent=icon;$('guide-label').textContent=label;
  $('guide-badge').hidden=false;clearTimeout(badgeTimer);badgeTimer=setTimeout(()=>$('guide-badge').hidden=true,1500);
 }
 // "G" on a keyboard or remote also flips the guide.

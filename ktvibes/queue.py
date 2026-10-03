@@ -29,6 +29,7 @@ class State:
         self.playing = True
         self.offset = 0.0
         self.vocal = 0.1
+        self.music = 1.0  # instrumental (backing track) volume
         self.guide = "latin"  # off | latin | hangul, shown above the lyrics
         self.lyric_scale = 1.0
         self.speed = 1.0  # playback tempo, 0.5-1.5; pitch is kept
@@ -57,7 +58,7 @@ class State:
         """Lyrics are large and only the TV draws them, so broadcasts leave them out (see broadcast)."""
         brief = lambda item: item if lyrics or item is None else {k: v for k, v in item.items() if k != "lyrics"}
         return {"current": brief(self.current), "upcoming": [brief(i) for i in self.upcoming], "playing": self.playing,
-                "offset": self.offset, "vocal": self.vocal, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
+                "offset": self.offset, "vocal": self.vocal, "music": self.music, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "player_audio": self.player is not None and self.audio,
                 "undo": self.undo and {"title": self.undo["item"]["title"], "until": self.undo["until"]},
@@ -226,6 +227,8 @@ class State:
                 self.guide = message["value"]
             else:
                 raise ValueError("Unknown guide")
+        elif action == "music":
+            self.music = max(0, min(1, number(message["value"])))
         elif action == "vocal":
             self.vocal = max(0, min(1, number(message["value"])))
         elif action == "remove":

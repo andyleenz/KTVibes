@@ -14,7 +14,7 @@ function render(next){
  $('play').classList.toggle('playing',!!state.playing);$('play').setAttribute('aria-label',state.playing?'Pause':'Play');
  for(const id of ['play','skip','earlier','later'])$(id).disabled=!state.current;
  $('guide').textContent=`${GUIDE_NAMES[state.guide]} ⟳`;state.received=Date.now()/1000;if(document.activeElement!==$('lyric-scale'))$('lyric-scale').value=state.lyric_scale;$('lyric-scale-value').textContent=`${Math.round(state.lyric_scale*100)}%`;$('scrub').max=state.current?.duration||1;$('scrub').disabled=!state.current;$('length').textContent=clock(state.current?.duration);showPosition();if(document.activeElement!==$('vocal'))$('vocal').value=state.vocal;
- $('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;if(document.activeElement!==$('speed'))$('speed').value=state.speed;$('speed-value').textContent=`${Math.round(state.speed*100)}%`;$('key-value').textContent=state.key>0?`+${state.key}`:`${state.key}`;$('key-down').disabled=state.key<=-6;$('key-up').disabled=state.key>=6;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;syncRanges();
+ if(document.activeElement!==$('music'))$('music').value=state.music;$('music-value').textContent=`${Math.round(state.music*100)}%`;$('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;if(document.activeElement!==$('speed'))$('speed').value=state.speed;$('speed-value').textContent=`${Math.round(state.speed*100)}%`;$('key-value').textContent=state.key>0?`+${state.key}`:`${state.key}`;$('key-down').disabled=state.key<=-6;$('key-up').disabled=state.key>=6;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;syncRanges();
  showDock();
  showQueue();showUndo();
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
@@ -152,6 +152,7 @@ $('more').onclick=()=>{search.page++;loadPage();};
 $('play').onclick=()=>send({action:state?.playing?'pause':'play'});$('skip').onclick=()=>send({action:'skip'});
 $('earlier').onclick=()=>send({action:'offset',delta:-0.5});$('later').onclick=()=>send({action:'offset',delta:0.5});const sendVocal=throttle(value=>send({action:'vocal',value})),sendScale=throttle(value=>send({action:'lyric_scale',value}));
 $('vocal').oninput=()=>sendVocal(Number($('vocal').value));
+const sendMusic=throttle(value=>send({action:'music',value}));$('music').oninput=()=>sendMusic(Number($('music').value));
 const sendSpeed=throttle(value=>send({action:'speed',value}));$('speed').oninput=()=>sendSpeed(Number($('speed').value));
 $('key-down').onclick=()=>send({action:'key',value:state.key-1});$('key-up').onclick=()=>send({action:'key',value:state.key+1});$('key-reset').onclick=()=>{send({action:'speed',value:1});send({action:'key',value:0});};
 $('lyric-scale').oninput=()=>sendScale(Number($('lyric-scale').value));
@@ -174,9 +175,9 @@ function showDock(){
  const thumb=state?.current?`https://i.ytimg.com/vi/${state.current.id}/mqdefault.jpg`:'';if($('now-thumb').getAttribute('src')!==thumb){if(thumb)$('now-thumb').src=thumb;else $('now-thumb').removeAttribute('src');}$('now-thumb').hidden=!thumb;
  if(!noteTimer)$('now-artist').textContent=state?.current?.artist||'';
 }
-function openDock(open){$('mini').classList.toggle('open',open);$('mini-panel').inert=!open;$('mini-more').setAttribute('aria-expanded',open);try{localStorage.setItem('ktvibes.dock-open',open?'1':'');}catch{}}
+function openDock(open){$('mini').classList.toggle('open',open);$('mini-panel').inert=!open;for(const id of ['mini-more','mini-handle'])$(id).setAttribute('aria-expanded',open);$('mini-handle-text').textContent=open?'Hide controls':'Music · Vocals · Speed · Key · Lyrics';try{localStorage.setItem('ktvibes.dock-open',open?'1':'');}catch{}}
 try{openDock(!!localStorage.getItem('ktvibes.dock-open'));}catch{}
-$('mini-more').onclick=()=>openDock(!$('mini').classList.contains('open'));
+$('mini-more').onclick=$('mini-handle').onclick=()=>openDock(!$('mini').classList.contains('open'));
 // Restoring the saved state on load shouldn't animate; later toggles do.
 requestAnimationFrame(()=>requestAnimationFrame(()=>$('mini').classList.add('animate')));
 // Keep the page's end clear of the dock, whatever its height.
