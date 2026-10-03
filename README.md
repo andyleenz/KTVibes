@@ -25,7 +25,10 @@
 - **Phone remote.** Scan the QR code on the TV to join. Everyone shares one queue: reorder, undo removals, and re-add recent songs. The TV shows a popup card for every change.
 - **Lyrics language picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show.
 
-![TV: Korean lyrics with romanization](docs/tv-korean.jpg)
+<p align="center">
+  <img src="docs/tv-korean.jpg" width="49%" alt="TV: Korean lyrics with romanization">
+  <img src="docs/tv-english.jpg" width="49%" alt="TV: Joji's Sanctuary with a Hangul pronunciation guide">
+</p>
 
 ## Install
 
