@@ -55,7 +55,7 @@ function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify({lyric_sca
 function restore(s){const mine=saved();for(const [action,value] of [['lyric_scale',mine.lyric_scale],['vocal',mine.vocal],['guide',mine.guide]])if(value!==undefined&&value!==s[action])send({action,value});}
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -182,12 +182,15 @@ document.querySelector('.track').onclick=e=>{
 };
 const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],hangul:['가','한글']};
 let badgeTimer;
-function showGuideBadge(mode){showBadge(...GUIDE_BADGES[mode]);}
+function showGuideBadge(mode){const [icon,label]=GUIDE_BADGES[mode];showBadge(icon,'Pronunciation',label);}
 // Any adjustment from a remote flashes on screen, so the room sees what changed.
-const pct=v=>`${Math.round(v*100)}%`,BADGES={
- music:v=>['♫',`Music ${pct(v)}`],vocal:v=>['🎤',`Vocals ${pct(v)}`],speed:v=>['⏱',`Speed ${pct(v)}`],
- key:v=>[v>0?'♯':v<0?'♭':'♮',`Key ${v>0?'+':''}${v}`],
- offset:v=>['⇆',`Lyric timing ${v>=0?'+':''}${v.toFixed(1)}s`],lyric_scale:v=>['Aa',`Lyric size ${pct(v)}`]};
+// The meter shows where the value sits in its range; centred ones (key, timing) fill out from the middle.
+const pct=v=>`${Math.round(v*100)}%`,signed=(v,digits=0)=>`${v>0?'+':v<0?'−':''}${Math.abs(v).toFixed(digits)}`,BADGES={
+ music:v=>['♫','Music',pct(v),[0,v]],vocal:v=>['🎤','Vocals',pct(v),[0,v]],
+ speed:v=>['⏱','Speed',pct(v),[0,v-0.5]],
+ key:v=>[v>0?'♯':v<0?'♭':'♮','Key',signed(v),[.5,.5+v/12]],
+ offset:v=>['⇆','Lyric timing',`${signed(v,1)}s`,[.5,.5+Math.max(-.5,Math.min(.5,v/10))]],
+ lyric_scale:v=>['Aa','Lyric size',pct(v),[0,(v-0.6)/1.2]]};
 let shown=null;
 function showChanges(s){
  const now=Object.fromEntries(Object.keys(BADGES).map(k=>[k,s[k]]));
@@ -195,8 +198,37 @@ function showChanges(s){
  if(shown&&shown.song===(s.current?.key||null))for(const k in BADGES)if(now[k]!==undefined&&now[k]!==shown[k]){showBadge(...BADGES[k](now[k]));break;}
  shown={...now,song:s.current?.key||null};
 }
-function showBadge(icon,label){$('guide-icon').textContent=icon;$('guide-label').textContent=label;
- $('guide-badge').hidden=false;clearTimeout(badgeTimer);badgeTimer=setTimeout(()=>$('guide-badge').hidden=true,1500);
+// Queue changes from any remote get the same card: what was added, removed, moved, or became ready.
+let lastQueue=null;
+function showQueueChange(s){
+ const queue=s.upcoming.map(i=>({key:i.key,title:i.title,status:i.status})),before=lastQueue;lastQueue=queue;
+ if(!before)return;
+ const old=new Map(before.map(i=>[i.key,i])),keys=new Set(queue.map(i=>i.key)),stage=s.current?.key;
+ const added=queue.find(i=>!old.has(i.key)),removed=before.find(i=>!keys.has(i.key)&&i.key!==stage);
+ if(added)return showBadge('+','Queued',added.title);
+ if(removed)return showBadge('✕','Removed',removed.title);
+ const failed=queue.find(i=>i.status==='error'&&old.get(i.key).status!=='error');
+ if(failed)return showBadge('!','Couldn’t prepare',failed.title);
+ const ready=queue.find(i=>i.status==='ready'&&old.get(i.key).status!=='ready');
+ if(ready)return showBadge('✓','Ready to sing',ready.title);
+ const order=before.filter(i=>keys.has(i.key)).map(i=>i.key),now=queue.map(i=>i.key);
+ if(order.join()!==now.join()){
+  // Name the song that moved furthest, with its new place in line.
+  let moved=0,best=-1;now.forEach((k,i)=>{const d=Math.abs(order.indexOf(k)-i);if(d>best){best=d;moved=i;}});
+  const up=order.indexOf(now[moved])>moved;
+  showBadge(up?'↑':'↓',`Moved to #${moved+1}`,queue[moved].title);
+ }
+}
+// Springs in, pulses the icon on each further change while visible, then shrinks away.
+function showBadge(icon,name,value,range){
+ const osd=$('guide-badge'),meter=$('osd-meter'),visible=!osd.hidden&&!osd.classList.contains('out');
+ $('guide-icon').textContent=icon;$('osd-name').textContent=name;$('guide-label').textContent=value;
+ meter.hidden=!range;
+ if(range){const [a,b]=range;meter.style.setProperty('--from',Math.min(a,b));meter.style.setProperty('--to',Math.max(a,b));}
+ clearTimeout(badgeTimer);osd.classList.remove('out');osd.hidden=false;
+ const glyph=$('guide-icon');glyph.classList.remove('pop');void glyph.offsetWidth;glyph.classList.add('pop');
+ if(!visible){osd.classList.remove('in');void osd.offsetWidth;osd.classList.add('in');}
+ badgeTimer=setTimeout(()=>{osd.classList.add('out');osd.addEventListener('animationend',()=>{if(osd.classList.contains('out')){osd.hidden=true;osd.classList.remove('out','in');}},{once:true});},1600);
 }
 // "G" on a keyboard or remote also flips the guide.
 addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',value:'cycle'});});
