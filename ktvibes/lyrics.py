@@ -55,12 +55,84 @@ def add_pinyin(lines: list[dict]) -> list[dict]:
     from pypinyin import Style, lazy_pinyin
     for line in lines:
         units = line.get("units")
-        if not units or not re.search(r"[\u3400-\u9fff\uf900-\ufaff]", line["text"]):
+        if not units or line.get("lang") == "ja" or not re.search(r"[\u3400-\u9fff\uf900-\ufaff]", line["text"]):
             continue
         text = "".join(u[0] for u in units)
         readings = iter(lazy_pinyin(text, style=Style.TONE, errors=lambda s: [""] * len(s)))
         for unit in units:
             unit[3:] = [" ".join(filter(None, (next(readings) for _ in unit[0])))]
+    return lines
+
+KANA_CHARS = re.compile(r"[\u3040-\u30ff]")
+SMALL_KANA = set("ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ")
+_kakasi = None
+
+def japanese(lines: list[dict]) -> bool:
+    """Kana anywhere marks a Japanese song, so its kanji-only lines are read as Japanese too."""
+    return any(KANA_CHARS.search(line["text"]) for line in lines)
+
+def romaji(units: list[str]) -> list[str]:
+    """Hepburn reading per unit. A kanji word's reading goes on its first character; kana are read
+    one by one, with small kana (きゃ kya) and っ (doubles the next consonant) joined to their neighbour."""
+    global _kakasi
+    if _kakasi is None:
+        import pykakasi
+        _kakasi = pykakasi.kakasi()
+    text = "".join(units)
+    owner = [i for i, unit in enumerate(units) for _ in unit]  # character position -> unit index
+    out, position = [""] * len(units), 0
+    for segment in _kakasi.convert(text):
+        word, reading = segment["orig"], segment["hepburn"]
+        if KANA_CHARS.search(word) and not HAN.search(word):
+            chars = list(word)
+            for k, char in enumerate(chars):
+                if char in SMALL_KANA or char == "ー" or not KANA_CHARS.match(char):
+                    continue
+                pair = char + (chars[k + 1] if k + 1 < len(chars) and chars[k + 1] in SMALL_KANA else "")
+                sound = "" if char in "っッ" else _kakasi.convert(pair)[0]["hepburn"]
+                if k and chars[k - 1] in "っッ" and sound:
+                    sound = sound[0] + sound
+                if position + k < len(owner):
+                    out[owner[position + k]] += sound
+        elif HAN.search(word) and reading.strip() and position < len(owner):
+            out[owner[position]] += reading
+        position += len(word)
+    return [r.strip() for r in out]
+
+def add_romaji(lines: list[dict]) -> list[dict]:
+    """Append romaji to each unit of a Japanese song; marks its lines so the Chinese guides skip them."""
+    if not japanese(lines):
+        return lines
+    for line in lines:
+        units = line.get("units")
+        line["lang"] = "ja"
+        if not units:
+            continue
+        for unit, reading in zip(units, romaji([u[0] for u in units])):
+            if not re.search(r"[A-Za-z]", unit[0]):
+                unit[3:] = [reading]
+    return lines
+
+# Characters that appear in written Cantonese but hardly ever in Mandarin lyrics.
+CANTONESE = re.compile(r"[嘅咗唔係冇佢啲喺嚟咁嘢噉哋睇諗啱乜嗰咪晒嘢呢度攞俾畀嗮諗揾搵嘥瞓攰咩喇啦囉㗎噃]")
+
+def cantonese(lines: list[dict]) -> bool:
+    """Written-Cantonese characters on a few lines mark a Cantopop song (one stray 係 is not enough)."""
+    return sum(1 for line in lines if CANTONESE.search(line["text"])) >= 2
+
+def add_jyutping(lines: list[dict]) -> list[dict]:
+    """Store Cantonese jyutping as unit[5] for Chinese characters, for the "jyutping" guide."""
+    import ToJyutping
+    for line in lines:
+        units = line.get("units")
+        if not units or line.get("lang") == "ja" or not re.search(r"[\u3400-\u9fff\uf900-\ufaff]", line["text"]):
+            continue
+        readings = iter(ToJyutping.get_jyutping_list("".join(u[0] for u in units)))
+        for unit in units:
+            sounds = [next(readings, (None, None))[1] for _ in unit[0]]
+            while len(unit) < 5:
+                unit.append("")
+            unit[5:] = [" ".join(filter(None, sounds))]
     return lines
 
 HANGUL = re.compile(r"[\uac00-\ud7a3]")

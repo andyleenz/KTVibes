@@ -6,7 +6,7 @@ from pathlib import Path
 import time
 import uuid
 
-GUIDES = ("off", "latin", "hangul")
+GUIDES = ("off", "latin", "jyutping", "hangul")
 HISTORY = 200  # remembered plays, for the remote's "Recent" list
 UNDO_SECONDS = 15  # how long a removal can be taken back
 SAVE_EVERY = 10  # seconds between queue.json writes for position reports alone
@@ -52,7 +52,7 @@ class State:
         units = [u for line in (self.current or {}).get("lyrics", []) for u in line.get("units") or []]
         if not self.current:
             return list(GUIDES)
-        return ["off"] + [mode for index, mode in ((3, "latin"), (4, "hangul")) if any(len(u) > index and u[index] for u in units)]
+        return ["off"] + [mode for index, mode in ((3, "latin"), (5, "jyutping"), (4, "hangul")) if any(len(u) > index and u[index] for u in units)]
 
     def snapshot(self, lyrics=True):
         """Lyrics are large and only the TV draws them, so broadcasts leave them out (see broadcast)."""
@@ -145,6 +145,10 @@ class State:
                 if len(self.played) > HISTORY:
                     self.played = dict(sorted(self.played.items(), key=lambda p: p[1])[-HISTORY:])
                 self.offset = candidate.get("offset", 0)
+                # Cantopop reads in jyutping, Mandarin in pinyin: follow the song when on either.
+                if self.guide in ("latin", "jyutping"):
+                    from .lyrics import cantonese
+                    self.guide = "jyutping" if cantonese(candidate.get("lyrics") or []) and "jyutping" in self.guides() else "latin"
 
     @staticmethod
     def entry(video_id, artist, title):

@@ -322,6 +322,21 @@ if __name__ == '__main__':
     unittest.main()
 
 class LyricsMatchTests(unittest.TestCase):
+    def test_cantonese_gets_jyutping_and_is_detected(self):
+        from ktvibes import lyrics
+        lines = [{'t': 0, 'text': '我哋喺度', 'units': [[c, 0, 1] for c in '我哋喺度']}, {'t': 1, 'text': '冇嘢', 'units': [[c, 1, 2] for c in '冇嘢']}]
+        self.assertTrue(lyrics.cantonese(lines))
+        self.assertEqual([u[5] for u in lyrics.add_jyutping(lines)[0]['units']], ['ngo5', 'dei6', 'hai2', 'dou6'])
+        self.assertFalse(lyrics.cantonese([{'t': 0, 'text': '我是你的'}]))
+
+    def test_japanese_gets_romaji_not_pinyin(self):
+        from ktvibes import lyrics
+        units = lyrics.split_units('きっと世界 ちゃんと Love')
+        self.assertEqual(lyrics.romaji(units), ['ki', '', 'tto', 'sekai', '', 'cha', '', 'n', 'to', ''])
+        lines = [{'t': 0, 'text': '世界', 'units': [['世', 0, 1], ['界', 1, 2]]}, {'t': 2, 'text': 'ありがとう', 'units': [[c, 2, 3] for c in 'ありがとう']}]
+        lines = lyrics.add_pinyin(lyrics.add_romaji(lines))
+        self.assertEqual(lines[0]['units'][0][3], 'sekai')  # a kanji-only line in a Japanese song is still Japanese
+
     def test_original_script_beats_romanized_record(self):
         from ktvibes import lyrics
         romanized = {"trackName": "Spring Day", "duration": 274, "syncedLyrics": "[00:10.00] bogo sipda"}

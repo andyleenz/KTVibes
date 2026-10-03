@@ -143,7 +143,9 @@ def add_hangul(lines: list[dict]) -> list[dict]:
         text = "".join(u[0] for u in units)
         han = iter(lazy_pinyin("".join(HAN.findall(text)), style=Style.NORMAL))
         for unit in units:
-            if HAN.search(unit[0]):
+            if line.get("lang") == "ja" and not re.search(r"[A-Za-z]", unit[0]):
+                reading = ""  # Japanese has romaji; Chinese-reading Hangul would be wrong
+            elif HAN.search(unit[0]):
                 reading = "".join(pinyin_hangul(next(han)) for _ in HAN.findall(unit[0]))
             elif re.search(r"[A-Za-z]", unit[0]):
                 reading = english_hangul(unit[0])

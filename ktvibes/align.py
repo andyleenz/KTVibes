@@ -7,7 +7,7 @@ align confidently keep the vocal-energy estimate from lyrics.time_units.
 import re
 import threading
 import unicodedata
-from .lyrics import CJK, HANGUL, romanize, split_units
+from .lyrics import CJK, HANGUL, japanese, romaji, romanize, split_units
 
 _bundle = _model = None
 _lock = threading.Lock()
@@ -54,11 +54,13 @@ def align(lines: list[dict], samples, rate: int, pad: float = 0.4) -> set[int]:
         audio = F.resample(mono, rate, bundle.sample_rate)
         tokenizer, aligner = bundle.get_tokenizer(), bundle.get_aligner()
         aligned = set()
+        is_japanese = japanese(lines)
         for index, line in enumerate(lines):
             if not line["text"] or line.get("exact"):
                 continue  # Enhanced LRC already has real word timing.
             units = split_units(line["text"])
-            letters = spoken_letters(units)
+            # Japanese is aligned on its romaji; kana have no a-z letters of their own.
+            letters = [re.sub(r"[^a-z']", "", r.lower()) for r in romaji(units)] if is_japanese else spoken_letters(units)
             words = [w for w in letters if w]
             if not words:
                 continue

@@ -88,7 +88,7 @@ function render(next){
 let lyricsRev=0;
 function showLyrics(item){
  lyrics=item.lyrics||[];firstLine=lyrics.findIndex(line=>line.text);lyricsRev=item.lyrics_rev||0;
- lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul] of line.units||[]){const span=el('span',undefined,latin||hangul?'unit ruby':'unit');if(latin||hangul){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
+ lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul,jyutping] of line.units||[]){const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
 }
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
 // Speed changes tempo only (the browser keeps pitch); the key shift is applied by the worklet.
@@ -193,7 +193,7 @@ document.querySelector('.track').onclick=e=>{
  const box=e.currentTarget.getBoundingClientRect();
  send({action:'seek',position:(e.clientX-box.left)/box.width*state.current.duration});
 };
-const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],hangul:['가','한글']};
+const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],jyutping:['粵','Jyutping'],hangul:['가','한글']};
 let badgeTimer;
 function showGuideBadge(mode){const [icon,label]=GUIDE_BADGES[mode];showBadge(icon,'Pronunciation',label);}
 // Any adjustment from a remote flashes on screen, so the room sees what changed.

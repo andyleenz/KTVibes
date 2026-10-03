@@ -2,7 +2,7 @@ import {$,el,connect,api,clock,throttle,prepLabel,syncRanges} from './shared.js'
 let state;
 // After the first visit, skip the welcome hero and go straight to search.
 try{if(localStorage.getItem('ktvibes.visited'))document.body.classList.add('returning');localStorage.setItem('ktvibes.visited','1');}catch{}
-const GUIDE_NAMES={off:'Off',latin:'Romanization',hangul:'한글'};
+const GUIDE_NAMES={off:'Off',latin:'Romanization',jyutping:'Jyutping',hangul:'한글'};
 // Messages also flash in the dock, since the status line is usually scrolled off screen.
 let noteTimer;
 const message=text=>{$('message').textContent=text;$('now-artist').textContent=text;clearTimeout(noteTimer);noteTimer=setTimeout(()=>{noteTimer=null;showDock();},3000);};

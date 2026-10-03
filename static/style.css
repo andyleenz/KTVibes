@@ -185,3 +185,6 @@ body.intro .title-card{opacity:1;transform:none}
 @keyframes sheet-in{from{transform:translateY(100%)}}@keyframes sheet-out{to{transform:translateY(100%)}}
 @keyframes fade-in{from{opacity:0}}@keyframes fade-out{to{opacity:0}}
 .lyric-all{height:auto;padding:12px;background:transparent;color:var(--muted);font-size:13px}
+/* Centred with margins, not transform, so the shared press-scale effect does not knock it out of place. */
+.swipe .song-more{top:0;bottom:0;margin:auto 0;transform:none}
+[data-guide=jyutping] #lyrics rt:has(.jyutping:not(:empty)){display:revert}[data-guide=jyutping] #lyrics rt .jyutping{display:inline}[data-guide=jyutping] #lyrics .lyric{line-height:1.8}

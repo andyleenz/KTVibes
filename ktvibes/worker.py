@@ -7,7 +7,7 @@ import soundfile as sf
 from . import align, guides, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
-TIMING_VERSION = 3  # bump when alignment or guide output changes, so cached timing is rebuilt
+TIMING_VERSION = 5  # bump when alignment or guide output changes, so cached timing is rebuilt
 
 def separate(source, destination):
     # Keep model imports off the server startup path.
@@ -63,7 +63,7 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         log.exception("Forced alignment unavailable for %s", folder.name)
         aligned = False
     lyrics.time_units(lines, energy)
-    lines = guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lines)))
+    lines = lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines)))))
     if aligned:  # an energy-only fallback should be retried once the aligner works again
         temporary = folder / "timed.tmp"
         temporary.write_text(json.dumps({"key": key, "lines": lines}, ensure_ascii=False), encoding="utf-8")
