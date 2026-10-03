@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KTVibes · Self-hosted karaoke from any YouTube song</title>
+<meta name="description" content="Free, open-source home karaoke. Turn any YouTube song into karaoke with AI vocal removal, KTV-style synced lyrics, pinyin, jyutping, romaji and Hangul guides, key and speed control, and a phone remote.">
+<link rel="canonical" href="https://andyleenz.github.io/KTVibes/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="KTVibes · Turn any YouTube song into karaoke at home">
+<meta property="og:description" content="AI vocal removal, KTV-style lyrics, pronunciation guides for Chinese, Cantonese, Korean and Japanese, and a phone remote. Self-hosted and open source.">
+<meta property="og:url" content="https://andyleenz.github.io/KTVibes/">
+<meta property="og:image" content="https://andyleenz.github.io/KTVibes/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#111313">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"KTVibes","applicationCategory":"MultimediaApplication","operatingSystem":"Linux, macOS, Windows","offers":{"@type":"Offer","price":"0"},"url":"https://andyleenz.github.io/KTVibes/","codeRepository":"https://github.com/andyleenz/KTVibes","license":"https://opensource.org/licenses/MIT"}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@700&family=Noto+Sans+TC:wght@700&family=Noto+Sans+JP:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#111313;--surface:#1b1e1d;--surface2:#232826;--line:#343a36;--ink:#f2f3e8;--muted:#9aaba0;--lime:#d7fc70;--on-lime:#172013;
+ --spring:cubic-bezier(.34,1.56,.64,1);--spring-soft:cubic-bezier(.38,1.21,.22,1);--emph:cubic-bezier(.2,0,0,1)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;letter-spacing:-.03em;margin:0}
+.wrap{max-width:1180px;margin:auto;padding:0 28px}
+
+/* Top bar */
+/* Floats over the hero glow; blur and tint fade out at the bottom edge instead of a hard line. */
+nav{position:fixed;top:0;left:0;right:0;z-index:10;padding-bottom:24px;backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+ background:linear-gradient(#111313d0,#11131380 60%,#11131300);mask-image:linear-gradient(#000 74%,transparent);-webkit-mask-image:linear-gradient(#000 74%,transparent)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px}
+.brand{font:700 26px 'Space Grotesk',sans-serif;letter-spacing:-1.2px;text-decoration:none}.brand span{color:var(--lime)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:700;font-size:15px;
+ transition:border-radius .35s var(--spring),transform .35s var(--spring),background .2s}
+.pill:active{border-radius:12px;transform:scale(.96)}
+.pill.primary{background:var(--lime);color:var(--on-lime)}.pill.primary:hover{border-radius:14px}
+.pill.tonal{background:#ffffff12;border:1px solid #ffffff1f}.pill.tonal:hover{background:#ffffff1c;border-radius:14px}
+.pill svg{width:18px;height:18px;fill:currentColor}
+
+/* Hero */
+.hero{position:relative;padding:164px 0 40px;text-align:center;background:radial-gradient(ellipse 70% 60% at 50% 0%,#2a3826 0%,transparent 70%)}
+.eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--lime);text-transform:uppercase;margin-bottom:22px}
+.hero h1{font-size:clamp(46px,8vw,96px);line-height:.98;letter-spacing:-.045em;max-width:980px;margin:auto}
+/* The headline's last word fills like a KTV lyric. */
+.wipe{position:relative;display:inline-block;color:#ffffff38}
+.wipe::after{content:attr(data-text);position:absolute;inset:0;color:var(--lime);clip-path:inset(0 100% 0 0);animation:wipe 2.6s .6s var(--emph) infinite}
+@keyframes wipe{0%{clip-path:inset(0 100% 0 0)}55%,85%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 0);opacity:0}}
+.hero p.lead{font-size:20px;color:var(--muted);max-width:640px;margin:28px auto 36px}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.stage{position:relative;margin:72px auto 0;max-width:1100px}
+.stage .tv{width:100%;height:auto;border-radius:28px;display:block;box-shadow:0 40px 120px #000c,0 0 0 1px #d7fc7026}
+.stage .phone{position:absolute;right:-10px;bottom:-60px;width:min(26%,250px);height:auto;border-radius:34px;box-shadow:0 30px 80px #000e,0 0 0 7px #1b1e1d,0 0 0 8px #ffffff26;
+ animation:float 6s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-14px) rotate(-1deg)}}
+
+/* Sections */
+section{padding:120px 0 0}
+.section-head{max-width:720px;margin-bottom:48px}
+.section-head h2{font-size:clamp(34px,5vw,56px);line-height:1.02}
+.section-head p{color:var(--muted);font-size:19px;margin:18px 0 0}
+
+/* Feature cards: shapes morph on hover, springs on reveal. */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{position:relative;padding:32px;border-radius:32px;background:var(--surface);border:1px solid #ffffff0d;overflow:hidden;
+ transition:border-radius .5s var(--spring),transform .5s var(--spring),background .3s}
+.card:hover{border-radius:56px 18px 56px 18px;transform:translateY(-4px);background:var(--surface2)}
+.card.big{grid-column:span 2}@media(max-width:700px){.card.big{grid-column:auto}}
+.card h3{font-size:24px;margin:22px 0 10px}.card p{margin:0;color:var(--muted)}
+.icon{display:grid;place-items:center;width:64px;height:64px;background:var(--lime);color:var(--on-lime);font:700 26px 'Space Grotesk',sans-serif;
+ border-radius:22px;transition:border-radius .6s var(--spring),transform .6s var(--spring)}
+.card:hover .icon{border-radius:50%;transform:rotate(-12deg) scale(1.08)}
+.card:nth-child(3n+2) .icon{border-radius:50% 50% 22px 50%}.card:nth-child(3n) .icon{border-radius:32px 10px}
+.icon svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Pronunciation guide demo: one line, guides swap with a spring. */
+.guides{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.lang{padding:30px 28px 26px;border-radius:32px;background:var(--surface);border:1px solid #ffffff0d;text-align:center;transition:border-radius .5s var(--spring),transform .5s var(--spring)}
+.lang:hover{border-radius:18px 56px;transform:scale(1.02)}
+.lang small{display:block;font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
+.ruby{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+.ruby span{display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.ruby i{font-style:normal;font-size:15px;color:var(--lime);font-weight:500;min-height:18px}
+.ruby b{font:700 38px 'Noto Sans TC','Noto Sans KR','Noto Sans JP',sans-serif;color:#ffffff40;background:linear-gradient(90deg,var(--lime) 50%,#ffffff40 50%) 100% 0/200% 100% no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent}
+.lang.on .ruby b{animation:fill 1s var(--emph) forwards;animation-delay:calc(var(--i) * .22s)}
+@keyframes fill{to{background-position:0 0}}
+
+/* Controls strip */
+.controls{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;align-items:stretch}@media(max-width:860px){.controls{grid-template-columns:1fr}}
+.shot{border-radius:32px;overflow:hidden;background:var(--surface);display:grid;place-items:center;padding:28px}
+.shot img{width:100%;height:auto;max-width:330px;border-radius:26px;box-shadow:0 20px 60px #000a}
+.list{display:grid;gap:12px;align-content:start}
+.row{display:flex;gap:18px;align-items:flex-start;padding:22px 24px;border-radius:24px;background:var(--surface);transition:border-radius .45s var(--spring),transform .45s var(--spring)}
+.row:hover{border-radius:40px;transform:translateX(6px)}
+.row b{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:#d7fc701f;color:var(--lime);font:700 18px 'Space Grotesk',sans-serif}
+.row h3{font-size:19px}.row p{margin:4px 0 0;color:var(--muted);font-size:15px}
+
+/* Install */
+.install{border-radius:40px;background:linear-gradient(135deg,#202a1c,#161a17);padding:48px;border:1px solid #d7fc7022}
+.tabs{display:inline-flex;gap:4px;padding:5px;border-radius:999px;background:#0006;margin-bottom:22px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:500 15px 'DM Sans',sans-serif;padding:10px 20px;border-radius:999px;cursor:pointer;transition:background .3s var(--spring),color .2s,border-radius .4s var(--spring)}
+.tabs button[aria-selected=true]{background:var(--lime);color:var(--on-lime);font-weight:700}
+.tabs button:active{border-radius:10px}
+.cmd{display:flex;align-items:center;gap:12px;background:#0b0d0c;border:1px solid var(--line);border-radius:20px;padding:18px 18px 18px 24px;font:500 15px ui-monospace,'JetBrains Mono',monospace;overflow-x:auto}
+.cmd code{flex:1;white-space:nowrap;color:#e6f5c4}
+.copy{flex:none;border:0;cursor:pointer;width:44px;height:44px;border-radius:14px;background:#ffffff14;color:var(--ink);display:grid;place-items:center;transition:border-radius .4s var(--spring),background .2s,transform .3s var(--spring)}
+.copy:hover{border-radius:50%}.copy.done{background:var(--lime);color:var(--on-lime);transform:scale(1.1) rotate(-8deg)}
+.copy svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.install p{color:var(--muted);margin:18px 0 0;font-size:15px}
+.install ol{margin:28px 0 0;padding-left:22px;color:var(--muted)}.install li{margin:6px 0}.install li b{color:var(--ink)}
+
+footer{padding:120px 0 60px;text-align:center;color:var(--muted);font-size:14px}
+footer .brand{font-size:44px;display:block;margin-bottom:18px}
+
+/* Scroll reveal: elements spring up into place. */
+.reveal{opacity:0;transform:translateY(40px) scale(.97);transition:opacity .6s var(--emph),transform .9s var(--spring-soft);transition-delay:calc(var(--d,0) * 70ms)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){*,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.ruby b{background-position:0 0}}
+</style>
+</head>
+<body>
+<nav><div class="wrap"><a class="brand" href="#">KT<span>Vibes</span></a>
+ <a class="pill tonal" href="https://github.com/andyleenz/KTVibes"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div></nav>
+
+<header class="hero"><div class="wrap">
+ <span class="eyebrow reveal">Free · open source · self-hosted</span>
+ <h1 class="reveal" style="--d:1">Turn any YouTube song into <span class="wipe" data-text="karaoke">karaoke</span></h1>
+ <p class="lead reveal" style="--d:2">AI strips the vocals, synced lyrics fill as they're sung, and everyone queues songs from their phone. Pronunciation guides for Chinese, Cantonese, Korean and Japanese.</p>
+ <div class="cta reveal" style="--d:3"><a class="pill primary" href="#install">Install</a><a class="pill tonal" href="https://github.com/andyleenz/KTVibes">View on GitHub</a></div>
+ <div class="stage reveal" style="--d:4">
+  <img class="tv" src="tv-hero.jpg" alt="KTVibes on a TV: Joji's Sanctuary with lyrics filling word by word" width="1920" height="1080">
+  <img class="phone" src="remote-queue.png" alt="KTVibes phone remote showing the queue" loading="lazy">
+ </div>
+</div></header>
+
+<section><div class="wrap">
+ <div class="section-head reveal"><h2>A KTV room, in your living room</h2><p>Everything a karaoke box does, built from songs you already know.</p></div>
+ <div class="grid">
+  <div class="card big reveal"><div class="icon"><svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8 7v6M16 7v6M4 10v3M20 10v3"/><path d="M6 21h12"/></svg></div><h3>Any song on YouTube</h3><p>Search from your phone. KTVibes downloads the song and its music video, and skips reactions, dance practices, mixes and karaoke uploads.</p></div>
+  <div class="card reveal" style="--d:1"><div class="icon">♫</div><h3>AI vocal removal</h3><p>Demucs separates the singer from the music, on an NVIDIA GPU, Apple Silicon or CPU. Keep a little guide vocal if you like.</p></div>
+  <div class="card reveal" style="--d:2"><div class="icon">Aa</div><h3>Lyrics that fill as they're sung</h3><p>Synced lyrics from LRCLIB, timed character by character against the vocals by forced alignment.</p></div>
+  <div class="card reveal" style="--d:3"><div class="icon">♯</div><h3>Key and speed</h3><p>Shift ±6 semitones without changing tempo, or slow a song down without changing pitch.</p></div>
+  <div class="card reveal" style="--d:4"><div class="icon"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="3"/><path d="M11 18h2"/></svg></div><h3>Phone remote</h3><p>Scan the QR code on the TV to join. One shared queue for everyone, with undo.</p></div>
+ </div>
+</div></section>
+
+<section id="languages"><div class="wrap">
+ <div class="section-head reveal"><h2>Sing in any language</h2><p>A pronunciation guide sits above every character and fills along with it. Cycle guides from the remote, or press G.</p></div>
+ <div class="guides">
+  <div class="lang reveal"><small>Mandarin · pinyin</small><div class="ruby"><span style="--i:0"><i>qíng</i><b>晴</b></span><span style="--i:1"><i>tiān</i><b>天</b></span></div></div>
+  <div class="lang reveal" style="--d:1"><small>Cantonese · jyutping</small><div class="ruby"><span style="--i:0"><i>hoi2</i><b>海</b></span><span style="--i:1"><i>kut3</i><b>闊</b></span><span style="--i:2"><i>tin1</i><b>天</b></span><span style="--i:3"><i>hung1</i><b>空</b></span></div></div>
+  <div class="lang reveal" style="--d:2"><small>Korean · romanization</small><div class="ruby"><span style="--i:0"><i>bom</i><b>봄</b></span><span style="--i:1"><i>nal</i><b>날</b></span></div></div>
+  <div class="lang reveal" style="--d:3"><small>Japanese · romaji</small><div class="ruby"><span style="--i:0"><i>a</i><b>あ</b></span><span style="--i:1"><i>ri</i><b>り</b></span><span style="--i:2"><i>ga</i><b>が</b></span><span style="--i:3"><i>to</i><b>と</b></span><span style="--i:4"><i>u</i><b>う</b></span></div></div>
+ </div>
+</div></section>
+
+<section><div class="wrap controls">
+ <div class="shot reveal"><img src="remote-controls.png" alt="Remote controls: music, vocals, speed and key" loading="lazy"></div>
+ <div class="list">
+  <div class="section-head reveal" style="margin-bottom:12px"><h2>Your mix, your key</h2></div>
+  <div class="row reveal" style="--d:1"><b>1</b><div><h3>Music and vocals sliders</h3><p>Turn the original singer down to a whisper, or all the way off.</p></div></div>
+  <div class="row reveal" style="--d:2"><b>2</b><div><h3>Lyrics language picker</h3><p>K-pop song with a Japanese release? Pick which lyrics to show, live.</p></div></div>
+  <div class="row reveal" style="--d:3"><b>3</b><div><h3>Everything's cached</h3><p>Sing a song once and it starts instantly next time.</p></div></div>
+  <div class="row reveal" style="--d:4"><b>4</b><div><h3>On-screen cards</h3><p>Every change, from key to queue, pops up on the TV so the room knows.</p></div></div>
+ </div>
+</div></section>
+
+<section id="install"><div class="wrap">
+ <div class="install reveal">
+  <h2 style="font-size:clamp(32px,4.5vw,48px)">Install in one line</h2>
+  <p style="margin:10px 0 28px">Needs a computer connected to the TV. An NVIDIA GPU or Apple Silicon Mac makes songs ready in seconds.</p>
+  <div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-cmd="curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash">Linux · macOS</button><button role="tab" aria-selected="false" data-cmd="powershell -ExecutionPolicy ByPass -c &quot;irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex&quot;">Windows</button></div>
+  <div class="cmd"><code id="cmd">curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash</code>
+   <button class="copy" id="copy" aria-label="Copy command"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="3"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></button></div>
+  <ol><li>Run <b>ktvibes</b></li><li>Open <b>http://localhost:8765/tv</b> on the TV and click <b>Enable sound</b></li><li>Scan the QR code with your phone and start queuing</li></ol>
+ </div>
+</div></section>
+
+<footer><a class="brand" href="https://github.com/andyleenz/KTVibes">KT<span>Vibes</span></a>MIT licensed · for personal, at-home use · lyrics from <a href="https://lrclib.net">LRCLIB</a></footer>
+
+<script>
+// Spring elements into view as they scroll in; language cards replay their wipe each time.
+const seen=new IntersectionObserver(entries=>{for(const e of entries){
+ if(e.target.classList.contains('lang')){e.target.classList.toggle('on',e.isIntersecting);if(e.isIntersecting)e.target.classList.add('in');continue;}
+ if(e.isIntersecting){e.target.classList.add('in');seen.unobserve(e.target);}
+}},{threshold:.2});
+document.querySelectorAll('.reveal').forEach(el=>seen.observe(el));
+const cmd=document.getElementById('cmd'),copy=document.getElementById('copy');
+document.querySelectorAll('.tabs button').forEach(tab=>tab.onclick=()=>{
+ document.querySelectorAll('.tabs button').forEach(t=>t.setAttribute('aria-selected',t===tab));
+ cmd.animate([{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:350,easing:'cubic-bezier(.34,1.56,.64,1)'});
+ cmd.textContent=tab.dataset.cmd;
+});
+copy.onclick=async()=>{try{await navigator.clipboard.writeText(cmd.textContent);copy.classList.add('done');setTimeout(()=>copy.classList.remove('done'),1400);}catch{}};
+</script>
+</body>
+</html>
