@@ -342,7 +342,7 @@ def fits(candidate: dict, duration: float) -> bool:
 
 def lrclib():
     import httpx
-    return httpx.AsyncClient(base_url="https://lrclib.net", timeout=20, headers={"User-Agent": "KTVibes/0.1 (home karaoke)"})
+    return httpx.AsyncClient(base_url="https://lrclib.net", timeout=20, headers={"User-Agent": "KTVibes/0.2 (home karaoke)"})
 
 async def search(query: str, duration: float) -> list[dict]:
     """Free-text LRCLIB search for the remote, when the automatic lookup found nothing or the wrong song.
