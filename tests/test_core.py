@@ -481,6 +481,19 @@ class LyricsMatchTests(unittest.TestCase):
         self.assertEqual([line['start'] for line in lines], [33.8, 39.1, 42.3])
         self.assertEqual([line.get('over') for line in lines], [None, 0, None])
 
+    def test_lines_align_in_runs_split_at_gaps_and_backing_vocals(self):
+        from ktvibes.align import runs
+        lines = [{'t': 0, 'text': 'a'}, {'t': 3, 'text': 'b'}, {'t': 5, 'text': '(echo)'}, {'t': 6, 'text': 'c'},
+                 {'t': 9, 'text': ''}, {'t': 20, 'text': 'd'}, {'t': 30, 'text': 'e'}, {'t': 70, 'text': 'f'}]
+        words = {i: ['x'] for i, line in enumerate(lines) if line['text']}
+        self.assertEqual(runs(lines, words), [[0, 1], [2], [3], [5, 6], [7]])
+
+    def test_energy_timing_starts_after_the_previous_line(self):
+        from ktvibes.lyrics import time_units
+        lines = [{'t': 0, 'text': 'one', 'units': [['one', 0.5, 4.2]]}, {'t': 3.5, 'text': 'two'}, {'t': 9, 'text': ''}]
+        time_units(lines, [1.0] * 200)
+        self.assertGreaterEqual(lines[1]['units'][0][1], 4.2)  # the stamp (3.5) is before "one" is finished
+
     def test_enhanced_lrc_word_stamps(self):
         line = parse_lrc('[00:01.00]<00:01.00>Hel<00:01.50>lo')[0]
         self.assertEqual(line['text'], 'Hello')

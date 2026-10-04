@@ -277,9 +277,11 @@ def time_units(lines: list[dict], energy, hop: float = 0.05) -> list[dict]:
         if line.get("units") or not line["text"]:
             continue
         units = split_units(line["text"])
-        start = line["t"]
         # Energy can't tell a backing vocal from the lead, so this estimate stops at any next line.
-        end = min(lines[index + 1]["t"] if index + 1 < len(lines) else start + 8, start + 15)
+        end = min(lines[index + 1]["t"] if index + 1 < len(lines) else line["t"] + 8, line["t"] + 15)
+        # LRC stamps often come before the previous line is finished: start after its last aligned word.
+        previous = lines[index - 1].get("units") if index and not echo(line) else None
+        start = min(max(line["t"], previous[-1][2] if previous else 0), end - 0.5) if end - line["t"] > 0.5 else line["t"]
         window = energy[int(start / hop): max(int(start / hop) + 1, int(end / hop))]
         active = window > max(floor, float(np.percentile(window, 90)) * 0.25) if len(window) else window
         if active.sum() < 4:

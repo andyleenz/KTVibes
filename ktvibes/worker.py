@@ -8,7 +8,7 @@ import soundfile as sf
 from . import align, guides, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
-TIMING_VERSION = 6  # bump when alignment or guide output changes, so cached timing is rebuilt
+TIMING_VERSION = 7  # bump when alignment or guide output changes, so cached timing is rebuilt
 LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
 STARTED = time.time()  # energy-only timing (aligner failed) cached before this run is retried once
 

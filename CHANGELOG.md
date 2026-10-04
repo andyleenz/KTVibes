@@ -20,6 +20,7 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 - A TV or remote left open across an update reloads itself.
 
 ### Fixed
+- Word timing no longer lets a line start highlighting while the previous one is still being sung. Lines are aligned in runs so the audio decides where each line ends, and more lines get word-level timing.
 - Backing-vocal lines in brackets, like "(Caught in the undertow)", no longer push the lead line off screen early.
 - A song that LRCLIB has no lyrics for, or that couldn't be word-timed, is no longer looked up again on every play.
 - Titles like "Song [4K Upgrade] - Artist" and "Song - Artist (Lyrics) 🎵" are read correctly.
