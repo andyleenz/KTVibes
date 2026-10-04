@@ -81,7 +81,11 @@ function render(next){
  document.body.classList.toggle('has-video',showVideo()&&!video.error);
  // Switching layout, size or guide changes how wide each line is: place and fit the lines again.
  const nextFit=`${state.lyric_mode}|${state.lyric_scale}|${state.guide}`;
- if(nextFit!==fitKey){fitKey=nextFit;shownPair='';lyricsPositioned=false;}
+ if(nextFit!==fitKey){
+  fitKey=nextFit;shownPair='';lyricsPositioned=false;
+  // Two-line sizing and condensing are inline styles; scroll mode starts from clean lines.
+  if(state.lyric_mode!=='two'){$('lyrics').style.removeProperty('--fit');for(const line of $('lyrics').children){line.style.removeProperty('scale');line.style.removeProperty('max-width');line.style.removeProperty('white-space');}}
+ }
  if(state.current&&state.seek_id!==lastSeek){
   lastSeek=state.seek_id;
   if(music.readyState&&seekTo===null){music.currentTime=voice.currentTime=state.position;if(state.current.video&&video.readyState)video.currentTime=state.position;}else seekTo=state.position;
