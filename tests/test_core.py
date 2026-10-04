@@ -16,6 +16,9 @@ class LyricsTests(unittest.TestCase):
         self.assertEqual(parse_title('봄날', '방탄소년단 - Topic'), {'artist': '방탄소년단', 'title': '봄날'})
         self.assertEqual(parse_title('卓文萱 Genie Chuo&曹格 Gary Chaw【梁山伯與茱麗葉】華視偶像劇「戀愛女王」片尾曲', '滾石唱片 ROCK RECORDS'),
                          {'artist': '卓文萱 Genie Chuo&曹格 Gary Chaw', 'title': '梁山伯與茱麗葉'})
+        # "Song - Artist" on the artist's own channel, with a remaster tag
+        self.assertEqual(parse_title('Numb (Official Music Video) [4K UPGRADE] – Linkin Park', 'Linkin Park'), {'artist': 'Linkin Park', 'title': 'Numb'})
+        self.assertEqual(parse_title('Adele - Hello', 'AdeleVEVO'), {'artist': 'Adele', 'title': 'Hello'})
 
 class MusicFilterTests(unittest.TestCase):
     def test_keeps_songs_and_drops_other_videos(self):
@@ -280,7 +283,7 @@ class WorkerRunTests(unittest.IsolatedAsyncioTestCase):
 
 
 class WorkerTests(unittest.TestCase):
-    def test_wav_stems_migrate_to_flac_with_gain(self):
+    def test_old_stems_migrate_to_opus_with_gain(self):
         import tempfile
         from pathlib import Path
         import numpy as np
@@ -288,17 +291,27 @@ class WorkerTests(unittest.TestCase):
         from ktvibes import stems
         with tempfile.TemporaryDirectory() as folder:
             folder = Path(folder)
-            self.assertIsNone(stems.migrate(folder))
-            loud = np.full((4000, 2), 1.5, dtype='float32')  # above full scale, as Demucs stems can be
-            sf.write(folder / 'vocals.wav', loud / 3, 8000, subtype='FLOAT')
-            sf.write(folder / 'no_vocals.wav', loud, 8000, subtype='FLOAT')
-            gain = stems.migrate(folder)
+            self.assertIsNone(stems.migrate(folder, None))
+            # A steady tone above full scale, as Demucs stems can be; Opus is lossy, so compare levels.
+            tone = 1.5 * np.sin(np.arange(48000) * 2 * np.pi * 440 / 48000).astype('float32')[:, None].repeat(2, 1)
+            level = lambda x: float(np.sqrt(np.mean(x[4000:-4000] ** 2)))
+            sf.write(folder / 'vocals.wav', tone / 3, 48000, subtype='FLOAT')
+            sf.write(folder / 'no_vocals.wav', tone, 48000, subtype='FLOAT')
+            gain = stems.migrate(folder, None)
             self.assertTrue(stems.ready(folder))
             self.assertFalse((folder / 'vocals.wav').exists())
-            restored, _ = sf.read(folder / 'no_vocals.flac', dtype='float32')
-            self.assertLess(np.abs(restored * gain - 1.5).max(), 1e-5)
-            vocals, _ = sf.read(folder / 'vocals.flac', dtype='float32')
-            self.assertLess(np.abs(vocals * gain - .5).max(), 1e-5)
+            restored, rate = sf.read(folder / 'no_vocals.opus', dtype='float32')
+            self.assertEqual(rate, 48000)
+            self.assertAlmostEqual(level(restored) * gain, level(tone), delta=0.02)
+            # FLAC from the previous version was stored scaled by its gain; the level survives conversion.
+            for name in stems.NAMES:
+                (folder / f'{name}.opus').unlink()
+            sf.write(folder / 'vocals.flac', tone / 3 / 2, 44100, subtype='PCM_24')
+            sf.write(folder / 'no_vocals.flac', tone / 2, 44100, subtype='PCM_24')
+            gain = stems.migrate(folder, 2.0)
+            self.assertFalse((folder / 'no_vocals.flac').exists())
+            vocals, _ = sf.read(stems.path(folder, 'vocals'), dtype='float32')
+            self.assertAlmostEqual(level(vocals) * gain, level(tone / 3), delta=0.02)
 
     def test_timed_lyrics_are_reused_until_the_lrc_changes(self):
         import tempfile
@@ -316,6 +329,14 @@ class WorkerTests(unittest.TestCase):
                 self.assertEqual(align.call_count, 1)
                 self.assertEqual(first, again)
                 worker.timed_lyrics(folder, '[00:00.10]goodbye', folder / 'vocals.wav', parse_lrc('[00:00.10]goodbye'))
+                self.assertEqual(align.call_count, 2)
+            # Without the aligner, the energy estimate is kept and only retried in a later run.
+            with patch.object(worker.align, 'align', side_effect=RuntimeError) as align:
+                worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
+                worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
+                self.assertEqual(align.call_count, 1)
+                worker.retried.clear()
+                worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
                 self.assertEqual(align.call_count, 2)
 
 if __name__ == '__main__':

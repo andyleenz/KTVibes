@@ -2,12 +2,16 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from pathlib import Path
 import soundfile as sf
 from . import align, guides, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
 TIMING_VERSION = 5  # bump when alignment or guide output changes, so cached timing is rebuilt
+LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
+# Songs whose energy-only timing (aligner failed) was already retried in this run.
+retried = set()
 
 def separate(source, destination):
     # Keep model imports off the server startup path.
@@ -51,7 +55,8 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
     key = f"{TIMING_VERSION}:{hashlib.sha256(raw.encode()).hexdigest()}"
     try:
         cached = json.loads((folder / "timed.json").read_text(encoding="utf-8"))
-        if cached.get("key") == key:
+        # Energy-only timing (the aligner failed) is retried once per run, not on every play.
+        if cached.get("key") == key and (cached.get("aligned", True) or folder.name in retried):
             return cached["lines"]
     except (OSError, ValueError, KeyError):
         pass
@@ -69,10 +74,11 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         aligned = False
     lyrics.time_units(lines, energy)
     lines = lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines)))))
-    if aligned:  # an energy-only fallback should be retried once the aligner works again
-        temporary = folder / "timed.tmp"
-        temporary.write_text(json.dumps({"key": key, "lines": lines}, ensure_ascii=False), encoding="utf-8")
-        temporary.replace(folder / "timed.json")
+    if not aligned:
+        retried.add(folder.name)
+    temporary = folder / "timed.tmp"
+    temporary.write_text(json.dumps({"key": key, "aligned": aligned, "lines": lines}, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(folder / "timed.json")
     return lines
 
 class Removed(Exception):
@@ -107,8 +113,8 @@ async def run(state, cache: Path):
                 if video is None or video.done():
                     video = videos[item["id"]] = asyncio.ensure_future(asyncio.to_thread(fetch_video, item["id"], folder, reporter(state, item, "video")))
             if not stems.ready(folder):
-                # Songs cached as float WAV convert in about a second instead of separating again.
-                gain = await asyncio.to_thread(stems.migrate, folder)
+                # Songs cached as WAV or FLAC convert in seconds instead of separating again.
+                gain = await asyncio.to_thread(stems.migrate, folder, meta.get("stem_gain"))
                 if gain is None:
                     if not (folder / "audio.m4a").is_file():
                         item["status"], item["step"], item["progress"] = "downloading", "audio", 0.0
@@ -130,31 +136,36 @@ async def run(state, cache: Path):
             if video and (warning := await video):
                 item["video_warning"] = warning
             item["video"] = (folder / "video.mp4").is_file()
-            item["duration"] = sf.info(folder / "no_vocals.flac").duration
+            item["duration"] = sf.info(stems.path(folder, "no_vocals")).duration
             item["gain"] = float(meta.get("stem_gain") or 1)
             item["status"], item["step"], item["progress"] = "syncing", None, None
             await state.broadcast()
             identity = [item["artist"], item["title"]]
             cached = (folder / "lyrics.lrc").read_text(encoding="utf-8") if (folder / "lyrics.lrc").is_file() else ""
             raw = ""
-            if meta.get("lyrics_identity") == identity and lyrics.parse_lrc(cached):
+            same = meta.get("lyrics_identity") == identity
+            if same and lyrics.parse_lrc(cached):
                 raw = cached
                 item["lyrics"] = lyrics.parse_lrc(cached)
+            elif same and time.time() - meta.get("lyrics_checked", 0) < LYRICS_RECHECK:
+                pass  # LRCLIB had none recently; "Lyrics language…" on the remote still searches
             else:
                 try:
                     result = await lyrics.fetch(*identity, item["duration"], (meta.get("source_title") or "",))
                     raw, item["lyrics"] = result["raw"], result["lines"]
-                    # Cache only hits, so a later lookup fix or LRCLIB addition is picked up.
+                    # A miss is remembered for a week, so a later LRCLIB addition is still picked up.
+                    meta["lyrics_identity"], meta["lyrics_checked"] = identity, time.time()
+                    meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
                     if result["raw"]:
                         (folder / "lyrics.lrc").write_text(result["raw"], encoding="utf-8")
-                        meta["lyrics_identity"] = identity
-                        meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
+                    else:
+                        (folder / "lyrics.lrc").unlink(missing_ok=True)
                 except Exception:
                     log.exception("Lyrics unavailable for %s", item["id"])
                     item["lyrics_warning"] = "Lyrics unavailable; audio is ready."
             if item["lyrics"]:
                 try:
-                    item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, folder / "vocals.flac", item["lyrics"])
+                    item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, stems.path(folder, "vocals"), item["lyrics"])
                     lyrics.line_starts(item["lyrics"])  # cheap, so kept out of the timing cache
                 except Exception:
                     log.exception("Word timing unavailable for %s", item["id"])

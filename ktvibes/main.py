@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from .queue import State
-from . import lyrics, worker, youtube
+from . import lyrics, stems, worker, youtube
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = Path(os.environ.get("KTVIBES_CACHE", ROOT / "cache"))
@@ -96,7 +96,7 @@ def prepared_songs() -> dict:
         except (OSError, ValueError):
             continue
         video_id = meta_path.parent.name
-        if youtube.ID.fullmatch(video_id) and meta.get("artist") and meta.get("title") and any((meta_path.parent / f"no_vocals.{ext}").is_file() for ext in ("flac", "wav")):
+        if youtube.ID.fullmatch(video_id) and meta.get("artist") and meta.get("title") and stems.prepared(meta_path.parent):
             songs[video_id] = {"id": video_id, "artist": meta["artist"], "title": meta["title"], "duration": meta.get("duration"),
                                "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg", "prepared": prepared}
     return songs
@@ -110,8 +110,9 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
 
 @app.get("/api/ambient")
 async def ambient():
-    """Cached music videos the TV loops, muted, behind an empty stage."""
-    return sorted(path.parent.name for path in CACHE.glob("*/video.mp4") if youtube.ID.fullmatch(path.parent.name))
+    """Cached music videos the TV loops, muted, behind an empty stage: only songs that were prepared,
+    so a video left behind by a failed download never shows up between songs."""
+    return sorted(path.parent.name for path in CACHE.glob("*/video.mp4") if youtube.ID.fullmatch(path.parent.name) and stems.prepared(path.parent))
 
 def song_meta(video_id: str) -> tuple[Path, dict]:
     folder = CACHE / video_id
@@ -154,7 +155,7 @@ async def choose_lyrics(video_id: str, choice: LyricChoice):
     if state.current and state.current["id"] == video_id:
         # The song on stage switches right away: time the new lines, then resend lyrics to the TV.
         lines = lyrics.parse_lrc(chosen["syncedLyrics"])
-        lines = await asyncio.to_thread(worker.timed_lyrics, folder, chosen["syncedLyrics"], folder / "vocals.flac", lines)
+        lines = await asyncio.to_thread(worker.timed_lyrics, folder, chosen["syncedLyrics"], stems.path(folder, "vocals"), lines)
         lyrics.line_starts(lines)
         if state.current and state.current["id"] == video_id:
             state.current.update(lyrics=lines, lyrics_rev=state.current.get("lyrics_rev", 0) + 1)
@@ -194,12 +195,15 @@ async def enqueue(song: Song):
 
 @app.get("/media/{video_id}/{filename}")
 async def media(video_id: str, filename: str):
-    if not youtube.ID.fullmatch(video_id) or filename not in ("vocals.flac", "no_vocals.flac", "video.mp4"):
+    """Stems are requested by name (vocals, no_vocals) and served in whichever format is cached."""
+    if not youtube.ID.fullmatch(video_id) or filename not in (*stems.NAMES, "video.mp4"):
         raise HTTPException(404)
-    path = CACHE / video_id / filename
+    folder = CACHE / video_id
+    path = folder / filename if filename == "video.mp4" else stems.path(folder, filename)
     if not path.is_file():
         raise HTTPException(404)
-    return FileResponse(path, media_type="video/mp4" if filename.endswith(".mp4") else "audio/flac")
+    types = {".mp4": "video/mp4", ".opus": "audio/ogg", ".flac": "audio/flac", ".wav": "audio/wav"}
+    return FileResponse(path, media_type=types[path.suffix])
 
 def remote_url():
     if os.environ.get("KTVIBES_REMOTE_URL"):

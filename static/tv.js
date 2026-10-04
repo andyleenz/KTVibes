@@ -71,7 +71,7 @@ function render(next){
    const item=state.current;
    video.hidden=!item.video;$('video-shade').hidden=!item.video;document.body.classList.toggle('has-video',!!item.video);
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
-   stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals.flac`;voice.src=`/media/${item.id}/vocals.flac`;music.load();voice.load();
+   stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals`;voice.src=`/media/${item.id}/vocals`;music.load();voice.load();
    $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-artist').textContent=$('card-artist').textContent=item.artist;
    showLyrics(item);$('duration').textContent=clock(item.duration);
   }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}

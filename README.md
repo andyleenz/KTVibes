@@ -76,7 +76,8 @@ The first song starts as soon as it is ready. Later songs are prepared while ear
 |---|---|---|
 | `KTVIBES_PORT` | `8765` | Server port |
 | `KTVIBES_REMOTE_URL` | detected | Address in the QR code. Set it if detection picks the wrong network, e.g. with a VPN: `http://<pc-ip>:8765/` |
-| `KTVIBES_CACHE` | `./cache` | Where songs are stored, about 70 MB each |
+| `KTVIBES_CACHE` | `./cache` | Where songs are stored, about 30 MB each |
+| `KTVIBES_VIDEO_HEIGHT` | `720` | Highest music video resolution to download, e.g. `1080` (about twice the size) |
 
 Run a single server process: the queue and the GPU models live in memory.
 

@@ -1,5 +1,6 @@
 """YouTube search/download. Run: uv run python -m ktvibes.youtube QUERY"""
 import json
+import os
 import re
 import sys
 import subprocess
@@ -17,13 +18,21 @@ def suggest(query: str) -> list[str]:
         return [s for s in json.loads(response.read().decode("utf-8", "replace"))[1] if isinstance(s, str) and not NOT_MUSIC.search(s)][:8]
 
 def parse_title(title: str, channel: str = "") -> dict:
-    clean = re.sub(r"\s*[\[(（【][^\])）】]*(?:official|music video|lyrics?|mv|audio|官方|歌詞|歌词|뮤직비디오)[^\])）】]*[\])）】]", "", title, flags=re.I).strip()
+    clean = re.sub(r"\s*[\[(（【][^\])）】]*(?:official|music video|lyrics?|mv|audio|4k|hd|hq|remaster(?:ed)?|官方|歌詞|歌词|뮤직비디오)[^\])）】]*[\])）】]", "", title, flags=re.I).strip()
     clean = re.sub(r"\s*[-–—|｜]?\s*(?:official\s+)?(?:music\s+video|mv|lyric video)\s*$", "", clean, flags=re.I).strip()
     bracketed = re.match(r"(.+?)\s*【([^】]+)】", clean)
     if bracketed:  # "周杰倫 Jay Chou【晴天 Sunny Day】", even with a trailing "華視偶像劇…片尾曲"
         return {"artist": bracketed[1], "title": bracketed[2]}
     parts = re.split(r"\s+[-–—｜|]\s+", clean, maxsplit=1)
-    return {"artist": parts[0] if len(parts) == 2 else re.sub(r"\s*- Topic$", "", channel), "title": parts[-1]}
+    channel = re.sub(r"\s*- Topic$", "", channel)
+    if len(parts) == 2 and channel and same_name(parts[1], channel) and not same_name(parts[0], channel):
+        parts.reverse()  # "Numb [4K Upgrade] - Linkin Park" on the Linkin Park channel: title first
+    return {"artist": parts[0] if len(parts) == 2 else channel, "title": parts[-1]}
+
+def same_name(a: str, b: str) -> bool:
+    """Loose name match, ignoring case, spaces, punctuation and a "VEVO"/"Official" suffix."""
+    key = lambda s: re.sub(r"(?:vevo|official)$", "", re.sub(r"\W", "", s.casefold()))
+    return bool(key(a)) and key(a) == key(b)
 
 # Searches are for songs to sing: these are rarely the song itself, or lack the vocals that separation needs.
 NOT_MUSIC = re.compile(r"\b(?:reactions?|react(?:s|ing)?|dance practice|dance break|choreography|tutorial|lesson|how to|"
@@ -76,15 +85,17 @@ def download(video_id: str, directory: Path, progress=None) -> dict:
                      "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "m4a"}]}, video_id, progress)
     return {"duration": info.get("duration"), "source_title": info.get("title", "")}
 
+VIDEO_HEIGHT = int(os.environ.get("KTVIBES_VIDEO_HEIGHT", 720))
+
 def download_video(video_id: str, directory: Path, progress=None) -> None:
-    """Cache browser-compatible H.264 video with no embedded audio."""
+    """Cache browser-compatible H.264 video with no embedded audio; 720p is about half the size of 1080p."""
     if not ID.fullmatch(video_id):
         raise ValueError("Invalid YouTube ID")
     directory.mkdir(parents=True, exist_ok=True)
     source = directory / "video-source.mp4"
     _extract({
         "js_runtimes": {"node": {}},
-        "format": "bestvideo[ext=mp4][vcodec^=avc1][height<=1080]/best[ext=mp4][vcodec^=avc1][height<=720]",
+        "format": f"bestvideo[ext=mp4][vcodec^=avc1][height<={VIDEO_HEIGHT}]/best[ext=mp4][vcodec^=avc1][height<={min(VIDEO_HEIGHT, 720)}]",
         "outtmpl": str(source), "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
     }, video_id, progress)
     temporary = directory / "video.tmp.mp4"

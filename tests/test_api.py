@@ -40,6 +40,7 @@ class APITests(unittest.TestCase):
             (folder / 'meta.json').write_text(json.dumps({'artist': '아이유', 'title': f'Song {index}'}), encoding='utf-8')
             if stems:
                 (folder / 'no_vocals.wav').touch()
+                (folder / 'vocals.wav').touch()
         # ddd is prepared but never played; ccc was played but its stems are gone.
         self.main.state.played = {'aaaaaaaaaaa': 1.0, 'bbbbbbbbbbb': 2.0, 'ccccccccccc': 3.0}
         songs = self.client.get('/api/recent').json()
@@ -53,6 +54,7 @@ class APITests(unittest.TestCase):
         folder.mkdir()
         (folder / 'meta.json').write_text(json.dumps({'artist': 'IU', 'title': 'Blueming'}), encoding='utf-8')
         (folder / 'no_vocals.flac').touch()
+        (folder / 'vocals.flac').touch()
         self.main.state.played = {'aaaaaaaaaaa': 1.0}
         self.assertEqual(len(self.client.get('/api/recent').json()), 1)
         self.assertEqual(self.client.delete('/api/songs/aaaaaaaaaaa').status_code, 200)
@@ -75,8 +77,11 @@ class APITests(unittest.TestCase):
         for video_id in ('bbbbbbbbbbb', 'aaaaaaaaaaa', 'not-an-id'):
             (cache / video_id).mkdir()
             (cache / video_id / 'video.mp4').touch()
+            if video_id != 'aaaaaaaaaaa':  # a failed song leaves its video without stems
+                for name in ('vocals', 'no_vocals'):
+                    (cache / video_id / f'{name}.opus').touch()
         (cache / 'ccccccccccc').mkdir()  # audio only
-        self.assertEqual(self.client.get('/api/ambient').json(), ['aaaaaaaaaaa', 'bbbbbbbbbbb'])
+        self.assertEqual(self.client.get('/api/ambient').json(), ['bbbbbbbbbbb'])
 
     def test_duplicate_queue_request_conflicts(self):
         song = {'id': 'abcdefghijk', 'artist': 'IU', 'title': '좋은 날'}
@@ -105,7 +110,10 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.headers['content-type'], 'video/mp4')
         self.assertEqual(self.client.get('/media/abcdefghijk/meta.json').status_code, 404)
         (folder / 'vocals.flac').write_bytes(b'fLaC')
-        self.assertEqual(self.client.get('/media/abcdefghijk/vocals.flac').headers['content-type'], 'audio/flac')
+        self.assertEqual(self.client.get('/media/abcdefghijk/vocals').headers['content-type'], 'audio/flac')
+        (folder / 'vocals.opus').write_bytes(b'OggS')
+        self.assertEqual(self.client.get('/media/abcdefghijk/vocals').headers['content-type'], 'audio/ogg')
+        self.assertEqual(self.client.get('/media/abcdefghijk/vocals.flac').status_code, 404)
 
     def test_websocket_controls(self):
         with self.client.websocket_connect('/ws?role=tv') as tv:
@@ -136,6 +144,7 @@ class APITests(unittest.TestCase):
         folder.mkdir()
         (folder / 'meta.json').write_text('{"artist": "Joji", "title": "Glimpse of Us"}', encoding='utf-8')
         (folder / 'no_vocals.wav').touch()
+        (folder / 'vocals.wav').touch()
         results = [{'id': 'aaaaaaaaaaa'}, {'id': 'bbbbbbbbbbb'}]
         with patch.object(self.main.youtube, 'search', return_value=results):
             found = self.client.get('/api/search', params={'q': 'joji'}).json()

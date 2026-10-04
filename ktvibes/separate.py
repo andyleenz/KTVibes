@@ -20,7 +20,7 @@ def _device() -> str:
     return "cpu"
 
 def separate(source: Path, destination: Path) -> tuple[float, float]:
-    """Write vocals.flac and no_vocals.flac; returns (seconds taken, playback gain)."""
+    """Write vocals.opus and no_vocals.opus; returns (seconds taken, playback gain)."""
     global _model
     started = time.monotonic()
     with _lock:
