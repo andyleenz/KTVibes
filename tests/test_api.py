@@ -31,6 +31,20 @@ class APITests(unittest.TestCase):
             item.stop()
         self.temp.cleanup()
 
+    def test_update_pulls_only_a_clean_checkout(self):
+        import subprocess
+        root = Path(self.temp.name)
+        (root / '.git').mkdir()
+        calls = []
+        def fake_git(command, **kwargs):
+            calls.append(command[3])
+            output = {'status': ' M ktvibes/main.py', 'rev-parse': 'abc1234'}.get(command[3], '')
+            return subprocess.CompletedProcess(command, 0, output, '')
+        with patch.object(self.main, 'ROOT', root), patch('subprocess.run', fake_git):
+            with self.assertRaises(SystemExit):
+                self.main.update()
+            self.assertNotIn('pull', calls)
+
     def test_recent_lists_played_songs_newest_first(self):
         import json
         cache = Path(self.temp.name)

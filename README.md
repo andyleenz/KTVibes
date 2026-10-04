@@ -24,6 +24,7 @@
   - Japanese: romaji.
   - English: Hangul.
 - **Key and speed.** Shift the key ±6 semitones without changing tempo, or slow a song down without changing pitch.
+- **Party-friendly display.** Blur or hide the music video, show lyrics as a scrolling list or two karaoke lines, or hide them.
 - **Phone remote.** Scan the QR code on the TV to join. Everyone shares one queue: reorder, undo removals, and re-add recent songs. The TV shows a popup card for every change.
 - **Lyrics language picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show.
 
@@ -68,7 +69,19 @@ Plan for about 8 GB of disk: the install itself is 6.5 GB (mostly PyTorch with C
 2. On the TV computer, open `http://localhost:8765/tv` and click **Enable sound**. Click **Fullscreen** if you like.
 3. Scan the QR code with a phone, search for a song, and tap it to queue it.
 
-The first song starts as soon as it is ready. Later songs are prepared while earlier ones play. Re-queuing a song is instant because everything is cached in `cache/`.
+The first song starts as soon as it is ready. Later songs are prepared while earlier ones play, so queue a few ahead; without a GPU, a song takes a minute or so to prepare. Re-queuing a song is instant because everything is cached in `cache/`.
+
+From the remote's controls panel you can also blur or hide the music video (handy for lyric videos, whose own lyrics clash), switch the lyrics to the classic two-line karaoke layout, or turn them off.
+
+## Updating
+
+Stop KTVibes (Ctrl+C), then run:
+
+```bash
+ktvibes update
+```
+
+This pulls the latest version; the next `ktvibes` installs any new dependencies. Installs from before this command existed can rerun the install command above, which updates in place. Manual installs: `git pull`, then `uv run ktvibes`. Your cached songs and queue are kept. Songs cached as FLAC by older versions are converted to the smaller format the next time they are queued.
 
 ## Configuration
 
