@@ -97,6 +97,7 @@ const showVideo=()=>!!state?.current?.video&&state.video_mode!=='hide';
 // A backing-vocal line "(…)" keeps the lead line it is sung over on screen.
 function twoLines(index,time){
  const first=index>=0?index:firstLine;if(first<0)return;
+ if(!shownPair)fitSong();
  const at=i=>lyrics[i]?(lyrics[i].start??lyrics[i].t):Infinity;
  let other=first+1;
  if(index>0&&(lyrics[index].echo||time<at(index)+Math.min(1.5,(at(index+1)-at(index))/2)))other=index-1;
@@ -105,13 +106,18 @@ function twoLines(index,time){
  [...$('lyrics').children].forEach((line,i)=>{
   const on=i===first||i===other;
   if(on!==line.classList.contains('shown'))line.classList.toggle('shown',on);
-  if(on){line.dataset.slot=(i-base)%2;fitLine(line);}
+  if(on)line.dataset.slot=(i-base)%2;
  });
 }
-// A two-line slot never wraps: a line too wide for the screen shrinks just enough to fit.
-function fitLine(line){
- line.style.setProperty('--fit',1);
- if(line.scrollWidth>line.clientWidth+1)line.style.setProperty('--fit',Math.floor(line.clientWidth/line.scrollWidth*98)/100);
+// Two-line lyrics share one size for the whole song, so lines don't change size as they swap:
+// the widest line sets it, down to 60% of the chosen lyric size. A line still too long wraps evenly.
+function fitSong(){
+ const container=$('lyrics'),lines=[...container.children];
+ container.style.setProperty('--fit',1);
+ container.classList.add('measuring');
+ const ratio=Math.min(1,...lines.map(line=>line.clientWidth/Math.max(1,line.scrollWidth)));
+ container.classList.remove('measuring');
+ container.style.setProperty('--fit',Math.max(0.6,Math.floor(ratio*98)/100));
 }
 addEventListener('resize',()=>{shownPair='';});
 function showLyrics(item){

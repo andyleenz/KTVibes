@@ -129,12 +129,18 @@ input[type=range]:disabled{opacity:.4}
 .breather-track{width:min(420px,60vw);height:4px;margin:32px auto 0;border-radius:2px;background:#ffffff26;overflow:hidden}
 #breather-bar{width:100%;height:100%;border-radius:2px;background:var(--lime)}
 /* Intro title card, lower left over the video; the header's now-playing steps aside while it shows. */
-.title-card{position:fixed;left:4vw;right:30vw;bottom:calc(110px + 4vh);z-index:1;opacity:0;transform:translateY(24px);transition:opacity .5s ease,transform .8s cubic-bezier(.38,1.21,.22,1);pointer-events:none;text-shadow:0 2px 16px #000c}
-body.intro .title-card{opacity:1;transform:none}
-.tv .title-card h1{font-size:clamp(40px,6vw,104px);letter-spacing:-.03em;line-height:1;margin:0 0 12px;color:var(--ink);overflow-wrap:anywhere}
-.title-card p{font-size:clamp(18px,2vw,32px);color:#fffc;margin:0}
+/* Title card over the intro: big and centered, springing in (M3 Expressive spatial easing).
+   The title settles from slightly larger and soft, a lime rule draws out, then the artist rises. */
+.title-card{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0 8vw 6vh;text-align:center;opacity:0;pointer-events:none;transition:opacity .45s ease;background:radial-gradient(ellipse 60% 45% at 50% 48%,#000a,transparent 70%)}
+body.intro .title-card{opacity:1}
 #now-card{transition:opacity .4s}body.intro #now-card,body.between #now-card{opacity:0}
-@media(prefers-reduced-motion:reduce){.title-card{transition:opacity .3s;transform:none}}
+.tv .title-card h1{font-size:clamp(56px,9vw,184px);font-weight:700;letter-spacing:-.045em;line-height:.95;margin:0;color:var(--ink);text-wrap:balance;overflow-wrap:anywhere;text-shadow:0 4px 40px #000c;transform:scale(1.12);filter:blur(10px);opacity:0;transition:transform 1s cubic-bezier(.34,1.3,.64,1),filter .7s ease,opacity .5s ease}
+.title-card::after{content:'';order:1;width:clamp(48px,6vw,110px);height:6px;border-radius:3px;background:var(--lime);margin:clamp(18px,2.4vw,36px) 0;transform:scaleX(0);transition:transform .8s cubic-bezier(.38,1.21,.22,1) .25s}
+.title-card p{order:2;font-size:clamp(20px,2.4vw,42px);font-weight:500;letter-spacing:.02em;color:#fffd;margin:0;text-shadow:0 2px 16px #000c;opacity:0;transform:translateY(24px);transition:opacity .5s ease .35s,transform .8s cubic-bezier(.34,1.3,.64,1) .35s}
+body.intro .title-card h1{transform:none;filter:none;opacity:1}
+body.intro .title-card::after{transform:none}
+body.intro .title-card p{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.tv .title-card h1,.title-card::after,.title-card p{transition:opacity .3s;transform:none;filter:none}}
 
 .mini .mini-handle{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;height:auto;padding:7px 0 0;background:transparent;border:0;border-radius:0;color:var(--lime);font-size:11px;letter-spacing:.5px}.mini-handle i{width:38px;height:4px;border-radius:2px;background:var(--muted)}.mini.open .mini-handle{color:var(--muted)}.mini .mini-row{padding-top:6px}
 .osd{position:fixed;top:9vh;left:50%;z-index:7;display:flex;align-items:center;gap:18px;min-width:300px;padding:14px 32px 14px 14px;border-radius:999px;background:#202a1ce8;backdrop-filter:blur(20px) saturate(1.4);box-shadow:0 18px 50px #000a,0 0 0 1px #d7fc7026 inset;color:var(--ink);pointer-events:none;transform:translateX(-50%);transform-origin:50% 0}
@@ -191,15 +197,15 @@ body.intro .title-card{opacity:1;transform:none}
 /* Room display settings. Blur suits lyric videos, whose own lyrics clash with ours; the slight zoom hides blurred edges. */
 .tv[data-video=blur] #backdrop{filter:blur(28px) brightness(.7);scale:1.12}
 .tv[data-lyrics=off] #lyrics,.tv[data-lyrics=off] #no-lyrics{visibility:hidden}
-/* Two-line KTV: the top line sits left, the bottom line right, and each slot stays on one line;
-   tv.js shrinks (--fit) any line too wide for the screen instead of letting it wrap. */
+/* Two-line KTV: the top line sits left, the bottom line right. tv.js sizes the whole song (--fit)
+   so its widest line fits on one line; only a very long line wraps. */
 .tv[data-lyrics=two] #lyrics,.tv.has-video[data-lyrics=two] #lyrics{display:grid;grid-template-rows:auto auto;grid-template-columns:minmax(0,1fr);align-content:center;row-gap:.3em;height:auto;min-height:calc(2.9em*var(--lyric-scale,1));padding:6vh 3vw;overflow:hidden;mask-image:none;container-type:inline-size}
-.tv[data-lyrics=two] #lyrics .lyric,.tv.has-video[data-lyrics=two] #lyrics .lyric{display:none;margin:0;max-width:100%;white-space:nowrap;line-height:1.5;font-size:calc(min(5.4cqi,60px)*var(--lyric-scale,1)*var(--fit,1))}
+.tv[data-lyrics=two] #lyrics .lyric,.tv.has-video[data-lyrics=two] #lyrics .lyric{display:none;margin:0;max-width:100%;text-wrap:balance;line-height:1.5;font-size:calc(min(5.4cqi,60px)*var(--lyric-scale,1)*var(--fit,1))}
 .tv[data-lyrics=two] #lyrics .lyric.shown{display:block;animation:line-in .4s cubic-bezier(.34,1.3,.64,1) both}
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="0"]{grid-row:1;justify-self:start;text-align:left}
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="1"]{grid-row:2;justify-self:end;text-align:right}
 .tv[data-lyrics=two] #lyrics .lyric.past{opacity:.7}
-.tv.has-video[data-lyrics=two] #performance{padding-bottom:2vh}
+.tv.has-video[data-lyrics=two] #performance{padding-bottom:2vh}.tv[data-lyrics=two] #performance{max-width:min(1600px,92vw)}
 @keyframes line-in{from{opacity:0;transform:translateY(.25em)}}
 @media(prefers-reduced-motion:reduce){.tv[data-lyrics=two] #lyrics .lyric.shown{animation:none}}
 /* Remote: segmented choices for the room display settings. */
@@ -208,3 +214,9 @@ body.intro .title-card{opacity:1;transform:none}
 .mini-panel .segmented button{height:34px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:13px;transition:background .2s,color .2s}
 .mini-panel .segmented button[aria-pressed=true]{background:var(--lime);color:#1a2215;font-weight:700}
 .mini.open .mini-panel-body.more{mask-image:linear-gradient(black calc(100% - 48px),transparent)}
+/* Controls panel, most used first: song position, Vocals and Music stay pinned while the rest scrolls. */
+.panel-pinned{position:sticky;top:-8px;z-index:1;background:#1b1e1d;padding:8px 0 4px;margin-top:-8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.panel-pinned .pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}.mini-panel .panel-pinned .slider-label{margin-top:8px}
+.mini-panel .panel-section{margin:24px 0 0;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--lime)}
+.mini-panel .panel-section+*{margin-top:8px}.mini-panel .panel-section+.slider-label{margin-top:8px}
+.tv[data-lyrics=two] #lyrics.measuring .lyric{display:block;position:absolute;left:0;visibility:hidden;white-space:nowrap;animation:none}
