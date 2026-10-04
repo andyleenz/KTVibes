@@ -81,7 +81,7 @@ Stop KTVibes (Ctrl+C), then run:
 ktvibes update
 ```
 
-This pulls the latest version; the next `ktvibes` installs any new dependencies. Installs from before this command existed can rerun the install command above, which updates in place. Manual installs: `git pull`, then `uv run ktvibes`. Your cached songs and queue are kept. Songs cached as FLAC by older versions are converted to the smaller format the next time they are queued.
+This pulls the latest version; the next `ktvibes` installs any new dependencies. See [CHANGELOG.md](CHANGELOG.md) for what changed. Installs from before this command existed can rerun the install command above, which updates in place. Manual installs: `git pull`, then `uv run ktvibes`. Your cached songs and queue are kept. Songs cached as FLAC by older versions are converted to the smaller format the next time they are queued.
 
 ## Configuration
 
