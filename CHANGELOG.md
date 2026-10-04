@@ -4,6 +4,9 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+### Changed
+- Two-line lyrics are larger by default, closer to the size of scrolling lyrics.
+
 ## [0.2.0] - 2026-10-04
 
 ### Added
