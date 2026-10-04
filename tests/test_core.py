@@ -86,6 +86,17 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await state.control({'action': 'key', 'value': -9})
         self.assertEqual(state.key, -6)
 
+    async def test_display_settings_take_known_values_or_cycle(self):
+        state = State()
+        await state.control({'action': 'video_mode', 'value': 'blur'})
+        await state.control({'action': 'lyric_mode', 'value': 'two'})
+        self.assertEqual((state.video_mode, state.lyric_mode), ('blur', 'two'))
+        await state.control({'action': 'video_mode', 'value': 'cycle'})
+        self.assertEqual(state.video_mode, 'hide')
+        with self.assertRaises(ValueError):
+            await state.control({'action': 'lyric_mode', 'value': 'sideways'})
+        self.assertEqual(state.snapshot()['lyric_mode'], 'two')
+
     async def test_duplicates_rejected_until_song_leaves_stage(self):
         state = State()
         a = await state.add('abcdefghijk', 'A', 'First')

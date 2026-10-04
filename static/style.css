@@ -79,7 +79,7 @@ input[type=range]:disabled{opacity:.4}
 .mini .mini-panel{display:grid;grid-template-rows:0fr;max-height:none;overflow:visible;padding:0}
 .mini.open .mini-panel{grid-template-rows:1fr}
 .mini-panel-body{min-height:0;overflow:hidden;opacity:0;transform:translateY(16px)}
-.mini.open .mini-panel-body{max-height:60vh;overflow-y:auto;padding:8px 0;opacity:1;transform:none}
+.mini.open .mini-panel-body{max-height:min(50vh,440px);margin-right:-12px;scrollbar-width:thin;scrollbar-color:#4a524c transparent;overscroll-behavior:contain;overflow-y:auto;padding:8px 12px 8px 0;opacity:1;transform:none}
 .mini.animate .mini-panel{transition:grid-template-rows .5s cubic-bezier(.38,1.21,.22,1)}
 .mini.animate .mini-panel-body{transition:opacity .2s,transform .5s cubic-bezier(.38,1.21,.22,1),padding .5s cubic-bezier(.38,1.21,.22,1)}
 .mini.animate.open .mini-panel-body{transition-delay:.05s}
@@ -188,3 +188,23 @@ body.intro .title-card{opacity:1;transform:none}
 /* Centred with margins, not transform, so the shared press-scale effect does not knock it out of place. */
 .swipe .song-more{top:0;bottom:0;margin:auto 0;transform:none}
 [data-guide=jyutping] #lyrics rt:has(.jyutping:not(:empty)){display:revert}[data-guide=jyutping] #lyrics rt .jyutping{display:inline}[data-guide=jyutping] #lyrics .lyric{line-height:1.8}
+/* Room display settings. Blur suits lyric videos, whose own lyrics clash with ours; the slight zoom hides blurred edges. */
+.tv[data-video=blur] #backdrop{filter:blur(28px) brightness(.7);scale:1.12}
+.tv[data-lyrics=off] #lyrics,.tv[data-lyrics=off] #no-lyrics{visibility:hidden}
+/* Two-line KTV: the top line sits left, the bottom line right, and each slot stays on one line;
+   tv.js shrinks (--fit) any line too wide for the screen instead of letting it wrap. */
+.tv[data-lyrics=two] #lyrics,.tv.has-video[data-lyrics=two] #lyrics{display:grid;grid-template-rows:auto auto;grid-template-columns:minmax(0,1fr);align-content:center;row-gap:.3em;height:auto;min-height:calc(2.9em*var(--lyric-scale,1));padding:6vh 3vw;overflow:hidden;mask-image:none;container-type:inline-size}
+.tv[data-lyrics=two] #lyrics .lyric,.tv.has-video[data-lyrics=two] #lyrics .lyric{display:none;margin:0;max-width:100%;white-space:nowrap;line-height:1.5;font-size:calc(min(5.4cqi,60px)*var(--lyric-scale,1)*var(--fit,1))}
+.tv[data-lyrics=two] #lyrics .lyric.shown{display:block;animation:line-in .4s cubic-bezier(.34,1.3,.64,1) both}
+.tv[data-lyrics=two] #lyrics .lyric[data-slot="0"]{grid-row:1;justify-self:start;text-align:left}
+.tv[data-lyrics=two] #lyrics .lyric[data-slot="1"]{grid-row:2;justify-self:end;text-align:right}
+.tv[data-lyrics=two] #lyrics .lyric.past{opacity:.7}
+.tv.has-video[data-lyrics=two] #performance{padding-bottom:2vh}
+@keyframes line-in{from{opacity:0;transform:translateY(.25em)}}
+@media(prefers-reduced-motion:reduce){.tv[data-lyrics=two] #lyrics .lyric.shown{animation:none}}
+/* Remote: segmented choices for the room display settings. */
+.mini-panel .setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0 0}.mini-panel .setting-row>span{font-size:14px}
+.segmented{display:flex;padding:3px;gap:2px;border:1px solid var(--line);border-radius:12px;background:#121513}
+.mini-panel .segmented button{height:34px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:13px;transition:background .2s,color .2s}
+.mini-panel .segmented button[aria-pressed=true]{background:var(--lime);color:#1a2215;font-weight:700}
+.mini.open .mini-panel-body.more{mask-image:linear-gradient(black calc(100% - 48px),transparent)}

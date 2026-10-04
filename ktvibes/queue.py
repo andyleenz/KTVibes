@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 import uuid
 
+DISPLAY = {"video_mode": ("show", "blur", "hide"), "lyric_mode": ("scroll", "two", "off")}
 GUIDES = ("off", "latin", "jyutping", "hangul")
 HISTORY = 200  # remembered plays, for the remote's "Recent" list
 UNDO_SECONDS = 15  # how long a removal can be taken back
@@ -32,6 +33,8 @@ class State:
         self.music = 1.0  # instrumental (backing track) volume
         self.guide = "latin"  # off | latin | hangul, shown above the lyrics
         self.lyric_scale = 1.0
+        self.video_mode = "show"  # show | blur | hide: blur suits lyric videos, whose own lyrics clash
+        self.lyric_mode = "scroll"  # scroll | two (classic two-line KTV) | off
         self.speed = 1.0  # playback tempo, 0.5-1.5; pitch is kept
         self.key = 0  # pitch shift in semitones, -6..+6
         self.seek_id = 0
@@ -58,7 +61,7 @@ class State:
         """Lyrics are large and only the TV draws them, so broadcasts leave them out (see broadcast)."""
         brief = lambda item: item if lyrics or item is None else {k: v for k, v in item.items() if k != "lyrics"}
         return {"current": brief(self.current), "upcoming": [brief(i) for i in self.upcoming], "playing": self.playing,
-                "offset": self.offset, "vocal": self.vocal, "music": self.music, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
+                "offset": self.offset, "vocal": self.vocal, "music": self.music, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "video_mode": self.video_mode, "lyric_mode": self.lyric_mode, "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "player_audio": self.player is not None and self.audio,
                 "undo": self.undo and {"title": self.undo["item"]["title"], "until": self.undo["until"]},
@@ -218,6 +221,14 @@ class State:
             self.seek_id += 1
         elif action == "lyric_scale":
             self.lyric_scale = max(0.6, min(1.8, number(message["value"])))
+        elif action in DISPLAY:
+            options = DISPLAY[action]
+            value = message.get("value")
+            if value == "cycle":
+                value = options[(options.index(getattr(self, action)) + 1) % len(options)]
+            if value not in options:
+                raise ValueError(f"Unknown {action.replace('_', ' ')}")
+            setattr(self, action, value)
         elif action == "speed":
             self.speed = round(max(0.5, min(1.5, number(message["value"]))), 2)
         elif action == "key":
