@@ -4,6 +4,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-04
+
 ### Changed
 - Two-line lyrics are larger by default, closer to the size of scrolling lyrics.
 
@@ -36,6 +38,7 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/andyleenz/KTVibes/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/andyleenz/KTVibes/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/andyleenz/KTVibes/releases/tag/v0.1.0
