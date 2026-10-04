@@ -1,4 +1,4 @@
-import {$,el,connect,api,clock,throttle,prepLabel,syncRanges} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0,shownPair='',fitKey='';
@@ -49,7 +49,7 @@ function setAmbient(on){
 }
 ambient.onended=nextAmbient;
 ambient.onerror=()=>{if(!ambientOn)return;ambientIds=ambientIds.filter(id=>id!==ambient.dataset.id);nextAmbient();};
-const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',value:enabled});});
+const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',value:enabled});},event=>{if(event.type==='react')cheer(event.value);});
 function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
 function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fromEntries(SETTING_KEYS.map(k=>[k,s[k]]))));}catch{}}
 function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
@@ -60,6 +60,8 @@ function render(next){
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
  if(!queued.length)$('on-deck').append(el('li','Nothing queued','more'));
+ // The two songs after the next one peek out from under its card between songs.
+ [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),`${item.title} · ${item.artist}`);peek.replaceChildren(line);}});
  showPrep(queued);setAmbient(!state.current);
  $('now-card').hidden=!state.current;
  // The idle screen already shows a large QR code.
@@ -72,7 +74,7 @@ function render(next){
    video.hidden=!item.video;$('video-shade').hidden=!item.video;
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
    stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals`;voice.src=`/media/${item.id}/vocals`;music.load();voice.load();
-   $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-artist').textContent=$('card-artist').textContent=item.artist;
+   $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-art').src=thumbnail(item.id,'hqdefault');$('next-artist').textContent=$('card-artist').textContent=item.artist;
    showLyrics(item);$('duration').textContent=clock(item.duration);
   }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
  }
@@ -99,7 +101,7 @@ function relayout(){shownPair='';lyricsPositioned=false;splitDone=false;if(lyric
 // following line starts. Over an instrumental break (GAP), the screen clears once the last line is
 // sung, and the next two lines come up together for the count-in; each section starts in the top slot.
 // A backing-vocal line "(…)" keeps the lead line it is sung over on screen.
-const GAP=4,HOLD=1;  // seconds: a break this long clears the screen, HOLD after the last line ends
+const GAP=4,HOLD=1,LEAD=1.5;  // seconds: a break this long clears the screen, HOLD after the last line ends; LEAD: least warning before a line is sung
 const startOf=i=>lyrics[i]?(lyrics[i].start??lyrics[i].t):Infinity;
 const endOf=i=>lyrics[i]?.units?.at(-1)?.[2]??startOf(i+1);
 const breakAfter=i=>i>=0&&startOf(i+1)-endOf(i)>GAP;
@@ -111,6 +113,9 @@ function twoLines(index,time){
  else if(lyrics[index].over!=null)shown=[index-1,index];
  // The previous line keeps its slot until its last word has finished filling.
  else if(index>0&&time<endOf(index-1)&&!breakAfter(index-1))shown=[index-1,index];
+ // Both halves of a line split to fit stay up together while the second is sung, so the sentence reads as one,
+ // unless the next line needs its slot sooner to come up LEAD seconds before it is sung.
+ else if(lyrics[index].continues&&time<Math.min(endOf(index),startOf(index+1)-LEAD))shown=[index-1,index];
  else if(breakAfter(index)&&time>endOf(index)+HOLD)shown=time<startOf(index+1)-COUNT_IN?[]:[index+1,index+2];
  // The last line before a break has no next line to show, so the line before it stays up.
  else shown=breakAfter(index)?(index>0&&!breakAfter(index-1)?[index-1,index]:[index]):[index,index+1];
@@ -118,9 +123,19 @@ function twoLines(index,time){
  const pair=shown.join();if(pair===shownPair)return;shownPair=pair;
  [...$('lyrics').children].forEach((line,i)=>{
   const on=shown.includes(i);
-  if(on!==line.classList.contains('shown'))line.classList.toggle('shown',on);
+  if(on!==line.classList.contains('shown')){line.classList.toggle('shown',on);swapLine(line,on);}
   if(on){line.dataset.slot=slots[i];condense(line);}
  });
+}
+// A line rises into its slot as the old one lifts away; the new one waits a beat so the slot clears first.
+// The leaving line stays drawn (.leaving) until it has faded, sharing the grid cell with its replacement.
+const SWAP_IN=[{opacity:0,transform:'translateY(.55em)'},{opacity:1,transform:'none'}],SWAP_OUT=[{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-.45em)'}];
+function swapLine(line,on){
+ for(const animation of line.getAnimations())if(animation.id==='swap')animation.cancel();
+ line.classList.remove('leaving');
+ if(REDUCED.matches)return;
+ if(on)line.animate(SWAP_IN,{id:'swap',duration:480,delay:110,easing:'cubic-bezier(.2,0,0,1)',fill:'backwards'});
+ else{line.classList.add('leaving');const out=line.animate(SWAP_OUT,{id:'swap',duration:240,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'});out.onfinish=()=>{line.classList.remove('leaving');out.cancel();};}
 }
 // Two-line lyrics share one size for the whole song, so lines don't change size as they swap.
 // The size fits every line on one line, down to 70% of the chosen lyric size, so one long line
@@ -172,7 +187,7 @@ function splitLong(){
    return [...cut(a,best),...cut(best,b)];
   };
   const ranges=cut(0,units.length);if(ranges.length>1)split=true;
-  ranges.forEach(([a,b],n)=>{const part=units.slice(a,b);part[part.length-1]=[part.at(-1)[0].trimEnd(),...part.at(-1).slice(1)];parts.push({...source,units:part,text:part.map(unit=>unit[0]).join('').trim(),...n?{t:part[0][1],start:part[0][1]}:{}});});
+  ranges.forEach(([a,b],n)=>{const part=units.slice(a,b);part[part.length-1]=[part.at(-1)[0].trimEnd(),...part.at(-1).slice(1)];parts.push({...source,units:part,text:part.map(unit=>unit[0]).join('').trim(),...n?{t:part[0][1],start:part[0][1],continues:true}:{}});});
  });
  container.classList.remove('measuring');
  if(!split)return false;
@@ -206,6 +221,7 @@ $('enable-button').onclick=async()=>{
  }catch(e){$('audio-error').textContent=e.message;}
 };
 $('fullscreen').onclick=()=>{const result=document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();result.catch(e=>error(e.message));};
+addEventListener('fullscreenchange',()=>{const full=!!document.fullscreenElement,label=full?'Exit fullscreen':'Fullscreen';$('fullscreen').classList.toggle('full',full);$('fullscreen').setAttribute('aria-label',label);$('fullscreen').title=label;});
 const sendVocal=throttle(value=>send({action:'vocal',value}));
 $('vocal').oninput=()=>sendVocal(Number($('vocal').value));
 // Bottom-bar controls for whoever sits at the TV computer.
@@ -237,8 +253,12 @@ function frame(now){
  if(state){
   const waiting=state.current&&(Date.now()/1000+serverSkew)<state.transition_until;
   $('idle').hidden=!!state.current;$('up-next').hidden=!waiting;$('performance').hidden=!state.current||waiting;
-  // Between songs, the bar drains over the breather.
-  if(waiting){const left=state.transition_until-(Date.now()/1000+serverSkew);breather=Math.max(breather,left);$('breather-bar').style.width=`${left/breather*100}%`;}else breather=0;
+  // Between songs, the ring drains over the breather; the card springs in as it starts.
+  if(waiting){
+   if(!breather)showUpNext();
+   const left=Math.max(0,state.transition_until-(Date.now()/1000+serverSkew));breather=Math.max(breather,left);
+   $('countdown-ring').style.strokeDashoffset=(100*(1-left/breather)).toFixed(2);const seconds=String(Math.ceil(left));if($('countdown').textContent!==seconds)$('countdown').textContent=seconds;
+  }else breather=0;
   if(!state.current||waiting)document.body.classList.remove('intro');
   document.body.classList.toggle('between',!!waiting);
   video.hidden=!showVideo()||!!waiting||!!video.error;
@@ -354,6 +374,24 @@ function showBadge(icon,name,value,range){
  if(!visible){osd.classList.remove('in');void osd.offsetWidth;osd.classList.add('in');}
  badgeTimer=setTimeout(()=>{osd.classList.add('out');osd.addEventListener('animationend',()=>{if(osd.classList.contains('out')){osd.hidden=true;osd.classList.remove('out','in');}},{once:true});},1600);
 }
+function showUpNext(){
+ if(REDUCED.matches)return;
+ const spring='cubic-bezier(.34,1.4,.64,1)';
+ document.querySelector('.next-card').animate([{opacity:0,transform:'translateY(60px) scale(.9)'},{opacity:1,transform:'none'}],{duration:700,easing:spring,fill:'backwards'});
+ document.querySelector('.next-art').animate([{opacity:0,transform:'scale(.6) rotate(-8deg)'},{opacity:1,transform:'none'}],{duration:700,delay:120,easing:spring,fill:'backwards'});
+ [1,2].forEach(n=>$(`peek-${n}`).animate([{opacity:0,transform:'none'}],{duration:600,delay:200+n*100,easing:spring,fill:'backwards'}));  // ends at the CSS offset
+}
+// Cheers from the remotes float up the right edge, clear of the lyrics. Each tap sends a few;
+// a flood of taps is capped so the screen never fills up.
+function cheer(emoji){
+ const count=Math.min(REDUCED.matches?1:3,30-document.querySelectorAll('.cheer').length);
+ for(let i=0;i<count;i++){
+  const node=el('span',emoji,'cheer');node.style.left=`${78+Math.random()*16}vw`;document.body.append(node);
+  const drift=(Math.random()-.5)*12,rise=45+Math.random()*25,spin=(Math.random()-.5)*40;
+  node.animate([{transform:'translateY(0) scale(.4)',opacity:0},{transform:`translate(${drift*.3}vw,-8vh) scale(1.2) rotate(${spin*.3}deg)`,opacity:1,offset:.15},{transform:`translate(${drift}vw,-${rise}vh) scale(.9) rotate(${spin}deg)`,opacity:0}],
+   {duration:REDUCED.matches?600:2600+Math.random()*900,delay:i*160,easing:'cubic-bezier(.2,.7,.3,1)',fill:'both'}).onfinish=()=>node.remove();
+ }
+}
 // "G" on a keyboard or remote also flips the guide.
 addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',value:'cycle'});});
 // Songs download and separate one at a time; show the one in progress so a wait never looks like a hang.
@@ -374,12 +412,13 @@ $('open-remote').onclick=async()=>{
  if(remoteWindow&&!remoteWindow.closed){remoteWindow.close();remoteWindow=null;return;}
  try{
   if('documentPictureInPicture' in window){
-   remoteWindow=await documentPictureInPicture.requestWindow({width:390,height:844});
+   // Phone-sized; preferInitialWindowPlacement stops Chrome reusing the size the window was last dragged to.
+   remoteWindow=await documentPictureInPicture.requestWindow({width:390,height:Math.min(844,screen.availHeight-80),preferInitialWindowPlacement:true});
    const frame=remoteWindow.document.createElement('iframe');frame.src='/';frame.title='KTVibes remote';
    frame.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0';
    remoteWindow.document.body.style.cssText='margin:0;background:#111313';remoteWindow.document.body.append(frame);
    remoteWindow.addEventListener('pagehide',()=>{remoteWindow=null;});
-  }else remoteWindow=open('/','ktvibes-remote',`popup,width=390,height=844,left=${screenX+outerWidth-430},top=${screenY+80}`);
+  }else remoteWindow=open('/','ktvibes-remote',`popup,width=390,height=${Math.min(844,screen.availHeight-80)},left=${screenX+outerWidth-430},top=${screenY+80}`);
  }catch(e){error(e.message);}
 };
 

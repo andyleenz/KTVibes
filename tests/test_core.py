@@ -198,7 +198,7 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         a = await state.add('abcdefghijk', 'A', 'First')
         b = await state.add('12345678901', 'B', 'Second')
         await state.control({'action': 'remove', 'key': a['key']})
-        self.assertEqual(state.snapshot()['undo']['title'], 'First')
+        self.assertEqual(state.undo['item']['title'], 'First')
         await state.control({'action': 'undo'})
         self.assertEqual(state.upcoming, [a, b])
         with self.assertRaises(ValueError):

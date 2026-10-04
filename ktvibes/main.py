@@ -252,7 +252,7 @@ async def websocket(ws: WebSocket):
         previous = state.player
         state.disconnect(previous)
         with suppress(Exception):
-            await previous.send_json({"type": "error", "message": "Another TV took over playback."})
+            await previous.send_json({"type": "error", "message": "Another device took over playback."})
             await previous.close(code=4001)
     state.clients[ws] = role
     if role == "tv":

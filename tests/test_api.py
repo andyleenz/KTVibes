@@ -162,12 +162,25 @@ class APITests(unittest.TestCase):
             tv.send_json({'action': 'vocal', 'value': 'NaN'})
             self.assertEqual(tv.receive_json()['type'], 'error')
 
+    def test_reactions_reach_only_the_tv(self):
+        with self.client.websocket_connect('/ws?role=tv') as tv:
+            tv.receive_json()
+            with self.client.websocket_connect('/ws?role=remote') as remote:
+                tv.receive_json()
+                remote.receive_json()
+                revision = self.main.state.revision
+                remote.send_json({'action': 'react', 'value': '🔥'})
+                self.assertEqual(tv.receive_json(), {'type': 'react', 'value': '🔥'})
+                self.assertEqual(self.main.state.revision, revision)  # no broadcast, nothing saved
+                remote.send_json({'action': 'react', 'value': '💩'})
+                self.assertEqual(remote.receive_json()['message'], 'Unknown reaction')
+
     def test_newest_tv_takes_over(self):
         with self.client.websocket_connect('/ws?role=tv') as old:
             self.assertEqual(old.receive_json()['type'], 'state')
             with self.client.websocket_connect('/ws?role=tv') as new:
                 self.assertEqual(new.receive_json()['type'], 'state')
-                self.assertEqual(old.receive_json()['message'], 'Another TV took over playback.')
+                self.assertEqual(old.receive_json()['message'], 'Another device took over playback.')
                 self.assertTrue(self.main.state.player is not None)
 
     def test_remote_url_uses_configured_port(self):

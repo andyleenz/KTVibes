@@ -3,12 +3,13 @@ export function el(tag, text, className) { const node=document.createElement(tag
 // A page left open across a KTVibes update reloads once to pick up the new files.
 let build;
 function reloadIfUpdated(next){if(!next)return false;if(build===undefined)build=next;if(next===build)return false;location.reload();return true;}
-export function connect(role, onState, onError, onOpen) {
+// onEvent gets any other server message, such as a cheer for the TV.
+export function connect(role, onState, onError, onOpen, onEvent) {
   let socket;
   function open(){
     socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws?role=${role}`);
     socket.onopen=()=>{$('connection').textContent='Connected';$('connection').classList.add('online');onOpen?.();};
-    socket.onmessage=e=>{const data=JSON.parse(e.data);if(data.type==='state'){if(reloadIfUpdated(data.build))return;onState(data);}else onError(data.message);};
+    socket.onmessage=e=>{const data=JSON.parse(e.data);if(data.type==='state'){if(reloadIfUpdated(data.build))return;onState(data);}else if(data.type==='error')onError(data.message);else onEvent?.(data);};
     socket.onclose=e=>{$('connection').textContent='Disconnected';$('connection').classList.remove('online');if(e.code!==4001)setTimeout(open,1500);};
   }
   open();
@@ -20,6 +21,8 @@ export async function api(path, options){
   try{data=await response.json();}catch{throw new Error(`Server error (${response.status}). Please try again.`);}
   if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Please check the song details.');return data;
 }
+export const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+export const thumbnail = (id, size='mqdefault') => `https://i.ytimg.com/vi/${id}/${size}.jpg`;
 export const clock = seconds => `${Math.floor((seconds||0)/60)}:${String(Math.floor((seconds||0)%60)).padStart(2,'0')}`;
 // Sliders fire many input events; send at most one every `ms`, always ending on the final value.
 export function throttle(fn, ms=120){let last=0,timer;return value=>{clearTimeout(timer);const wait=last+ms-Date.now();if(wait<=0){last=Date.now();fn(value);}else timer=setTimeout(()=>{last=Date.now();fn(value);},wait);};}

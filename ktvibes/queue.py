@@ -12,6 +12,7 @@ def following(options, current):
     return options[(options.index(current) + 1) % len(options)]
 
 GUIDES = ("off", "latin", "jyutping", "hangul")
+REACTIONS = ("👏", "🔥", "🎉", "💚")  # cheers a remote can float up on the TV
 HISTORY = 200  # remembered plays, for the remote's "Recent" list
 UNDO_SECONDS = 15  # how long a removal can be taken back
 SAVE_EVERY = 10  # seconds between queue.json writes for position reports alone
@@ -50,7 +51,7 @@ class State:
         self.path = None  # queue.json; set by restore() so the queue survives restarts
         self.played = {}  # video id -> unix time the song last went on stage
         self.audio = False  # the TV has enabled sound, so playback can actually start
-        self.undo = None  # the last removal, for the remote's Undo
+        self.undo = None  # the last removal, for the remote's Undo toast
         self.saved_at = 0.0
         self.build = ""  # fingerprint of the web app files; open pages reload when it changes
         self.lyrics_sent = {}  # TV socket -> key of the song whose lyrics it already has
@@ -69,7 +70,6 @@ class State:
                 "offset": self.offset, "vocal": self.vocal, "music": self.music, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "video_mode": self.video_mode, "lyric_mode": self.lyric_mode, "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "player_audio": self.player is not None and self.audio,
-                "undo": self.undo and {"title": self.undo["item"]["title"], "until": self.undo["until"]},
                 "revision": self.revision, "build": self.build}
 
     def restore(self, path: Path, seed=lambda: {}):
@@ -112,17 +112,23 @@ class State:
                     pass  # a full disk should not stop the party
             message = {"type": "state", **self.snapshot(lyrics=False)}
             key = self.current and self.current["key"]
-            async def send(ws):
+            async def deliver(ws):
                 # A TV gets the current song's lyrics once per song (and again after reconnecting).
                 out = message
                 if key and self.clients.get(ws) == "tv" and self.lyrics_sent.get(ws) != key:
                     out = {**message, "current": {**message["current"], "lyrics": self.current["lyrics"]}}
-                try:
-                    await asyncio.wait_for(ws.send_json(out), timeout=2)
+                if await self.send(ws, out):
                     self.lyrics_sent[ws] = key
-                except Exception:
-                    self.disconnect(ws)
-            await asyncio.gather(*(send(ws) for ws in list(self.clients)))
+            await asyncio.gather(*(deliver(ws) for ws in list(self.clients)))
+
+    async def send(self, ws, message):
+        """Send to one client; a socket that can't take it within 2 s is dropped."""
+        try:
+            await asyncio.wait_for(ws.send_json(message), timeout=2)
+            return True
+        except Exception:
+            self.disconnect(ws)
+            return False
 
     def disconnect(self, ws):
         self.clients.pop(ws, None)
@@ -204,6 +210,13 @@ class State:
         if action in ("ended", "progress"):
             if sender is not self.player or not self.current or message.get("key") != self.current["key"]:
                 return
+        if action == "react":
+            # A cheer goes straight to the TV and changes nothing, so there is nothing to save or broadcast.
+            if message.get("value") not in REACTIONS:
+                raise ValueError("Unknown reaction")
+            if self.player is not None:
+                await self.send(self.player, {"type": "react", "value": message["value"]})
+            return
         if action == "play":
             self.playing = True
         elif action == "pause":

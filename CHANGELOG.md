@@ -4,6 +4,19 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-05
+
+### Added
+- **Cheers.** The remote's 👏 🔥 🎉 💚 buttons float up the side of the TV, behind the lyrics.
+- Between songs, the TV shows the next song as a card with its thumbnail and a countdown ring, with the two songs after it peeking out below.
+
+### Changed
+- **The remote is redesigned.** A now-playing card holds play, skip and cheers, and a bar at the bottom takes over once you scroll past it. Mix, key, speed and display settings open in a sheet that slides up, with an A cappella preset. Drag queue songs to reorder them, remove them with Undo, and watch each one's progress as a ring.
+- In two-line mode, a new line slides up and fades in as the old one leaves. A long line split in two keeps its first half on screen until the second half is due.
+- The TV's now-playing header is one line: title · artist. On wide screens the header and controls stay in the corners, and the idle screen's QR code is larger.
+- The TV's fullscreen button is an icon at the bottom right, beside the remote button. The connection status only shows when the TV is disconnected.
+- Messages say "device" instead of "TV", since any screen can play.
+
 ## [0.3.0] - 2026-10-04
 
 ### Added
@@ -52,7 +65,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/andyleenz/KTVibes/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/andyleenz/KTVibes/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/andyleenz/KTVibes/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/andyleenz/KTVibes/compare/v0.1.0...v0.2.0
