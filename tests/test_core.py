@@ -1,4 +1,5 @@
 import asyncio
+import time
 import unittest
 from ktvibes.lyrics import parse_lrc
 from ktvibes.youtube import is_music, parse_title
@@ -346,8 +347,8 @@ class WorkerTests(unittest.TestCase):
                 worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
                 worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
                 self.assertEqual(align.call_count, 1)
-                worker.retried.clear()
-                worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
+                with patch.object(worker, 'STARTED', time.time() + 60):  # as if KTVibes restarted
+                    worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
                 self.assertEqual(align.call_count, 2)
 
 if __name__ == '__main__':
@@ -466,7 +467,7 @@ class LyricsMatchTests(unittest.TestCase):
         self.assertEqual(line_end(lines, 1), 42.54)
         line_starts(lines)
         self.assertEqual([line['start'] for line in lines], [33.8, 39.1, 42.3])
-        self.assertEqual([bool(line.get('echo')) for line in lines], [False, True, False])
+        self.assertEqual([line.get('over') for line in lines], [None, 0, None])
 
     def test_enhanced_lrc_word_stamps(self):
         line = parse_lrc('[00:01.00]<00:01.00>Hel<00:01.50>lo')[0]

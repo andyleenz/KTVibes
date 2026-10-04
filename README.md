@@ -24,7 +24,7 @@
   - Japanese: romaji.
   - English: Hangul.
 - **Key and speed.** Shift the key ±6 semitones without changing tempo, or slow a song down without changing pitch.
-- **Party-friendly display.** Blur or hide the music video, show lyrics as a scrolling list or two karaoke lines, or hide them.
+- **Party-friendly display.** Blur or hide the music video, show lyrics as two karaoke lines (the default) or a scrolling list, or hide them.
 - **Phone remote.** Scan the QR code on the TV to join. Everyone shares one queue: reorder, undo removals, and re-add recent songs. The TV shows a popup card for every change.
 - **Lyrics language picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show.
 
@@ -71,7 +71,7 @@ Plan for about 8 GB of disk: the install itself is 6.5 GB (mostly PyTorch with C
 
 The first song starts as soon as it is ready. Later songs are prepared while earlier ones play, so queue a few ahead; without a GPU, a song takes a minute or so to prepare. Re-queuing a song is instant because everything is cached in `cache/`.
 
-From the remote's controls panel you can also blur or hide the music video (handy for lyric videos, whose own lyrics clash), switch the lyrics to the classic two-line karaoke layout, or turn them off.
+From the remote's controls panel you can also blur or hide the music video (handy for lyric videos, whose own lyrics clash), switch the lyrics between the classic two-line karaoke layout (the default) and a scrolling list, or turn them off.
 
 ## Updating
 

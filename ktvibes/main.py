@@ -212,7 +212,7 @@ async def media(video_id: str, filename: str):
         raise HTTPException(404)
     folder = CACHE / video_id
     path = folder / filename if filename == "video.mp4" else stems.path(folder, filename)
-    if not path.is_file():
+    if not path or not path.is_file():
         raise HTTPException(404)
     types = {".mp4": "video/mp4", ".opus": "audio/ogg", ".flac": "audio/flac", ".wav": "audio/wav"}
     return FileResponse(path, media_type=types[path.suffix])

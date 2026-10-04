@@ -14,19 +14,19 @@ RATE = 48000  # the only rate Opus encodes
 QUALITY = 0.7  # libsndfile compression level: 0.7 is about 160 kbit/s stereo
 OLD = ("flac", "wav")
 
-def path(folder: Path, name: str) -> Path:
-    """The stem file to play or read: Opus, or an older format not yet converted."""
+def path(folder: Path, name: str) -> Path | None:
+    """The stem file to play or read: Opus, or an older format not yet converted; None if missing."""
     for ext in ("opus", *OLD):
         if (candidate := folder / f"{name}.{ext}").is_file():
             return candidate
-    return folder / f"{name}.opus"
+    return None
 
 def ready(folder: Path) -> bool:
     return all((folder / f"{name}.opus").is_file() for name in NAMES)
 
 def prepared(folder: Path) -> bool:
     """Stems exist in any format (older ones convert when the song is next queued)."""
-    return all(path(folder, name).is_file() for name in NAMES)
+    return all(path(folder, name) for name in NAMES)
 
 def resample(data, rate: int):
     if rate == RATE:

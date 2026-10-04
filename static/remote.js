@@ -15,7 +15,7 @@ function render(next){
  for(const id of ['play','skip','earlier','later'])$(id).disabled=!state.current;
  $('guide').textContent=`${GUIDE_NAMES[state.guide]} ⟳`;state.received=Date.now()/1000;if(document.activeElement!==$('lyric-scale'))$('lyric-scale').value=state.lyric_scale;$('lyric-scale-value').textContent=`${Math.round(state.lyric_scale*100)}%`;$('scrub').max=state.current?.duration||1;$('scrub').disabled=!state.current;$('length').textContent=clock(state.current?.duration);showPosition();if(document.activeElement!==$('vocal'))$('vocal').value=state.vocal;
  if(document.activeElement!==$('music'))$('music').value=state.music;$('music-value').textContent=`${Math.round(state.music*100)}%`;$('vocal-value').textContent=`${Math.round(state.vocal*100)}%`;if(document.activeElement!==$('speed'))$('speed').value=state.speed;$('speed-value').textContent=`${Math.round(state.speed*100)}%`;$('key-value').textContent=state.key>0?`+${state.key}`:`${state.key}`;$('key-down').disabled=state.key<=-6;$('key-up').disabled=state.key>=6;$('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;syncRanges();
- for(const group of document.querySelectorAll('.segmented'))for(const b of group.children)b.setAttribute('aria-pressed',b.dataset.value===state[group.dataset.action]);
+ for(const group of SEGMENTED)for(const b of group.children)b.setAttribute('aria-pressed',b.dataset.value===state[group.dataset.action]);
  showDock();
  showQueue();showUndo();
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
@@ -222,7 +222,8 @@ $('key-down').onclick=()=>send({action:'key',value:state.key-1});$('key-up').onc
 $('lyric-version').onclick=()=>state?.current&&pickLyrics(state.current);
 $('lyric-scale').oninput=()=>sendScale(Number($('lyric-scale').value));
 // Room display settings: blur or hide the music video (lyric videos clash), lyric layout or none.
-for(const group of document.querySelectorAll('.segmented'))group.onclick=e=>{const b=e.target.closest('button');if(b)send({action:group.dataset.action,value:b.dataset.value});};
+const SEGMENTED=document.querySelectorAll('.segmented');
+for(const group of SEGMENTED)group.onclick=e=>{const b=e.target.closest('button');if(b)send({action:group.dataset.action,value:b.dataset.value});};
 // Estimate the TV position between its two-second progress reports.
 let scrubbing=false;
 function showPosition(){

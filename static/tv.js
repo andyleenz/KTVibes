@@ -4,7 +4,7 @@ video.muted=true;
 let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0,shownPair='',fitKey='';
 const error=text=>$('tv-error').textContent=text;
 // This screen remembers its own display settings and restores them each time it (re)connects.
-const SETTINGS='ktvibes.tv-settings';let restoring=false;
+const SETTINGS='ktvibes.tv-settings',SETTING_KEYS=['lyric_scale','vocal','guide','video_mode','lyric_mode'];let restoring=false;
 // On (re)connect, also tell the server whether sound is on, so remotes know if playback can start.
 // Many music videos have black bars baked into the frame; sample a few frames, find the bars,
 // then zoom past them so the picture itself fills the screen. The smallest bars seen win, so a dark scene can't over-crop.
@@ -51,11 +51,11 @@ ambient.onended=nextAmbient;
 ambient.onerror=()=>{if(!ambientOn)return;ambientIds=ambientIds.filter(id=>id!==ambient.dataset.id);nextAmbient();};
 const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',value:enabled});});
 function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
-function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify({lyric_scale:s.lyric_scale,vocal:s.vocal,guide:s.guide,video_mode:s.video_mode,lyric_mode:s.lyric_mode}));}catch{}}
-function restore(s){const mine=saved();for(const [action,value] of ['lyric_scale','vocal','guide','video_mode','lyric_mode'].map(k=>[k,mine[k]]))if(value!==undefined&&value!==s[action])send({action,value});}
+function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fromEntries(SETTING_KEYS.map(k=>[k,s[k]]))));}catch{}}
+function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'scroll';serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -66,26 +66,22 @@ function render(next){
  $('corner-join').hidden=!state.current;
  $('tv-bottom').hidden=!state.current;
  if((state.current?.key||null)!==currentKey){
-  generation++;music.pause();voice.pause();video.pause();starting=false;buffering=false;videoStarting=false;currentKey=state.current?.key||null;activeLine=-1;lyricsPositioned=false;shownPair='';lastSeek=state.seek_id;$('lyrics').replaceChildren();$('lyrics').scrollTo({top:0,behavior:'instant'});error('');
+  generation++;music.pause();voice.pause();video.pause();starting=false;buffering=false;videoStarting=false;currentKey=state.current?.key||null;activeLine=-1;relayout();lastSeek=state.seek_id;$('lyrics').replaceChildren();$('lyrics').scrollTo({top:0,behavior:'instant'});error('');
   if(state.current){
    const item=state.current;
-   video.hidden=!item.video;$('video-shade').hidden=!item.video;document.body.classList.toggle('has-video',!!item.video);
+   video.hidden=!item.video;$('video-shade').hidden=!item.video;
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
    stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals`;voice.src=`/media/${item.id}/vocals`;music.load();voice.load();
    $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-artist').textContent=$('card-artist').textContent=item.artist;
    showLyrics(item);$('duration').textContent=clock(item.duration);
-  }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
+  }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
  }
- else if(state.current&&(state.current.lyrics_rev||0)!==lyricsRev){$('lyrics').replaceChildren();activeLine=-1;lyricsPositioned=false;shownPair='';showLyrics(state.current);}
+ else if(state.current&&(state.current.lyrics_rev||0)!==lyricsRev){$('lyrics').replaceChildren();activeLine=-1;relayout();showLyrics(state.current);}
  // "Hide video" keeps the plain stage layout; the video element stays loaded so it can come back in sync.
  document.body.classList.toggle('has-video',showVideo()&&!video.error);
  // Switching layout, size or guide changes how wide each line is: place and fit the lines again.
  const nextFit=`${state.lyric_mode}|${state.lyric_scale}|${state.guide}`;
- if(nextFit!==fitKey){
-  fitKey=nextFit;shownPair='';lyricsPositioned=false;
-  // Two-line sizing and condensing are inline styles; scroll mode starts from clean lines.
-  if(state.lyric_mode!=='two'){$('lyrics').style.removeProperty('--fit');for(const line of $('lyrics').children){line.style.removeProperty('scale');line.style.removeProperty('max-width');line.style.removeProperty('white-space');}}
- }
+ if(nextFit!==fitKey){fitKey=nextFit;relayout();}
  if(state.current&&state.seek_id!==lastSeek){
   lastSeek=state.seek_id;
   if(music.readyState&&seekTo===null){music.currentTime=voice.currentTime=state.position;if(state.current.video&&video.readyState)video.currentTime=state.position;}else seekTo=state.position;
@@ -96,6 +92,8 @@ function render(next){
 // Lyrics for the song on stage; a remote can swap in another version mid-song (lyrics_rev).
 let lyricsRev=0;
 const showVideo=()=>!!state?.current?.video&&state.video_mode!=='hide';
+// Place the lyrics from scratch (new song or lyrics, layout, size, guide or window change).
+function relayout(){shownPair='';lyricsPositioned=false;}
 // Two-line KTV: lines take turns in a top and a bottom slot. The line just sung stays up for a moment
 // into the next one (up to 1.5 s, or half that line), then gives its slot to the line after.
 // A backing-vocal line "(…)" keeps the lead line it is sung over on screen.
@@ -104,7 +102,7 @@ function twoLines(index,time){
  if(!shownPair)fitSong();
  const at=i=>lyrics[i]?(lyrics[i].start??lyrics[i].t):Infinity;
  let other=first+1;
- if(index>0&&(lyrics[index].echo||time<at(index)+Math.min(1.5,(at(index+1)-at(index))/2)))other=index-1;
+ if(index>0&&(lyrics[index].over!=null||time<at(index)+Math.min(1.5,(at(index+1)-at(index))/2)))other=index-1;
  const pair=`${first},${other}`;if(pair===shownPair)return;shownPair=pair;
  const base=Math.max(0,firstLine);
  [...$('lyrics').children].forEach((line,i)=>{
@@ -120,20 +118,21 @@ function twoLines(index,time){
 function fitSong(){
  const container=$('lyrics'),lines=[...container.children];
  container.style.setProperty('--fit',1);
+ for(const line of lines)delete line.dataset.fit;
  container.classList.add('measuring');
  const ratios=lines.filter(line=>line.textContent.trim()).map(line=>line.clientWidth/Math.max(1,line.scrollWidth)).sort((a,b)=>a-b);
  const ratio=Math.min(1,ratios[Math.floor(ratios.length*0.1)]??1);
  container.classList.remove('measuring');
  container.style.setProperty('--fit',Math.max(0.6,Math.floor(ratio*98)/100));
 }
+// Measured once per layout; two-line CSS applies the result (data-fit), so other layouts ignore it.
 function condense(line){
- line.style.removeProperty('scale');line.style.removeProperty('max-width');line.style.whiteSpace='nowrap';
+ if(line.dataset.fit!==undefined)return;
  const ratio=line.clientWidth/Math.max(1,line.scrollWidth);
- if(ratio>=1)return;
- if(ratio>=0.7){line.style.maxWidth='none';line.style.scale=`${Math.floor(ratio*1000)/1000} 1`;}
- else line.style.removeProperty('white-space');
+ line.dataset.fit=ratio>=1?'':ratio>=0.7?'squeeze':'wrap';
+ line.style.setProperty('--squeeze',Math.floor(Math.min(1,ratio)*1000)/1000);
 }
-addEventListener('resize',()=>{shownPair='';});
+let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(relayout,150);});
 function showLyrics(item){
  lyrics=item.lyrics||[];firstLine=lyrics.findIndex(line=>line.text);lyricsRev=item.lyrics_rev||0;
  lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul,jyutping] of line.units||[]){const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
@@ -205,7 +204,7 @@ function frame(now){
    // The breather hides this panel: wait for layout before measuring a line.
    // Each song starts at the beginning, without inheriting the previous scroll.
    // A backing-vocal line "(…)" is sung over the lead line, so the lead stays lit and centered under it.
-   const echoing=index>0&&!!lines[index]?.echo,leadLine=echoing?index-1:index;
+   const leadLine=lines[index]?.over??index,echoing=leadLine!==index;
    if(!waiting&&(!lyricsPositioned||index!==activeLine)){
     const firstPosition=!lyricsPositioned;
     activeLine=index;

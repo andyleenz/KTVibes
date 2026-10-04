@@ -6,7 +6,11 @@ from pathlib import Path
 import time
 import uuid
 
-DISPLAY = {"video_mode": ("show", "blur", "hide"), "lyric_mode": ("scroll", "two", "off")}
+DISPLAY = {"video_mode": ("show", "blur", "hide"), "lyric_mode": ("two", "scroll", "off")}
+def following(options, current):
+    """The option after `current`, wrapping round: what a "cycle" control switches to."""
+    return options[(options.index(current) + 1) % len(options)]
+
 GUIDES = ("off", "latin", "jyutping", "hangul")
 HISTORY = 200  # remembered plays, for the remote's "Recent" list
 UNDO_SECONDS = 15  # how long a removal can be taken back
@@ -34,7 +38,7 @@ class State:
         self.guide = "latin"  # off | latin | hangul, shown above the lyrics
         self.lyric_scale = 1.0
         self.video_mode = "show"  # show | blur | hide: blur suits lyric videos, whose own lyrics clash
-        self.lyric_mode = "scroll"  # scroll | two (classic two-line KTV) | off
+        self.lyric_mode = "two"  # two (classic two-line KTV) | scroll | off
         self.speed = 1.0  # playback tempo, 0.5-1.5; pitch is kept
         self.key = 0  # pitch shift in semitones, -6..+6
         self.seek_id = 0
@@ -226,7 +230,7 @@ class State:
             options = DISPLAY[action]
             value = message.get("value")
             if value == "cycle":
-                value = options[(options.index(getattr(self, action)) + 1) % len(options)]
+                value = following(options, getattr(self, action))
             if value not in options:
                 raise ValueError(f"Unknown {action.replace('_', ' ')}")
             setattr(self, action, value)
@@ -238,7 +242,7 @@ class State:
             modes = self.guides()
             if message.get("value") == "cycle":
                 # From a mode this song lacks, jump to its first visible guide rather than "off".
-                self.guide = modes[(modes.index(self.guide) + 1) % len(modes)] if self.guide in modes else modes[min(1, len(modes) - 1)]
+                self.guide = following(modes, self.guide) if self.guide in modes else modes[min(1, len(modes) - 1)]
             elif message.get("value") in GUIDES:
                 self.guide = message["value"]
             else:

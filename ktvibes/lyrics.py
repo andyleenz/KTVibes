@@ -247,20 +247,21 @@ def line_starts(lines: list[dict], lead: float = 0.3) -> list[dict]:
     line's last word ends, and never after its own first word.
 
     A backing-vocal line overlaps the lead, so it neither waits for the lead to finish nor holds
-    up the next lead line; the TV keeps the lead line lit while it plays.
+    up the next lead line; `over` names the lead line it is sung over, which the TV keeps lit.
     """
     previous_end = previous_start = 0.0
-    for line in lines:
+    lead_index = None
+    for index, line in enumerate(lines):
         units = line.get("units")
         first = units[0][1] if units else line["t"]
         backing = echo(line)
         start = min(max(first - lead if units else first, 0 if backing else previous_end), first)
         line["start"] = previous_start = round(max(start, previous_start), 2)
-        if backing:
-            line["echo"] = True
-        else:
-            line.pop("echo", None)
-            previous_end = units[-1][2] if units else line["t"]
+        line.pop("over", None)
+        if backing and lead_index is not None:
+            line["over"] = lead_index
+        elif not backing:
+            lead_index, previous_end = index, units[-1][2] if units else line["t"]
     return lines
 
 def time_units(lines: list[dict], energy, hop: float = 0.05) -> list[dict]:

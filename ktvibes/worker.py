@@ -10,8 +10,7 @@ from . import align, guides, stems, youtube, lyrics
 log = logging.getLogger(__name__)
 TIMING_VERSION = 6  # bump when alignment or guide output changes, so cached timing is rebuilt
 LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
-# Songs whose energy-only timing (aligner failed) was already retried in this run.
-retried = set()
+STARTED = time.time()  # energy-only timing (aligner failed) cached before this run is retried once
 
 def separate(source, destination):
     # Keep model imports off the server startup path.
@@ -56,7 +55,7 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
     try:
         cached = json.loads((folder / "timed.json").read_text(encoding="utf-8"))
         # Energy-only timing (the aligner failed) is retried once per run, not on every play.
-        if cached.get("key") == key and (cached.get("aligned", True) or folder.name in retried):
+        if cached.get("key") == key and (cached.get("aligned", True) or (folder / "timed.json").stat().st_mtime >= STARTED):
             return cached["lines"]
     except (OSError, ValueError, KeyError):
         pass
@@ -74,8 +73,6 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         aligned = False
     lyrics.time_units(lines, energy)
     lines = lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines)))))
-    if not aligned:
-        retried.add(folder.name)
     temporary = folder / "timed.tmp"
     temporary.write_text(json.dumps({"key": key, "aligned": aligned, "lines": lines}, ensure_ascii=False), encoding="utf-8")
     temporary.replace(folder / "timed.json")
