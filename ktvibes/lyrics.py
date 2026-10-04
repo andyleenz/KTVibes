@@ -225,6 +225,19 @@ def shift_lines(lines: list[dict], shift: float) -> list[dict]:
             unit[1], unit[2] = round(max(0.0, unit[1] + shift), 2), round(max(0.0, unit[2] + shift), 2)
     return lines
 
+ECHO = re.compile(r"^\s*[(（][^()（）]*[)）]\s*$")
+
+def echo(line: dict) -> bool:
+    """A line wholly in brackets is a backing vocal ("(Caught in the undertow)"), often sung over the lead line."""
+    return bool(ECHO.match(line.get("text") or ""))
+
+def line_end(lines: list[dict], index: int, longest: float = 15) -> float:
+    """Where a line's singing must end: the next lead line's stamp. A backing-vocal line overlaps the lead,
+    so it does not cut the line before it short."""
+    line = lines[index]
+    following = (l["t"] for l in lines[index + 1:] if echo(line) or not echo(l))
+    return min(next(following, line["t"] + 8), line["t"] + longest)
+
 def line_starts(lines: list[dict], lead: float = 0.3) -> list[dict]:
     """When each line takes over on the TV, from its sung words rather than its LRC stamp.
 
@@ -232,14 +245,22 @@ def line_starts(lines: list[dict], lead: float = 0.3) -> list[dict]:
     ends at 29.33, the next stamp is 29.03) or after a line's first word; a line
     becomes active shortly before its first word, but not before the previous
     line's last word ends, and never after its own first word.
+
+    A backing-vocal line overlaps the lead, so it neither waits for the lead to finish nor holds
+    up the next lead line; the TV keeps the lead line lit while it plays.
     """
     previous_end = previous_start = 0.0
     for line in lines:
         units = line.get("units")
         first = units[0][1] if units else line["t"]
-        start = min(max(first - lead if units else first, previous_end), first)
+        backing = echo(line)
+        start = min(max(first - lead if units else first, 0 if backing else previous_end), first)
         line["start"] = previous_start = round(max(start, previous_start), 2)
-        previous_end = units[-1][2] if units else line["t"]
+        if backing:
+            line["echo"] = True
+        else:
+            line.pop("echo", None)
+            previous_end = units[-1][2] if units else line["t"]
     return lines
 
 def time_units(lines: list[dict], energy, hop: float = 0.05) -> list[dict]:
@@ -256,8 +277,8 @@ def time_units(lines: list[dict], energy, hop: float = 0.05) -> list[dict]:
             continue
         units = split_units(line["text"])
         start = line["t"]
-        end = lines[index + 1]["t"] if index + 1 < len(lines) else start + 8
-        end = min(end, start + 15)
+        # Energy can't tell a backing vocal from the lead, so this estimate stops at any next line.
+        end = min(lines[index + 1]["t"] if index + 1 < len(lines) else start + 8, start + 15)
         window = energy[int(start / hop): max(int(start / hop) + 1, int(end / hop))]
         active = window > max(floor, float(np.percentile(window, 90)) * 0.25) if len(window) else window
         if active.sum() < 4:

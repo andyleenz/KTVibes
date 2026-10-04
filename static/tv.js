@@ -94,11 +94,12 @@ let lyricsRev=0;
 const showVideo=()=>!!state?.current?.video&&state.video_mode!=='hide';
 // Two-line KTV: lines take turns in a top and a bottom slot. The line just sung stays up for a moment
 // into the next one (up to 1.5 s, or half that line), then gives its slot to the line after.
+// A backing-vocal line "(…)" keeps the lead line it is sung over on screen.
 function twoLines(index,time){
  const first=index>=0?index:firstLine;if(first<0)return;
  const at=i=>lyrics[i]?(lyrics[i].start??lyrics[i].t):Infinity;
  let other=first+1;
- if(index>0&&time<at(index)+Math.min(1.5,(at(index+1)-at(index))/2))other=index-1;
+ if(index>0&&(lyrics[index].echo||time<at(index)+Math.min(1.5,(at(index+1)-at(index))/2)))other=index-1;
  const pair=`${first},${other}`;if(pair===shownPair)return;shownPair=pair;
  const base=Math.max(0,firstLine);
  [...$('lyrics').children].forEach((line,i)=>{
@@ -183,13 +184,15 @@ function frame(now){
    for(let i=0;i<lines.length&&(lines[i].start??lines[i].t)<=time;i++)index=i;
    // The breather hides this panel: wait for layout before measuring a line.
    // Each song starts at the beginning, without inheriting the previous scroll.
+   // A backing-vocal line "(…)" is sung over the lead line, so the lead stays lit and centered under it.
+   const echoing=index>0&&!!lines[index]?.echo,leadLine=echoing?index-1:index;
    if(!waiting&&(!lyricsPositioned||index!==activeLine)){
     const firstPosition=!lyricsPositioned;
     activeLine=index;
     const container=$('lyrics');
-    [...container.children].forEach((line,i)=>{line.classList.toggle('active',i===index);line.classList.toggle('past',i<index);});
+    [...container.children].forEach((line,i)=>{line.classList.toggle('active',i===index||i===leadLine);line.classList.toggle('past',i<leadLine);});
     // Before the first line is sung, keep it centered, ready for the count-in.
-    const line=container.children[index>=0?index:firstLine];
+    const line=container.children[leadLine>=0?leadLine:firstLine];
     if(state.lyric_mode!=='two')container.scrollTo({
      top:line?Math.max(0,line.offsetTop-container.clientHeight/2+line.clientHeight/2):0,
      behavior:firstPosition?'instant':'smooth'
@@ -206,9 +209,11 @@ function frame(now){
    $('lyrics').classList.toggle('waiting',remaining>COUNT_IN);
    const lead=$('lyrics').children[firstLine],dots=remaining>0&&remaining<=COUNT_IN?'●'.repeat(Math.min(3,Math.ceil(remaining))):'';
    if(lead&&lead.dataset.dots!==dots)lead.dataset.dots=dots;
-   const units=lines[index]?.units,spans=$('lyrics').children[index]?.children;
    // KTV wipe: each character/word fills left to right over its sung interval.
-   if(units&&spans)units.forEach(([,from,to],i)=>spans[i]?.style.setProperty('--p',Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)))));
+   for(const n of echoing?[leadLine,index]:[index]){
+    const units=lines[n]?.units,spans=$('lyrics').children[n]?.children;
+    if(units&&spans)units.forEach(([,from,to],i)=>spans[i]?.style.setProperty('--p',Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)))));
+   }
    $('elapsed').textContent=clock(music.currentTime);$('progress').parentElement.style.setProperty('--p',Math.min(1,music.currentTime/(state.current.duration||1)));
    if(now-lastReport>2000&&!music.paused){lastReport=now;send({action:'progress',key:currentKey,position:music.currentTime});}
   }

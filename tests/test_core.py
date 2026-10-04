@@ -456,6 +456,18 @@ class LyricsMatchTests(unittest.TestCase):
         # Sanctuary: the stamp for "Fallen star" (29.03) cut off "after dark", sung until 29.33.
         self.assertEqual([line['start'] for line in lines], [26.5, 29.74, 31.1, 40.0])
 
+    def test_backing_vocal_lines_overlap_the_lead(self):
+        from ktvibes.lyrics import line_end, line_starts
+        # Numb: "(Caught in the undertow…)" is stamped while the lead line is still being sung.
+        lines = [{'t': 34.09, 'text': 'Put under the pressure of walking in your shoes', 'units': [['Put ', 34.1, 34.4], ['shoes', 40.2, 40.9]]},
+                 {'t': 39.3, 'text': '(Caught in the undertow, just caught in the undertow)', 'units': [['(Caught ', 39.4, 39.8], ['undertow)', 42.0, 42.6]]},
+                 {'t': 42.54, 'text': 'Every step that I take', 'units': [['Every ', 42.6, 42.9], ['take', 44.0, 44.5]]}]
+        self.assertEqual(line_end(lines, 0), 42.54)  # aligned up to the next lead line, not cut at the echo
+        self.assertEqual(line_end(lines, 1), 42.54)
+        line_starts(lines)
+        self.assertEqual([line['start'] for line in lines], [33.8, 39.1, 42.3])
+        self.assertEqual([bool(line.get('echo')) for line in lines], [False, True, False])
+
     def test_enhanced_lrc_word_stamps(self):
         line = parse_lrc('[00:01.00]<00:01.00>Hel<00:01.50>lo')[0]
         self.assertEqual(line['text'], 'Hello')

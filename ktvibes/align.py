@@ -7,7 +7,7 @@ align confidently keep the vocal-energy estimate from lyrics.time_units.
 import re
 import threading
 import unicodedata
-from .lyrics import CJK, HANGUL, japanese, romaji, romanize, split_units
+from .lyrics import CJK, HANGUL, japanese, line_end, romaji, romanize, split_units
 
 _bundle = _model = None
 _lock = threading.Lock()
@@ -65,8 +65,7 @@ def align(lines: list[dict], samples, rate: int, pad: float = 0.4) -> set[int]:
             if not words:
                 continue
             start = max(0.0, line["t"] - pad)
-            end = lines[index + 1]["t"] if index + 1 < len(lines) else line["t"] + 8
-            end = min(end, line["t"] + 15) + pad
+            end = line_end(lines, index) + pad
             clip = audio[int(start * bundle.sample_rate): int(end * bundle.sample_rate)]
             if len(clip) < bundle.sample_rate // 2:
                 continue
