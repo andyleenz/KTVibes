@@ -76,7 +76,7 @@ function render(next){
    showLyrics(item);$('duration').textContent=clock(item.duration);
   }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
  }
- else if(state.current&&(state.current.lyrics_rev||0)!==lyricsRev){$('lyrics').replaceChildren();activeLine=-1;relayout();showLyrics(state.current);}
+ else if(state.current&&(state.current.lyrics_rev||0)!==lyricsRev){activeLine=-1;relayout();showLyrics(state.current);}
  // "Hide video" keeps the plain stage layout; the video element stays loaded so it can come back in sync.
  document.body.classList.toggle('has-video',showVideo()&&!video.error);
  // Switching layout, size or guide changes how wide each line is: place and fit the lines again.
@@ -90,40 +90,54 @@ function render(next){
  if(!state.playing){music.pause();voice.pause();video.pause();}
 }
 // Lyrics for the song on stage; a remote can swap in another version mid-song (lyrics_rev).
-let lyricsRev=0;
+let lyricsRev=0,songLyrics=[],splitDone=false,slots=[],counting=null;  // counting: the line showing count-in dots
 const showVideo=()=>!!state?.current?.video&&state.video_mode!=='hide';
 // Place the lyrics from scratch (new song or lyrics, layout, size, guide or window change).
-function relayout(){shownPair='';lyricsPositioned=false;}
-// Two-line KTV: lines take turns in a top and a bottom slot. The line just sung stays up for a moment
-// into the next one (up to 1.5 s, or half that line), then gives its slot to the line after.
+function relayout(){shownPair='';lyricsPositioned=false;splitDone=false;if(lyrics!==songLyrics){activeLine=-1;placeLyrics(songLyrics);}}
+// Two-line KTV, like a karaoke machine: lines take turns in a top and a bottom slot, and the next
+// line is always up before it is sung. A line gives its slot to the line after next as soon as the
+// following line starts. Over an instrumental break (GAP), the screen clears once the last line is
+// sung, and the next two lines come up together for the count-in; each section starts in the top slot.
 // A backing-vocal line "(…)" keeps the lead line it is sung over on screen.
+const GAP=4,HOLD=1;  // seconds: a break this long clears the screen, HOLD after the last line ends
+const startOf=i=>lyrics[i]?(lyrics[i].start??lyrics[i].t):Infinity;
+const endOf=i=>lyrics[i]?.units?.at(-1)?.[2]??startOf(i+1);
+const breakAfter=i=>i>=0&&startOf(i+1)-endOf(i)>GAP;
 function twoLines(index,time){
- const first=index>=0?index:firstLine;if(first<0)return;
- if(!shownPair)fitSong();
- const at=i=>lyrics[i]?(lyrics[i].start??lyrics[i].t):Infinity;
- let other=first+1;
- if(index>0&&(lyrics[index].over!=null||time<at(index)+Math.min(1.5,(at(index+1)-at(index))/2)))other=index-1;
- const pair=`${first},${other}`;if(pair===shownPair)return;shownPair=pair;
- const base=Math.max(0,firstLine);
+ if(firstLine<0)return;
+ if(!splitDone&&$('lyrics').clientWidth){splitDone=true;fitSong();if(splitLong()){activeLine=-1;lyricsPositioned=false;return;}}
+ let shown;
+ if(index<0)shown=[firstLine,firstLine+1];
+ else if(lyrics[index].over!=null)shown=[index-1,index];
+ // The previous line keeps its slot until its last word has finished filling.
+ else if(index>0&&time<endOf(index-1)&&!breakAfter(index-1))shown=[index-1,index];
+ else if(breakAfter(index)&&time>endOf(index)+HOLD)shown=time<startOf(index+1)-COUNT_IN?[]:[index+1,index+2];
+ // The last line before a break has no next line to show, so the line before it stays up.
+ else shown=breakAfter(index)?(index>0&&!breakAfter(index-1)?[index-1,index]:[index]):[index,index+1];
+ shown=shown.filter(i=>i>=0&&i<lyrics.length&&(i===shown.at(-1)||!breakAfter(i)));
+ const pair=shown.join();if(pair===shownPair)return;shownPair=pair;
  [...$('lyrics').children].forEach((line,i)=>{
-  const on=i===first||i===other;
+  const on=shown.includes(i);
   if(on!==line.classList.contains('shown'))line.classList.toggle('shown',on);
-  if(on){line.dataset.slot=(i-base)%2;condense(line);}
+  if(on){line.dataset.slot=slots[i];condense(line);}
  });
 }
 // Two-line lyrics share one size for the whole song, so lines don't change size as they swap.
-// The size fits nearly all lines (all but the longest 10%) on one line, down to 60% of the chosen
-// lyric size, so one long line can't shrink the whole song. Lines still too long are condensed
-// sideways like a KTV machine does (same height, narrower letters); only extreme ones wrap.
+// The size fits every line on one line, down to 70% of the chosen lyric size, so one long line
+// can't shrink the whole song much. Lines still too long are split in two
+// (splitLong); a line that can't be split is condensed sideways like a KTV machine does (same
+// height, narrower letters), and only extreme ones wrap.
+// The width a two-line lyric has: the lyrics' content box.
+function lyricRoom(){const box=$('lyrics'),style=getComputedStyle(box);return box.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);}
 function fitSong(){
  const container=$('lyrics'),lines=[...container.children];
  container.style.setProperty('--fit',1);
  for(const line of lines)delete line.dataset.fit;
  container.classList.add('measuring');
- const ratios=lines.filter(line=>line.textContent.trim()).map(line=>line.clientWidth/Math.max(1,line.scrollWidth)).sort((a,b)=>a-b);
- const ratio=Math.min(1,ratios[Math.floor(ratios.length*0.1)]??1);
+ const room=lyricRoom(),ratios=lines.filter(line=>line.textContent.trim()).map(line=>room/Math.max(1,line.scrollWidth)).sort((a,b)=>a-b);
+ const ratio=Math.min(1,ratios[0]??1);
  container.classList.remove('measuring');
- container.style.setProperty('--fit',Math.max(0.6,Math.floor(ratio*98)/100));
+ container.style.setProperty('--fit',Math.max(0.7,Math.floor(ratio*98)/100));
 }
 // Measured once per layout; two-line CSS applies the result (data-fit), so other layouts ignore it.
 function condense(line){
@@ -133,8 +147,46 @@ function condense(line){
  line.style.setProperty('--squeeze',Math.floor(Math.min(1,ratio)*1000)/1000);
 }
 let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(relayout,150);});
+// A line too long for the screen at the song's size is split at a word boundary, like a KTV machine:
+// each part takes its own turn in the slots, with its own word timing. Prefers a break after
+// punctuation, then the break that makes the parts most even. Only lines with word timing split.
+// Empty break lines are dropped. Returns whether anything changed (the lyrics are then rendered again).
+function splitLong(){
+ const container=$('lyrics'),parts=[],index=[],room=lyricRoom()+1;let split=false;
+ container.classList.add('measuring');
+ [...container.children].forEach((line,i)=>{
+  const source=lyrics[i],units=source.units,spans=line.children;
+  index.push(parts.length);
+  if(!source.text){split=true;return;}  // an empty "♪" line only marks a break, which the screen clearing shows
+  if(!units||units.length<2||line.scrollWidth<=room||spans.length!==units.length){parts.push(source);return;}
+  const left=[...spans].map(span=>span.offsetLeft),right=[...spans].map(span=>span.offsetLeft+span.offsetWidth);
+  const width=(a,b)=>right[b-1]-left[a];
+  const cut=(a,b)=>{
+   if(b-a<2||width(a,b)<=room)return [[a,b]];
+   let best=a+1,score=Infinity;
+   for(let k=a+1;k<b;k++){
+    const w1=width(a,k),w2=width(k,b),text=units[k-1][0];
+    const value=Math.abs(w1-w2)/width(a,b)-(/[,，、;；:：!！?？。]\s*$/.test(text)?0.3:0)-(/\s$/.test(text)?0.1:0)+(w1>room||w2>room?1:0);
+    if(value<score){score=value;best=k;}
+   }
+   return [...cut(a,best),...cut(best,b)];
+  };
+  const ranges=cut(0,units.length);if(ranges.length>1)split=true;
+  ranges.forEach(([a,b],n)=>{const part=units.slice(a,b);part[part.length-1]=[part.at(-1)[0].trimEnd(),...part.at(-1).slice(1)];parts.push({...source,units:part,text:part.map(unit=>unit[0]).join('').trim(),...n?{t:part[0][1],start:part[0][1]}:{}});});
+ });
+ container.classList.remove('measuring');
+ if(!split)return false;
+ // A backing-vocal line points at its lead line; point it at the lead's last part.
+ for(const part of parts)if(part.over!=null)part.over=(index[part.over+1]??parts.length)-1;
+ placeLyrics(parts);
+ return true;
+}
 function showLyrics(item){
- lyrics=item.lyrics||[];firstLine=lyrics.findIndex(line=>line.text);lyricsRev=item.lyrics_rev||0;
+ songLyrics=item.lyrics||[];lyricsRev=item.lyrics_rev||0;placeLyrics(songLyrics);
+}
+function placeLyrics(list){
+ lyrics=list;firstLine=lyrics.findIndex(line=>line.text);$('lyrics').replaceChildren();
+ slots=[];let slot=0;lyrics.forEach((line,i)=>{if(breakAfter(i-1))slot=0;slots[i]=slot;slot^=1;});
  lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul,jyutping] of line.units||[]){const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
 }
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
@@ -200,7 +252,7 @@ function frame(now){
    if(!music.paused&&!voice.paused&&Math.abs(voice.currentTime-music.currentTime)>0.08)voice.currentTime=music.currentTime;
    const time=music.currentTime+state.offset;const lines=lyrics;let index=-1;
    // Lines switch on their sung words (start), so a stamp never cuts off the previous line's last word.
-   for(let i=0;i<lines.length&&(lines[i].start??lines[i].t)<=time;i++)index=i;
+   for(let i=0;i<lines.length&&startOf(i)<=time;i++)index=i;
    // The breather hides this panel: wait for layout before measuring a line.
    // Each song starts at the beginning, without inheriting the previous scroll.
    // A backing-vocal line "(…)" is sung over the lead line, so the lead stays lit and centered under it.
@@ -220,14 +272,19 @@ function frame(now){
    }
    if(state.lyric_mode==='two'&&!waiting)twoLines(index,time);
    // Karaoke count-in: lyrics stay hidden through the intro, then dots count down to the first line.
-   const remaining=firstLine>=0?(lines[firstLine].start??lines[firstLine].t)-time:0;
+   const remaining=firstLine>=0?startOf(firstLine)-time:0;
    // Title card over the intro, like a karaoke machine: it fades before the count-in dots,
    // and a song whose lyrics start almost at once skips it.
    const cardEnd=firstLine>=0?Math.min(12,time+remaining-COUNT_IN-0.5):8;
    document.body.classList.toggle('intro',!waiting&&cardEnd>=3&&time<cardEnd);
    $('lyrics').classList.toggle('waiting',remaining>COUNT_IN);
-   const lead=$('lyrics').children[firstLine],dots=remaining>0&&remaining<=COUNT_IN?'●'.repeat(Math.min(3,Math.ceil(remaining))):'';
-   if(lead&&lead.dataset.dots!==dots)lead.dataset.dots=dots;
+   // Two-line mode counts in again after an instrumental break.
+   const resume=state.lyric_mode==='two'&&breakAfter(index)?index+1:firstLine,left=startOf(resume)-time;
+   const dots=left>0&&left<=COUNT_IN?'●'.repeat(Math.min(3,Math.ceil(left))):'';
+   const dotted=$('lyrics').children[resume];
+   if(counting&&counting!==dotted)counting.dataset.dots='';
+   if(dotted&&dotted.dataset.dots!==dots)dotted.dataset.dots=dots;
+   counting=dotted;
    // KTV wipe: each character/word fills left to right over its sung interval.
    for(const n of echoing?[leadLine,index]:[index]){
     const units=lines[n]?.units,spans=$('lyrics').children[n]?.children;
@@ -326,3 +383,10 @@ $('open-remote').onclick=async()=>{
  }catch(e){error(e.message);}
 };
 
+// Hide the TV's controls and pointer when nobody is using the mouse or keyboard.
+let stillTimer;
+function wake(){document.body.classList.remove('still');clearTimeout(stillTimer);stillTimer=setTimeout(()=>document.body.classList.add('still'),3000);}
+for(const type of ['pointermove','pointerdown','keydown'])addEventListener(type,wake,{passive:true});
+wake();
+function scaleUi(){document.body.style.setProperty('--ui',Math.max(1,Math.min(innerWidth/1920,innerHeight/1080)));}
+addEventListener('resize',scaleUi);scaleUi();

@@ -4,6 +4,20 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
+### Added
+- The TV's top and bottom bars and the mouse pointer hide after 3 seconds without mouse or keyboard activity.
+- On screens wider than 1920 pixels, like a 4K display at 100% scaling, the TV's bars, title card and idle screen scale up with the screen.
+
+### Changed
+- Lyrics keep growing with the screen past 1920 pixels wide, and scrolling lyrics are a little larger on big screens.
+- A two-line lyric too long for the screen is split into two shorter lines, each with its own turn, instead of wrapping or being squeezed.
+- Two-line mode works more like a karaoke machine. A sung line stays highlighted until it is replaced, which happens once the next line has started and the sung line's last word has finished. Over an instrumental break the screen clears, then the next two lines come up together with a count-in. New lines appear without animating in, and sit a little lower on the screen.
+
+### Fixed
+- Two-line lyrics no longer jump when a line has no pronunciation guide, or when the last line of a song is on its own.
+
 ## [0.2.1] - 2026-10-04
 
 ### Changed
@@ -38,7 +52,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/andyleenz/KTVibes/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/andyleenz/KTVibes/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/andyleenz/KTVibes/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/andyleenz/KTVibes/releases/tag/v0.1.0
