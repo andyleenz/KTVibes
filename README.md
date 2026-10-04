@@ -75,13 +75,15 @@ From the remote's controls panel you can also blur or hide the music video (hand
 
 ## Updating
 
-Stop KTVibes (Ctrl+C), then run:
+**From 0.1.0** (no `ktvibes update` yet): stop KTVibes and run the [install command](#install) for your system again. It updates in place and keeps your songs. Then open a new terminal, run `ktvibes`, and click **Enable sound** on the TV.
+
+**From 0.2.0 on:** stop KTVibes (Ctrl+C), then run:
 
 ```bash
 ktvibes update
 ```
 
-This pulls the latest version; the next `ktvibes` installs any new dependencies. See [CHANGELOG.md](CHANGELOG.md) for what changed. Installs from before this command existed can rerun the install command above, which updates in place. Manual installs: `git pull`, then `uv run ktvibes`. Your cached songs and queue are kept. Songs cached as FLAC by older versions are converted to the smaller format the next time they are queued.
+This pulls the latest version; the next `ktvibes` installs any new dependencies. See [CHANGELOG.md](CHANGELOG.md) for what changed. Manual installs: `git pull`, then `uv run ktvibes`. Your cached songs and queue are kept. Songs cached as FLAC by older versions are converted to the smaller format the next time they are queued.
 
 ## Configuration
 
