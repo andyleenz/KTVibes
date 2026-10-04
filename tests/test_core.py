@@ -78,7 +78,7 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await state.control({'action': 'seek', 'position': 500})
         self.assertEqual((state.position, state.seek_id), (100, 1))
         await state.control({'action': 'lyric_scale', 'value': 9})
-        self.assertEqual(state.lyric_scale, 1.8)
+        self.assertEqual(state.lyric_scale, 2.5)
         await state.control({'action': 'music', 'value': -1})
         self.assertEqual(state.music, 0)
         await state.control({'action': 'speed', 'value': 3})

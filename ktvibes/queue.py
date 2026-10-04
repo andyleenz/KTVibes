@@ -221,7 +221,7 @@ class State:
             self.position = max(0, min(number(message["position"]), self.current["duration"]))
             self.seek_id += 1
         elif action == "lyric_scale":
-            self.lyric_scale = max(0.6, min(1.8, number(message["value"])))
+            self.lyric_scale = max(0.6, min(2.5, number(message["value"])))
         elif action in DISPLAY:
             options = DISPLAY[action]
             value = message.get("value")

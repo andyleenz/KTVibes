@@ -106,18 +106,28 @@ function twoLines(index,time){
  [...$('lyrics').children].forEach((line,i)=>{
   const on=i===first||i===other;
   if(on!==line.classList.contains('shown'))line.classList.toggle('shown',on);
-  if(on)line.dataset.slot=(i-base)%2;
+  if(on){line.dataset.slot=(i-base)%2;condense(line);}
  });
 }
-// Two-line lyrics share one size for the whole song, so lines don't change size as they swap:
-// the widest line sets it, down to 60% of the chosen lyric size. A line still too long wraps evenly.
+// Two-line lyrics share one size for the whole song, so lines don't change size as they swap.
+// The size fits nearly all lines (all but the longest 10%) on one line, down to 60% of the chosen
+// lyric size, so one long line can't shrink the whole song. Lines still too long are condensed
+// sideways like a KTV machine does (same height, narrower letters); only extreme ones wrap.
 function fitSong(){
  const container=$('lyrics'),lines=[...container.children];
  container.style.setProperty('--fit',1);
  container.classList.add('measuring');
- const ratio=Math.min(1,...lines.map(line=>line.clientWidth/Math.max(1,line.scrollWidth)));
+ const ratios=lines.filter(line=>line.textContent.trim()).map(line=>line.clientWidth/Math.max(1,line.scrollWidth)).sort((a,b)=>a-b);
+ const ratio=Math.min(1,ratios[Math.floor(ratios.length*0.1)]??1);
  container.classList.remove('measuring');
  container.style.setProperty('--fit',Math.max(0.6,Math.floor(ratio*98)/100));
+}
+function condense(line){
+ line.style.removeProperty('scale');line.style.removeProperty('max-width');line.style.whiteSpace='nowrap';
+ const ratio=line.clientWidth/Math.max(1,line.scrollWidth);
+ if(ratio>=1)return;
+ if(ratio>=0.7){line.style.maxWidth='none';line.style.scale=`${Math.floor(ratio*1000)/1000} 1`;}
+ else line.style.removeProperty('white-space');
 }
 addEventListener('resize',()=>{shownPair='';});
 function showLyrics(item){
@@ -242,7 +252,7 @@ const pct=v=>`${Math.round(v*100)}%`,signed=(v,digits=0)=>`${v>0?'+':v<0?'−':'
  speed:v=>['⏱','Speed',pct(v),[0,v-0.5]],
  key:v=>[v>0?'♯':v<0?'♭':'♮','Key',signed(v),[.5,.5+v/12]],
  offset:v=>['⇆','Lyric timing',`${signed(v,1)}s`,[.5,.5+Math.max(-.5,Math.min(.5,v/10))]],
- lyric_scale:v=>['Aa','Lyric size',pct(v),[0,(v-0.6)/1.2]],
+ lyric_scale:v=>['Aa','Lyric size',pct(v),[0,(v-0.6)/1.9]],
  video_mode:v=>['▣','Video',{show:'Shown',blur:'Blurred',hide:'Hidden'}[v]],
  lyric_mode:v=>['≡','Lyrics',{scroll:'Scrolling',two:'Two lines',off:'Hidden'}[v]]};
 let shown=null;
