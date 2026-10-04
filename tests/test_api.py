@@ -45,6 +45,25 @@ class APITests(unittest.TestCase):
                 self.main.update()
             self.assertNotIn('pull', calls)
 
+    def test_lyrics_can_be_searched_and_chosen_by_hand(self):
+        import json
+        folder = Path(self.temp.name) / 'aaaaaaaaaaa'
+        folder.mkdir()
+        (folder / 'meta.json').write_text(json.dumps({'artist': 'Simple Plan', 'title': 'Perfect', 'duration': 280}), encoding='utf-8')
+        record = {'id': 7, 'trackName': 'Perfect', 'artistName': 'Simple Plan', 'duration': 278, 'syncedLyrics': '[00:10.00]Hey dad look at me'}
+        async def search(query, duration):
+            self.assertEqual(query, 'simple plan perfect')
+            return [record]
+        async def fetch(record_id):
+            return record if record_id == 7 else None
+        with patch.object(self.main.lyrics, 'search', search), patch.object(self.main.lyrics, 'record', fetch):
+            options = self.client.get('/api/songs/aaaaaaaaaaa/lyrics', params={'q': ' simple plan perfect '}).json()
+            self.assertEqual((options[0]['id'], options[0]['difference'], options[0]['preview']), (7, -2, ['Hey dad look at me']))
+            self.assertEqual(self.client.post('/api/songs/aaaaaaaaaaa/lyrics', json={'id': 8}).status_code, 404)
+            self.assertEqual(self.client.post('/api/songs/aaaaaaaaaaa/lyrics', json={'id': 7}).status_code, 200)
+        self.assertEqual((folder / 'lyrics.lrc').read_text(encoding='utf-8'), record['syncedLyrics'])
+        self.assertEqual(json.loads((folder / 'meta.json').read_text(encoding='utf-8'))['lyrics_identity'], ['Simple Plan', 'Perfect'])
+
     def test_recent_lists_played_songs_newest_first(self):
         import json
         cache = Path(self.temp.name)

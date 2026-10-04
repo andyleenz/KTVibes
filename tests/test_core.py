@@ -1,6 +1,7 @@
 import asyncio
 import time
 import unittest
+import unittest.mock
 from ktvibes.lyrics import parse_lrc
 from ktvibes.youtube import is_music, parse_title
 from ktvibes.queue import State
@@ -20,6 +21,17 @@ class LyricsTests(unittest.TestCase):
         # "Song - Artist" on the artist's own channel, with a remaster tag
         self.assertEqual(parse_title('Numb (Official Music Video) [4K UPGRADE] – Linkin Park', 'Linkin Park'), {'artist': 'Linkin Park', 'title': 'Numb'})
         self.assertEqual(parse_title('Adele - Hello', 'AdeleVEVO'), {'artist': 'Adele', 'title': 'Hello'})
+        self.assertEqual(parse_title('Simple Plan - Perfect // Lyrics'), {'artist': 'Simple Plan', 'title': 'Perfect'})
+        self.assertEqual(parse_title('Simple Plan - Perfect (Lyrics) 🎵'), {'artist': 'Simple Plan', 'title': 'Perfect'})
+
+class YouTubeErrorTests(unittest.TestCase):
+    def test_bot_check_is_explained(self):
+        from ktvibes import youtube
+        error = Exception("ERROR: [youtube] kXYiU_JCYtU: Sign in to confirm you’re not a bot. Use --cookies-from-browser")
+        self.assertIn('KTVIBES_COOKIES_FROM_BROWSER', youtube.explain(error))
+        self.assertEqual(youtube.explain(Exception('HTTP Error 404')), 'HTTP Error 404')
+        with unittest.mock.patch.dict('os.environ', {'KTVIBES_COOKIES_FROM_BROWSER': 'firefox'}):
+            self.assertEqual(youtube.base_options()['cookiesfrombrowser'], ('firefox',))
 
 class MusicFilterTests(unittest.TestCase):
     def test_keeps_songs_and_drops_other_videos(self):

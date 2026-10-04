@@ -181,6 +181,6 @@ async def run(state, cache: Path):
             item["status"] = "error"
             missing = missing_tools()
             # A missing ffmpeg or Node.js surfaces as an obscure "WinError 2"; say what to fix instead.
-            item["error"] = f"{' and '.join(missing)} not found. Install, open a new terminal, restart KTVibes, then Retry." if missing else str(exc)[-500:]
+            item["error"] = f"{' and '.join(missing)} not found. Install, open a new terminal, restart KTVibes, then Retry." if missing else youtube.explain(exc)
             state.promote()
         await state.broadcast()

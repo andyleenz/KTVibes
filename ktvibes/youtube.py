@@ -19,7 +19,8 @@ def suggest(query: str) -> list[str]:
 
 def parse_title(title: str, channel: str = "") -> dict:
     clean = re.sub(r"\s*[\[(（【][^\])）】]*(?:official|music video|lyrics?|mv|audio|4k|hd|hq|remaster(?:ed)?|官方|歌詞|歌词|뮤직비디오)[^\])）】]*[\])）】]", "", title, flags=re.I).strip()
-    clean = re.sub(r"\s*[-–—|｜]?\s*(?:official\s+)?(?:music\s+video|mv|lyric video)\s*$", "", clean, flags=re.I).strip()
+    clean = re.sub(r"[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F]", "", clean).strip()  # emoji: "(Lyrics) 🎵"
+    clean = re.sub(r"\s*(?:[-–—|｜]|//)?\s*(?:official\s+)?(?:music\s+video|mv|lyric video|lyrics?)\s*$", "", clean, flags=re.I).strip()
     bracketed = re.match(r"(.+?)\s*【([^】]+)】", clean)
     if bracketed:  # "周杰倫 Jay Chou【晴天 Sunny Day】", even with a trailing "華視偶像劇…片尾曲"
         return {"artist": bracketed[1], "title": bracketed[2]}
@@ -47,7 +48,7 @@ def search(query: str, page: int = 0, size: int = 10) -> list[dict]:
     """One page of results; YouTube search has no offset, so later pages fetch the earlier ones too."""
     import yt_dlp
     first, last = page * size + 1, (page + 1) * size
-    with yt_dlp.YoutubeDL({"js_runtimes": {"node": {}}, "extract_flat": True, "quiet": True, "noprogress": True, "skip_download": True,
+    with yt_dlp.YoutubeDL({**base_options(), "extract_flat": True, "quiet": True, "noprogress": True, "skip_download": True,
                            "socket_timeout": 20, "playlist_items": f"{first}-{last}"}) as ydl:
         result = ydl.extract_info(f"ytsearch{last}:{query}", download=False)
     return [{"id": e["id"], "title": e.get("title", "Untitled"), "channel": e.get("channel") or e.get("uploader", ""),
@@ -80,12 +81,25 @@ def download(video_id: str, directory: Path, progress=None) -> dict:
     if not ID.fullmatch(video_id):
         raise ValueError("Invalid YouTube ID")
     directory.mkdir(parents=True, exist_ok=True)
-    info = _extract({"js_runtimes": {"node": {}}, "format": "bestaudio[ext=m4a]/bestaudio", "outtmpl": str(directory / "audio.%(ext)s"),
+    info = _extract({**base_options(), "format": "bestaudio[ext=m4a]/bestaudio", "outtmpl": str(directory / "audio.%(ext)s"),
                      "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
                      "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "m4a"}]}, video_id, progress)
     return {"duration": info.get("duration"), "source_title": info.get("title", "")}
 
 VIDEO_HEIGHT = int(os.environ.get("KTVIBES_VIDEO_HEIGHT", 720))
+BOT_CHECK = re.compile(r"confirm you.re not a bot", re.I)
+BOT_HELP = ("YouTube wants this computer to prove it isn't a bot (it happens after many downloads). "
+            "Wait a while and Retry, or let KTVibes use your browser's YouTube login: see KTVIBES_COOKIES_FROM_BROWSER in the README.")
+
+def explain(error: Exception) -> str:
+    """A yt-dlp error in words a host can act on."""
+    return BOT_HELP if BOT_CHECK.search(str(error)) else str(error)[-500:]
+
+def base_options() -> dict:
+    """yt-dlp options for every request: Node.js for YouTube's player code, and optionally a browser's
+    YouTube cookies (KTVIBES_COOKIES_FROM_BROWSER=chrome), which gets past YouTube's bot check."""
+    browser = os.environ.get("KTVIBES_COOKIES_FROM_BROWSER")
+    return {"js_runtimes": {"node": {}}, **({"cookiesfrombrowser": (browser,)} if browser else {})}
 
 def download_video(video_id: str, directory: Path, progress=None) -> None:
     """Cache browser-compatible H.264 video with no embedded audio; 720p is about half the size of 1080p."""
@@ -94,7 +108,7 @@ def download_video(video_id: str, directory: Path, progress=None) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     source = directory / "video-source.mp4"
     _extract({
-        "js_runtimes": {"node": {}},
+        **base_options(),
         "format": f"bestvideo[ext=mp4][vcodec^=avc1][height<={VIDEO_HEIGHT}]/best[ext=mp4][vcodec^=avc1][height<={min(VIDEO_HEIGHT, 720)}]",
         "outtmpl": str(source), "noplaylist": True, "quiet": True, "noprogress": True, "socket_timeout": 30,
     }, video_id, progress)

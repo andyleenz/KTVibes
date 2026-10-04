@@ -80,7 +80,7 @@ async def search(q: str = Query(min_length=1, max_length=200), page: int = Query
     try:
         results = await asyncio.to_thread(youtube.search, q, page)
     except Exception as exc:
-        raise HTTPException(502, f"YouTube search failed: {exc}") from exc
+        raise HTTPException(502, f"YouTube search failed: {youtube.explain(exc)}") from exc
     # Prepared songs start right away; the remote marks them.
     cached = prepared_songs()
     return [{**result, "cached": result["id"] in cached} for result in results]
@@ -135,23 +135,25 @@ def song_meta(video_id: str) -> tuple[Path, dict]:
         raise HTTPException(409, "This song isn't fully prepared yet")
     return folder, meta
 
-async def lyric_versions(meta: dict) -> list[dict]:
-    try:
-        return await lyrics.candidates(meta["artist"], meta["title"], meta["duration"], (meta.get("source_title") or "",), exhaustive=True)
-    except Exception as exc:
-        raise HTTPException(502, f"Lyrics lookup failed: {exc}") from exc
-
 @app.get("/api/songs/{video_id}/lyrics")
-async def lyric_options(video_id: str):
-    """Every LRCLIB version that fits the song, best first, so the remote can pick a language or edition."""
+async def lyric_options(video_id: str, q: str = Query("", max_length=200)):
+    """Every LRCLIB version that fits the song, best first, so the remote can pick a language or edition.
+    With `q`, a free-text search instead, for songs the automatic lookup missed or got wrong."""
     folder, meta = song_meta(video_id)
     current = (folder / "lyrics.lrc").read_text(encoding="utf-8") if (folder / "lyrics.lrc").is_file() else ""
+    try:
+        found = await (lyrics.search(q.strip(), meta["duration"]) if q.strip() else
+                       lyrics.candidates(meta["artist"], meta["title"], meta["duration"], (meta.get("source_title") or "",), exhaustive=True))
+    except Exception as exc:
+        raise HTTPException(502, f"Lyrics lookup failed: {exc}") from exc
     options = []
-    for c in await lyric_versions(meta):
+    for c in found:
         raw = c.get("syncedLyrics") or ""
         lines = [line["text"] for line in lyrics.parse_lrc(raw) if line.get("text")]
         options.append({"id": c.get("id"), "track": c.get("trackName"), "artist": c.get("artistName"), "album": c.get("albumName"),
-                        "language": lyrics.LANGUAGES[lyrics.script(raw)], "lines": len(lines), "preview": lines[:2], "current": raw == current})
+                        "language": lyrics.LANGUAGES[lyrics.script(raw)], "lines": len(lines), "preview": lines[:2], "current": raw == current,
+                        # seconds longer (+) or shorter than this song: a big gap usually means another version
+                        "difference": round(float(c.get("duration") or 0) - meta["duration"])})
     return options
 
 class LyricChoice(BaseModel):
@@ -161,8 +163,11 @@ class LyricChoice(BaseModel):
 async def choose_lyrics(video_id: str, choice: LyricChoice):
     """Save the chosen version; the song on stage switches to it at once."""
     folder, meta = song_meta(video_id)
-    chosen = next((c for c in await lyric_versions(meta) if c.get("id") == choice.id), None)
-    if not chosen:
+    try:
+        chosen = await lyrics.record(choice.id)
+    except Exception as exc:
+        raise HTTPException(502, f"Lyrics lookup failed: {exc}") from exc
+    if not chosen or not lyrics.STAMP.search(chosen.get("syncedLyrics") or ""):
         raise HTTPException(404, "That lyrics version is no longer available")
     if state.current and state.current["id"] == video_id:
         # The song on stage switches right away: time the new lines, then resend lyrics to the TV.

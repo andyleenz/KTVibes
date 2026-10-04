@@ -338,6 +338,25 @@ def fits(candidate: dict, duration: float) -> bool:
     # Music videos often run a few seconds longer than the album track; alignment re-times the lines.
     return bool(STAMP.search(candidate.get("syncedLyrics") or "")) and abs(float(candidate.get("duration") or 0) - duration) <= 10
 
+def lrclib():
+    import httpx
+    return httpx.AsyncClient(base_url="https://lrclib.net", timeout=20, headers={"User-Agent": "KTVibes/0.1 (home karaoke)"})
+
+async def search(query: str, duration: float) -> list[dict]:
+    """Free-text LRCLIB search for the remote, when the automatic lookup found nothing or the wrong song.
+    Any synced record qualifies; the closest in length to the song comes first."""
+    async with lrclib() as client:
+        response = await client.get("/api/search", params={"q": query})
+        response.raise_for_status()
+    synced = [c for c in response.json() if STAMP.search(c.get("syncedLyrics") or "")]
+    return sorted(synced, key=lambda c: abs(float(c.get("duration") or 0) - duration))[:20]
+
+async def record(record_id: int) -> dict | None:
+    """One LRCLIB record by id, as listed by candidates() or search()."""
+    async with lrclib() as client:
+        response = await client.get(f"/api/get/{record_id}")
+    return response.json() if response.status_code == 200 else None
+
 async def candidates(artist: str, title: str, duration: float, hints: tuple[str, ...] = (), exhaustive: bool = False) -> list[dict]:
     """LRCLIB records that fit the song. Stops at the first good one unless exhaustive (for the remote's picker)."""
     import httpx
@@ -346,7 +365,7 @@ async def candidates(artist: str, title: str, duration: float, hints: tuple[str,
     found = []
     # Without a language hint, a record with CJK lyrics still suggests romanized ones are a poor second.
     good = lambda c: fits(c, duration) and (native(c, want) if want else (native(c) or not any(map(native, found))))
-    async with httpx.AsyncClient(base_url="https://lrclib.net", timeout=20, headers={"User-Agent": "KTVibes/0.1 (home karaoke)"}) as client:
+    async with lrclib() as client:
         response = await client.get("/api/get", params={"artist_name": artist, "track_name": title, "duration": round(duration)})
         if response.status_code == 200:
             found.append(response.json())

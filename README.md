@@ -26,7 +26,7 @@
 - **Key and speed.** Shift the key ±6 semitones without changing tempo, or slow a song down without changing pitch.
 - **Party-friendly display.** Blur or hide the music video, show lyrics as two karaoke lines (the default) or a scrolling list, or hide them.
 - **Phone remote.** Scan the QR code on the TV to join. Everyone shares one queue: reorder, undo removals, and re-add recent songs. The TV shows a popup card for every change.
-- **Lyrics language picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show.
+- **Lyrics picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show. If none were found, or the wrong song came up, search LRCLIB by hand from the remote.
 
 <p align="center">
   <img src="docs/tv-lyrics.jpg" width="49%" alt="TV: Jay Chou with pinyin over each character">
@@ -90,6 +90,7 @@ This pulls the latest version; the next `ktvibes` installs any new dependencies.
 | `KTVIBES_PORT` | `8765` | Server port |
 | `KTVIBES_REMOTE_URL` | detected | Address in the QR code. Set it if detection picks the wrong network, e.g. with a VPN: `http://<pc-ip>:8765/` |
 | `KTVIBES_CACHE` | `./cache` | Where songs are stored, about 30 MB each |
+| `KTVIBES_COOKIES_FROM_BROWSER` | unset | If songs fail with "Sign in to confirm you're not a bot", set this to a browser you're signed in to YouTube with (`chrome`, `firefox`, `edge`, `safari`…), and KTVibes uses its YouTube cookies |
 | `KTVIBES_VIDEO_HEIGHT` | `720` | Highest music video resolution to download, e.g. `1080` (about twice the size) |
 
 Run a single server process: the queue and the GPU models live in memory.

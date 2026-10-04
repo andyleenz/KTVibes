@@ -219,3 +219,4 @@ body.intro .title-card :is(h1,p),body.intro .title-card::after{opacity:1;transfo
 .panel-pinned .pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}.mini-panel .panel-pinned .slider-label{margin-top:8px}
 .mini-panel .panel-section{margin:24px 0 0;text-transform:uppercase}
 .mini-panel .panel-section+*{margin-top:8px}.mini-panel .panel-section+.slider-label{margin-top:8px}
+.lyric-search{display:flex;gap:8px;margin-bottom:12px}.lyric-search input{flex:1;padding:10px 14px}.lyric-search button{height:auto}

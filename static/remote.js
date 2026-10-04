@@ -105,26 +105,38 @@ async function pickLyrics(song){
  const shut=()=>{sheet.classList.add('out');sheet.addEventListener('animationend',()=>sheet.remove(),{once:true});};
  close.onclick=shut;sheet.onclick=e=>{if(e.target===sheet)shut();};
  const head=el('div',undefined,'lyric-sheet-head');head.append(el('strong',`Lyrics · ${song.title}`),close);
- list.append(el('p','Looking up every version…','muted'));panel.append(head,list);sheet.append(panel);document.body.append(sheet);
- try{
-  const options=await api(`/api/songs/${song.id}/lyrics`);
-  list.replaceChildren(...(options.length?[]:[el('p','No synced lyrics found for this song.','muted')]));
-  // One row per language (its best version) first; other editions sit behind "Show all".
-  const seen=new Set(),extra=[];
-  for(const o of options){
-   const first=!seen.has(o.language);seen.add(o.language);
-   const b=el('button',undefined,'lyric-option'+(o.current?' current':'')),top=el('div');
-   top.append(el('b',o.language),el('span',[o.track,o.artist,o.album].filter(Boolean).join(' · ')),...(o.current?[el('em','In use')]:[]));
-   b.append(top,...o.preview.map(line=>el('small',line)),el('small',`${o.lines} lines`,'count'));
-   b.onclick=async()=>{
-    for(const other of list.children)other.disabled=true;b.classList.add('busy');
-    try{await api(`/api/songs/${song.id}/lyrics`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:o.id})});message(`Lyrics for ${song.title} set to ${o.language}.`);shut();}
-    catch(error){message(error.message);for(const other of list.children)other.disabled=false;b.classList.remove('busy');}
-   };
-   if(first||o.current)list.append(b);else extra.push(b);
-  }
-  if(extra.length){const all=el('button',`Show all ${options.length} versions`,'lyric-all');all.onclick=()=>{all.replaceWith(...extra);};list.append(all);}
- }catch(error){list.replaceChildren(el('p',error.message,'error'));}
+ // Search LRCLIB by hand when the automatic lookup found nothing or the wrong song.
+ const form=el('form',undefined,'lyric-search'),input=el('input'),go=el('button','Search','primary');
+ input.type='search';input.value=`${song.artist} ${song.title}`;input.placeholder='Artist and song title';input.setAttribute('aria-label','Search lyrics');go.type='submit';
+ form.append(input,go);form.onsubmit=e=>{e.preventDefault();input.blur();show(input.value.trim());};
+ panel.append(head,form,list);sheet.append(panel);document.body.append(sheet);
+ let latest=0;  // a slow earlier lookup must not replace newer results
+ async function show(query){
+  const mine=++latest;
+  list.replaceChildren(el('p',query?'Searching…':'Looking up every version…','muted'));
+  try{
+   const options=await api(`/api/songs/${song.id}/lyrics${query?`?q=${encodeURIComponent(query)}`:''}`);
+   if(mine!==latest)return;
+   list.replaceChildren(...(options.length?[]:[el('p',query?'Nothing found. Try fewer words, or the title in its original language.':'No synced lyrics found automatically. Try a search above.','muted')]));
+   // One row per language (its best version) first; other editions sit behind "Show all". Searches list everything.
+   const seen=new Set(),extra=[];
+   for(const o of options){
+    const first=!seen.has(o.language);seen.add(o.language);
+    const b=el('button',undefined,'lyric-option'+(o.current?' current':'')),top=el('div');
+    const gap=Math.abs(o.difference)>10?` · ${Math.abs(o.difference)}s ${o.difference>0?'longer':'shorter'} than this video`:'';
+    top.append(el('b',o.language),el('span',[o.track,o.artist,o.album].filter(Boolean).join(' · ')),...(o.current?[el('em','In use')]:[]));
+    b.append(top,...o.preview.map(line=>el('small',line)),el('small',`${o.lines} lines${gap}`,'count'));
+    b.onclick=async()=>{
+     for(const other of list.children)other.disabled=true;b.classList.add('busy');
+     try{await api(`/api/songs/${song.id}/lyrics`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:o.id})});message(`Lyrics for ${song.title} set to ${o.track||o.language}.`);shut();}
+     catch(error){message(error.message);for(const other of list.children)other.disabled=false;b.classList.remove('busy');}
+    };
+    if(query||first||o.current)list.append(b);else extra.push(b);
+   }
+   if(extra.length){const all=el('button',`Show all ${options.length} versions`,'lyric-all');all.onclick=()=>{all.replaceWith(...extra);};list.append(all);}
+  }catch(error){if(mine===latest)list.replaceChildren(el('p',error.message,'error'));}
+ }
+ show('');
 }
 // A ⋯ button on each recent song opens its advanced actions.
 let openMenu=null;
@@ -133,7 +145,7 @@ document.addEventListener('pointerdown',e=>{if(openMenu&&!openMenu.contains(e.ta
 function songMenu(wrap,song,del){
  if(openMenu?.parentElement===wrap)return closeMenu();
  closeMenu();closeSwipe();
- const menu=el('div',undefined,'song-menu'),refetch=el('button','Lyrics language…'),remove=el('button','Delete download','danger');
+ const menu=el('div',undefined,'song-menu'),refetch=el('button','Lyrics…'),remove=el('button','Delete download','danger');
  menu.setAttribute('role','menu');for(const item of [refetch,remove])item.setAttribute('role','menuitem');
  refetch.onclick=()=>{closeMenu();pickLyrics(song);};
  remove.onclick=()=>{closeMenu();del.click();};
