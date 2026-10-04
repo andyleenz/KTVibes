@@ -131,7 +131,9 @@ class APITests(unittest.TestCase):
 
     def test_websocket_controls(self):
         with self.client.websocket_connect('/ws?role=tv') as tv:
-            self.assertTrue(tv.receive_json()['player_connected'])
+            first = tv.receive_json()
+            self.assertTrue(first['player_connected'])
+            self.assertRegex(first['build'], r'^[0-9a-f]{12}$')  # pages reload when this changes
             tv.send_json({'action': 'vocal', 'value': .6})
             self.assertEqual(tv.receive_json()['vocal'], .6)
             tv.send_json({'action': 'offset', 'delta': .5})

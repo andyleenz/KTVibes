@@ -24,6 +24,7 @@ state = State()
 @asynccontextmanager
 async def lifespan(app):
     CACHE.mkdir(parents=True, exist_ok=True)
+    state.build = build()
     state.restore(CACHE / "queue.json", seed=lambda: {id: meta["prepared"] for id, meta in prepared_songs().items()})
     task = asyncio.create_task(worker.run(state, CACHE))
     try:
@@ -33,14 +34,25 @@ async def lifespan(app):
         with suppress(asyncio.CancelledError):
             await task
 
+def build() -> str:
+    """Fingerprint of the files the pages load. A TV left open across an update reloads itself
+    instead of running old code against the new server."""
+    import hashlib
+    digest = hashlib.sha256()
+    for path in sorted((ROOT / "static").rglob("*")):
+        if path.is_file():
+            digest.update(path.name.encode() + path.read_bytes())
+    return digest.hexdigest()[:12]
+
 app = FastAPI(title="KTVibes", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 @app.middleware("http")
 async def revalidate_static(request, call_next):
     # Pages load plain JS/CSS without a build step; revalidate so edits show up on reload.
+    # Media too: a song's tracks keep their URL when converted to a new format or prepared again.
     response = await call_next(request)
-    if request.url.path.startswith("/static/") or request.url.path in ("/", "/tv"):
+    if request.url.path.startswith(("/static/", "/media/")) or request.url.path in ("/", "/tv"):
         response.headers["Cache-Control"] = "no-cache"
     return response
 

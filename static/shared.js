@@ -1,11 +1,14 @@
 export const $ = id => document.getElementById(id);
 export function el(tag, text, className) { const node=document.createElement(tag); if(text!==undefined)node.textContent=text; if(className)node.className=className; return node; }
+// A page left open across a KTVibes update reloads once to pick up the new files.
+let build;
+function reloadIfUpdated(next){if(!next)return false;if(build===undefined)build=next;if(next===build)return false;location.reload();return true;}
 export function connect(role, onState, onError, onOpen) {
   let socket;
   function open(){
     socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws?role=${role}`);
     socket.onopen=()=>{$('connection').textContent='Connected';$('connection').classList.add('online');onOpen?.();};
-    socket.onmessage=e=>{const data=JSON.parse(e.data);if(data.type==='state')onState(data);else onError(data.message);};
+    socket.onmessage=e=>{const data=JSON.parse(e.data);if(data.type==='state'){if(reloadIfUpdated(data.build))return;onState(data);}else onError(data.message);};
     socket.onclose=e=>{$('connection').textContent='Disconnected';$('connection').classList.remove('online');if(e.code!==4001)setTimeout(open,1500);};
   }
   open();

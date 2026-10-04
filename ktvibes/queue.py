@@ -48,6 +48,7 @@ class State:
         self.audio = False  # the TV has enabled sound, so playback can actually start
         self.undo = None  # the last removal, for the remote's Undo
         self.saved_at = 0.0
+        self.build = ""  # fingerprint of the web app files; open pages reload when it changes
         self.lyrics_sent = {}  # TV socket -> key of the song whose lyrics it already has
 
     def guides(self):
@@ -65,7 +66,7 @@ class State:
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "player_audio": self.player is not None and self.audio,
                 "undo": self.undo and {"title": self.undo["item"]["title"], "until": self.undo["until"]},
-                "revision": self.revision}
+                "revision": self.revision, "build": self.build}
 
     def restore(self, path: Path, seed=lambda: {}):
         """Reload the saved queue; songs are prepared again (fast from cache) and the current one resumes."""
