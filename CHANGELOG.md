@@ -4,6 +4,19 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-05
+
+### Fixed
+- Lyrics stay in sync with music videos that cut or lengthen an instrumental break. Each section between breaks is now matched to the vocals on its own, so lines after the edit no longer run early (Coldplay's Fix You was off by about 7 seconds after the first chorus). The whole-song shift also no longer mistakes a line-early fit for the right one on evenly paced songs. Cached songs re-time once on their next play.
+- In two-line mode, resizing the window no longer replays the lyrics' slide-in.
+- Romanization over Hangul and other guides has a little more room above the lyric.
+- The up-next card no longer runs under the QR code in small windows, and gives a long title more room.
+
+### Changed
+- Lyrics default to 150%. Scroll mode at that size shows the line before and after the one being sung.
+- With a music video, two-line lyrics sit lower, nearer the bottom of the screen.
+- The remote's settings sheet is called **Settings**, and the bottom bar has a Settings button. The bar's queue button is an icon with the count, so song titles get more room.
+
 ## [0.4.0] - 2026-10-05
 
 ### Added
@@ -65,7 +78,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/andyleenz/KTVibes/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/andyleenz/KTVibes/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/andyleenz/KTVibes/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/andyleenz/KTVibes/compare/v0.2.0...v0.2.1

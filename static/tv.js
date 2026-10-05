@@ -55,7 +55,7 @@ function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fro
 function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
 api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -92,7 +92,7 @@ function render(next){
  if(!state.playing){music.pause();voice.pause();video.pause();}
 }
 // Lyrics for the song on stage; a remote can swap in another version mid-song (lyrics_rev).
-let lyricsRev=0,songLyrics=[],splitDone=false,slots=[],counting=null;  // counting: the line showing count-in dots
+let lyricsRev=0,songLyrics=[],splitDone=false,slots=[],counting=null,still=false;  // counting: the line showing count-in dots; still: place the next lines without animating (after a resize)
 const showVideo=()=>!!state?.current?.video&&state.video_mode!=='hide';
 // Place the lyrics from scratch (new song or lyrics, layout, size, guide or window change).
 function relayout(){shownPair='';lyricsPositioned=false;splitDone=false;if(lyrics!==songLyrics){activeLine=-1;placeLyrics(songLyrics);}}
@@ -123,9 +123,10 @@ function twoLines(index,time){
  const pair=shown.join();if(pair===shownPair)return;shownPair=pair;
  [...$('lyrics').children].forEach((line,i)=>{
   const on=shown.includes(i);
-  if(on!==line.classList.contains('shown')){line.classList.toggle('shown',on);swapLine(line,on);}
+  if(on!==line.classList.contains('shown')){line.classList.toggle('shown',on);if(!still)swapLine(line,on);}
   if(on){line.dataset.slot=slots[i];condense(line);}
  });
+ still=false;
 }
 // A line rises into its slot as the old one lifts away; the new one waits a beat so the slot clears first.
 // The leaving line stays drawn (.leaving) until it has faded, sharing the grid cell with its replacement.
@@ -161,7 +162,7 @@ function condense(line){
  line.dataset.fit=ratio>=1?'':ratio>=0.7?'squeeze':'wrap';
  line.style.setProperty('--squeeze',Math.floor(Math.min(1,ratio)*1000)/1000);
 }
-let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(relayout,150);});
+let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{still=document.body.dataset.lyrics==='two';relayout();},150);});
 // A line too long for the screen at the song's size is split at a word boundary, like a KTV machine:
 // each part takes its own turn in the slots, with its own word timing. Prefers a break after
 // punctuation, then the break that makes the parts most even. Only lines with word timing split.

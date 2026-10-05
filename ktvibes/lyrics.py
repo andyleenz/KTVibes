@@ -185,38 +185,85 @@ def envelope(samples, rate: int, hop: float = 0.05):
     frames = mono[: len(mono) // size * size].reshape(-1, size)
     return np.sqrt((frames ** 2).mean(axis=1))
 
+def onset_scorer(energy, hop: float = 0.05):
+    """score(starts, shift, fit): how much singing follows the shifted stamps compared with just before
+    them, averaged over the lines whose windows fit in the audio; -1 when fewer than `fit` of them do."""
+    import numpy as np
+    energy = np.asarray(energy)
+    active = (energy > np.percentile(energy, 95) * 0.15).astype(float)
+    total = np.concatenate([[0.0], np.cumsum(active)])
+    after, before = int(1 / hop), int(0.5 / hop)
+    def score(starts, shift, fit):
+        frames = np.round((starts + shift) / hop).astype(int)
+        frames = frames[(frames >= before) & (frames + after <= len(active))]
+        if not len(frames) or len(frames) < fit * len(starts):
+            return -1.0
+        return float(np.mean((total[frames + after] - total[frames]) / after - (total[frames] - total[frames - before]) / before))
+    return score
+
+def nearest_peak(shifts, scores) -> int:
+    """Index of the best shift, preferring the smallest of the peaks nearly as good. Lines sung at a steady
+    pace also fit when shifted a whole line early or late (Fix You: -2 s scored 0.50, -8.95 s 0.63)."""
+    best = int(scores.argmax())
+    peaks = [i for i in range(1, len(scores) - 1) if scores[i] >= scores[i - 1] and scores[i] >= scores[i + 1]
+             and scores[i] >= scores[best] * 2 / 3]
+    return min(peaks + [best], key=lambda i: (abs(shifts[i]), -scores[i]))
+
 def find_shift(lines: list[dict], energy, hop: float = 0.05, limit: float = 30.0) -> float:
     """Seconds to add to every stamp so the lines start where the vocals do.
 
     LRCLIB records follow the album track, and a music video often adds an intro;
     alignment only searches near each line, so it cannot recover a whole-song shift.
-    Each candidate shift is scored by how much singing follows the shifted stamps
-    compared with just before them.
     """
     import numpy as np
-    energy = np.asarray(energy)
     starts = np.array([line["t"] for line in lines if line["text"]])
     if len(starts) < 10 or not len(energy):
         return 0.0
-    active = (energy > np.percentile(energy, 95) * 0.15).astype(float)
-    total = np.concatenate([[0.0], np.cumsum(active)])
-    after, before = int(1 / hop), int(0.5 / hop)
-    def score(shift):
-        frames = np.round((starts + shift) / hop).astype(int)
-        # Only lines whose windows fit in the audio count; a shift that pushes many out is not a fit.
-        frames = frames[(frames >= before) & (frames + after <= len(active))]
-        if len(frames) < 0.75 * len(starts):
-            return -1.0
-        return float(np.mean((total[frames + after] - total[frames]) / after - (total[frames] - total[frames - before]) / before))
+    score = onset_scorer(energy, hop)
     shifts = np.arange(-limit, limit + hop / 2, hop)
-    scores = np.array([score(shift) for shift in shifts])
-    best = int(scores.argmax())
+    # A shift that pushes many lines out of the audio is not a fit.
+    scores = np.array([score(starts, shift, 0.75) for shift in shifts])
+    best = nearest_peak(shifts, scores)
     # Measured on cached songs: correct stamps score 0.26-0.55 as they are, while a
     # music video 3.3 s late scored 0.01 as is and 0.33 shifted; noise stays below 0.25.
     # Offsets under a second are left to per-line alignment.
-    if scores[best] < 0.25 or score(0.0) > scores[best] / 2 or abs(shifts[best]) < 1:
+    if scores[best] < 0.25 or score(starts, 0.0, 0.75) > scores[best] / 2 or abs(shifts[best]) < 1:
         return 0.0
     return round(float(shifts[best]), 2)
+
+def shift_sections(lines: list[dict], energy, hop: float = 0.05, limit: float = 10.0) -> list[float]:
+    """Move whole sections (lines between instrumental gaps) that the vocals sing earlier or later.
+
+    A music video can cut or lengthen a break, so everything after it is off by the same amount
+    (Fix You's video drops ~7 s after the first chorus). Each section starts from the shift of the one
+    before, so only the section after the edit moves. Returns the extra shift given to each section."""
+    import numpy as np
+    if not len(energy):
+        return []
+    score = onset_scorer(energy, hop)
+    # A gap (empty line) moves with the section it ends.
+    sections = []
+    for line in lines:
+        if line["text"] and (not sections or not sections[-1][-1]["text"]):
+            sections.append([])
+        if sections:
+            sections[-1].append(line)
+    moved, carried, previous = [], 0.0, -np.inf
+    for section in sections:
+        sung = [line for line in section if line["text"]]
+        starts = np.array([line["t"] for line in sung]) + carried
+        # A section can't move back over the start of the previous section's last line.
+        shifts = np.arange(max(-limit, previous - starts[0] + 1), limit + hop / 2, hop)
+        shifts = shifts if len(shifts) else np.zeros(1)
+        scores = np.array([score(starts, shift, 1) for shift in shifts])
+        best = nearest_peak(shifts, scores)
+        # Fix You's cut section scored 0.46 in place and 0.76 moved; sections already in place score within 0.05.
+        if scores[best] >= 0.5 and score(starts, 0.0, 1) <= scores[best] * 2 / 3 and abs(shifts[best]) >= 1:
+            carried += round(float(shifts[best]), 2)
+        moved.append(carried)
+        shift_lines(section, carried)
+        previous = sung[-1]["t"]
+    return moved
 
 def shift_lines(lines: list[dict], shift: float) -> list[dict]:
     for line in lines:

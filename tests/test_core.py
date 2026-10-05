@@ -459,6 +459,37 @@ class LyricsMatchTests(unittest.TestCase):
         shift_lines(lines, 3.3)
         self.assertEqual((lines[0]['t'], lines[0]['units'][0][1:]), (7.3, [7.3, 7.8]))
 
+    def test_sections_after_a_cut_break_move_again(self):
+        import numpy as np
+        from ktvibes.lyrics import find_shift, shift_lines, shift_sections
+        # Fix You: its singing (start frame, length) and LRC stamps. The vocals start ~2 s before the stamps,
+        # but with lines ~7 s apart, shifting every stamp back a whole line also lands on singing, and scored higher.
+        runs = [(227, 6), (234, 21), (257, 8), (276, 11), (289, 35), (368, 7), (377, 5), (385, 4), (390, 20), (415, 5),
+                (422, 4), (428, 41), (508, 9), (519, 17), (538, 13), (556, 4), (562, 47), (632, 10), (644, 84), (791, 4),
+                (797, 14), (812, 41), (856, 42), (931, 30), (963, 16), (980, 11), (998, 29), (1071, 18), (1090, 29),
+                (1122, 12), (1135, 39), (1199, 15), (1217, 101), (1401, 33), (1437, 50), (1489, 31), (1544, 32),
+                (1577, 51), (1629, 8), (1640, 31), (1678, 4), (1683, 31), (1715, 49), (1776, 17), (1921, 19), (1948, 12),
+                (1961, 4), (1966, 51), (2061, 7), (2069, 89), (2198, 6), (2205, 99), (2324, 15), (2340, 100), (2527, 15),
+                (2543, 4), (2548, 14), (2564, 50), (2615, 34), (2669, 85), (2756, 7), (2766, 32), (2810, 86), (2904, 24),
+                (4041, 33), (4099, 52), (4162, 38), (4201, 74), (4276, 5), (4315, 33), (4372, 144), (4588, 36),
+                (4646, 23), (4671, 32), (4706, 114), (4863, 36), (4900, 11), (4919, 146), (5137, 34), (5172, 84),
+                (5274, 121), (5406, 5), (5412, 375), (5854, 15)]
+        energy = np.zeros(5876)
+        for start, length in runs:
+            energy[start:start + length] = 1
+        stamps = [13.18, 20.29, 27.41, 33.32, 41.3, 48.53, 55.25, 61.66, 71.92, 79.02, 85.95, 105.02, 111.66, 118.55,
+                  124.89, 135.35, 142.18, 149.3, 210.85, 217.04, 224.64, 238.28, 244.04, 251.98, 265.69, 272.31, 279.18]
+        lines = [{'t': t, 'text': 'la'} for t in stamps]
+        self.assertAlmostEqual(find_shift(lines, energy), -2, delta=.3)
+        # The video also cuts ~7 s from the break after the first chorus, so later sections move again.
+        gaps = [{'t': t, 'text': ''} for t in (39.56, 68.44, 92.14, 131.48, 155.64, 262.73, 285.32)]
+        song = sorted(lines + gaps, key=lambda line: line['t'])
+        shift_lines(song, -1.95)
+        moved = shift_sections(song, energy)
+        self.assertEqual(moved[:3], [0, 0, 0])  # sections already in place stay
+        for later in moved[3:]:
+            self.assertAlmostEqual(later, -7, delta=.5)
+
     def test_line_switches_after_last_word_and_before_first(self):
         from ktvibes.lyrics import line_starts
         lines = [{'t': 27.08, 'text': 'Go ahead and bark after dark', 'units': [['Go ', 26.8, 26.9], ['dark', 29.23, 29.33]]},

@@ -37,7 +37,7 @@ class State:
         self.vocal = 0.1
         self.music = 1.0  # instrumental (backing track) volume
         self.guide = "latin"  # off | latin | hangul, shown above the lyrics
-        self.lyric_scale = 1.0
+        self.lyric_scale = 1.5
         self.video_mode = "show"  # show | blur | hide: blur suits lyric videos, whose own lyrics clash
         self.lyric_mode = "two"  # two (classic two-line KTV) | scroll | off
         self.speed = 1.0  # playback tempo, 0.5-1.5; pitch is kept

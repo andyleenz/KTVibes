@@ -146,7 +146,7 @@ $('earlier').onclick=()=>send({action:'offset',delta:-0.5});$('later').onclick=(
 $('lyric-version').onclick=()=>state?.current&&pickLyrics(state.current);
 function openSheet(){document.body.classList.add('sheet-open');$('sheet').inert=false;haptic(8);requestAnimationFrame(()=>SEGMENTED.forEach(placePill));}
 function closeSheet(){document.body.classList.remove('sheet-open');$('sheet').inert=true;}
-$('open-controls').onclick=$('dock-now').onclick=openSheet;
+$('open-controls').onclick=$('dock-now').onclick=$('dock-settings').onclick=openSheet;
 $('scrim').onclick=$('sheet-handle').onclick=closeSheet;
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('.lyric-sheet'))closeSheet();});
 // Drag the sheet down by its top to dismiss it.

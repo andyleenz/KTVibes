@@ -154,14 +154,14 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px max(16px,calc(50% - 264px)) calc(12px + env(safe-area-inset-bottom));background:#1b1e1df0;backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border-top:1px solid var(--line);transition:transform .5s var(--spring-soft)}
 .dock.away{transform:translateY(calc(100% + 8px))}
 .dock .bar{position:absolute;top:-3px;left:0;right:0;height:3px;border-radius:0;background:transparent;cursor:default}
-.dock-row{display:flex;align-items:center;gap:10px}
+.dock-row{display:flex;align-items:center;gap:10px}.dock .ghost.icon,.dock .qchip{border-color:transparent;background:none}.dock .ghost.icon{flex:none;width:40px}.dock .qchip{padding:0 6px;margin-left:-6px}
 .dock-now{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left}
 .dock .art{width:44px;height:44px;border-radius:12px}
 .dock .info{min-width:0}.dock .info strong,.dock .info small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dock .info strong{font:700 15px 'Space Grotesk','Noto Sans CJK SC',sans-serif}.dock .info small{font-size:12px;color:var(--muted);margin-top:2px}
 .dock .play{width:48px;height:48px;border-radius:24px}.dock .play.playing{border-radius:14px}.dock .play svg{width:22px;height:22px}
 .qchip{display:inline-flex;align-items:center;gap:6px;height:44px;flex:none;padding:0 12px;border:1px solid var(--line);border-radius:22px;font-size:13px;font-weight:700}
-.qchip b{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ffffff1a;font-size:12px}
+.qchip svg{width:18px;height:18px}.qchip b{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ffffff1a;font-size:12px}
 
 /* Controls sheet */
 .scrim{position:fixed;inset:0;z-index:30;background:#000a;opacity:0;pointer-events:none;transition:opacity .3s}

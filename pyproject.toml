@@ -1,6 +1,6 @@
 [project]
 name = "ktvibes"
-version = "0.4.0"
+version = "0.5.0"
 description = "At-home karaoke with a phone remote"
 requires-python = ">=3.12,<3.13"
 dependencies = [

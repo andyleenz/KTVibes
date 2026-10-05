@@ -8,7 +8,7 @@ import soundfile as sf
 from . import align, guides, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
-TIMING_VERSION = 7  # bump when alignment or guide output changes, so cached timing is rebuilt
+TIMING_VERSION = 8  # bump when alignment or guide output changes, so cached timing is rebuilt
 LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
 STARTED = time.time()  # energy-only timing (aligner failed) cached before this run is retried once
 
@@ -64,6 +64,8 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
     if shift := lyrics.find_shift(lines, energy):
         log.info("Lyrics for %s shifted %+.2fs to match the vocals", folder.name, shift)
         lyrics.shift_lines(lines, shift)
+    if any(moved := lyrics.shift_sections(lines, energy)):
+        log.info("Lyric sections for %s moved %s to match the vocals", folder.name, moved)
     aligned = True
     try:
         # Forced alignment on the vocals; lines it cannot place keep the energy estimate.
