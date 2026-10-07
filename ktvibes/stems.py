@@ -60,3 +60,25 @@ def migrate(folder: Path, gain: float | None) -> float | None:
                 p.unlink()
             return new_gain
     return None
+
+SILENCE_DB = -45  # quieter than this, in 50 ms windows, counts as the dead air after a track's music
+WINDOW = 0.05
+
+def music_end(stem: Path) -> float:
+    """Seconds into the stem where its music stops: the start of any silence that runs to the end."""
+    data, rate = sf.read(stem, dtype="float32", always_2d=True)
+    mono = data.mean(axis=1)
+    size = max(1, int(rate * WINDOW))
+    count = len(mono) // size
+    if not count:
+        return len(mono) / rate
+    windows = mono[:count * size].reshape(count, size)
+    loud = np.flatnonzero(np.sqrt((windows ** 2).mean(axis=1)) > 10 ** (SILENCE_DB / 20))
+    return len(mono) / rate if not len(loud) or loud[-1] == count - 1 else (loud[-1] + 1) * WINDOW
+
+def song_end(folder: Path) -> float | None:
+    """Where the song stops: the later of its stems' music ends, so a last line sung alone is kept. None if a stem can't be read."""
+    try:
+        return max(music_end(stem) for name in NAMES if (stem := path(folder, name)))
+    except Exception:
+        return None

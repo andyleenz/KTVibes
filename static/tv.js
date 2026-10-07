@@ -1,4 +1,4 @@
-import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0,shownPair='',fitKey='';
@@ -46,35 +46,37 @@ function setAmbient(on){
  if(!on){ambient.pause();ambient.hidden=true;ambient.removeAttribute('src');ambient.load();return;}
  // Refetch each time the stage empties, so songs downloaded since join the rotation.
  api('/api/ambient').then(ids=>{ambientIds=ids;nextAmbient();}).catch(()=>{});
+ loadSongbook();
 }
 ambient.onended=nextAmbient;
 ambient.onerror=()=>{if(!ambientOn)return;ambientIds=ambientIds.filter(id=>id!==ambient.dataset.id);nextAmbient();};
-const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',value:enabled});},event=>{if(event.type==='react')cheer(event.value);});
+const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',value:enabled});if(currentKey&&finishedKey===currentKey)send({action:'ended',key:currentKey});},event=>{if(event.type==='react')cheer(event.value);else if(event.type==='dial')dial(event.digits);else if(event.type==='reserved')reserved(event.number);});
 function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
 function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fromEntries(SETTING_KEYS.map(k=>[k,s[k]]))));}catch{}}
 function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
-api('/api/config').then(c=>$('remote-url').textContent=c.remote_url).catch(e=>error(e.message));
+api('/api/config').then(c=>$('remote-url').textContent=$('sticker-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';for(const b of document.querySelectorAll('[data-theme-pick]'))b.setAttribute('aria-pressed',b.dataset.themePick===document.body.dataset.theme);showClassicBar(state);showSpecs(state);showBoot();roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
  if(!queued.length)$('on-deck').append(el('li','Nothing queued','more'));
  // The two songs after the next one peek out from under its card between songs.
  [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),`${item.title} · ${item.artist}`);peek.replaceChildren(line);}});
- showPrep(queued);setAmbient(!state.current);
+ showPrep(queued);showBoard(state,queued);setAmbient(!state.current);
  $('now-card').hidden=!state.current;
  // The idle screen already shows a large QR code.
- $('corner-join').hidden=!state.current;
+ $('corner-join').hidden=$('qr-mini').hidden=!state.current;
  $('tv-bottom').hidden=!state.current;
  if((state.current?.key||null)!==currentKey){
+  endScore();  // skipped: the score stays through the breather
   generation++;music.pause();voice.pause();video.pause();starting=false;buffering=false;videoStarting=false;currentKey=state.current?.key||null;activeLine=-1;relayout();lastSeek=state.seek_id;$('lyrics').replaceChildren();$('lyrics').scrollTo({top:0,behavior:'instant'});error('');
   if(state.current){
    const item=state.current;
    video.hidden=!item.video;$('video-shade').hidden=!item.video;
    if(item.video){video.src=`/media/${item.id}/video.mp4`;video.load();}else{video.removeAttribute('src');video.load();}
    stemGain=item.gain||1;applyGain();seekTo=state.position||0;music.src=`/media/${item.id}/no_vocals`;voice.src=`/media/${item.id}/vocals`;music.load();voice.load();
-   $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-art').src=thumbnail(item.id,'hqdefault');$('next-artist').textContent=$('card-artist').textContent=item.artist;
+   $('song-title').textContent=item.title;$('song-artist').textContent=item.artist;$('next-title').textContent=$('card-title').textContent=item.title;$('next-art').src=thumbnail(item.id,'hqdefault');$('next-artist').textContent=$('card-artist').textContent=item.artist;$('card-number').textContent=item.number??'-----';$('card-credit').textContent=`원곡 ${item.artist}`;$('spec-length').textContent=clock(item.duration);
    showLyrics(item);$('duration').textContent=clock(item.duration);
   }else{lyrics=[];firstLine=-1;video.pause();video.removeAttribute('src');video.load();video.hidden=true;$('video-shade').hidden=true;music.removeAttribute('src');voice.removeAttribute('src');music.load();voice.load();$('elapsed').textContent='0:00';$('duration').textContent='0:00';$('progress').parentElement.style.setProperty('--p',0);}
  }
@@ -200,15 +202,68 @@ function splitLong(){
 function showLyrics(item){
  songLyrics=item.lyrics||[];lyricsRev=item.lyrics_rev||0;placeLyrics(songLyrics);
 }
+// Classic theme: the noraebang top strip and the room's clock, which counts down between broadcasts.
+const classic=()=>document.body.dataset.theme==='classic';
+function showClassicBar(s){$('cb-number').textContent=s.current?.number??'';$('cb-title').textContent=s.current?`${s.current.title} - ${s.current.artist}`:s.time_up?'이용해 주셔서 감사합니다':'노래를 선택해 주세요 · Pick a song';$('cb-title').classList.toggle('idle',!s.current);$('cb-reserved').textContent=String(s.upcoming.length).padStart(2,'0');}
+const SPEC_GUIDE={off:'끔',latin:'로마자 Aa',jyutping:'粵拼',hangul:'한글 가'};
+function showSpecs(s){$('spec-key').textContent=!s.key?'원키':`${s.key>0?'♯':'♭'}${Math.abs(s.key)}`;$('spec-tempo').textContent=`${Math.round((s.speed??1)*100)}%`;$('spec-guide').textContent=SPEC_GUIDE[s.guide]??'—';}
+// Between songs Classic shows the reservation table: the next song (already on stage) first, then the queue.
+const lcdSpan=(text,ghost)=>{const span=el('span',text,'lcd');span.dataset.ghost=ghost;return span;};
+function showBoard(s,queued){
+ const row=(item,n)=>{const li=el('li',undefined,n?'':'next'),title=el('span',item.title,'t');title.append(el('span',` · ${item.artist}`,'a'));
+  li.append(el('span',n?String(n+1):'다음','ord'),lcdSpan(item.number?String(item.number):'-----','88888'),title);
+  if(!n){const go=el('span','시작까지','go'),seconds=lcdSpan('','88');seconds.id='board-go';go.append(seconds);li.append(go);}
+  return li;};
+ const items=s.current?[s.current,...queued.slice(0,4)]:[];
+ $('board-rows').replaceChildren(...items.map(row));$('board-count').textContent=String(items.length&&queued.length+1).padStart(2,'0');
+}
+function roomClock(){
+ if(!state)return;const left=state.room_ends==null?null:Math.max(0,state.room_ends-(Date.now()/1000+serverSkew));
+ $('cb-clock').hidden=left==null;if(left!=null){$('cb-clock').textContent=`⏱${String(Math.ceil(left/60)).padStart(3,'0')}분`;$('cb-clock').classList.toggle('low',left<=300);}
+ $('time-up').hidden=!(classic()&&left===0&&!state.current);
+}
+setInterval(roomClock,1000);
+// The attract screen's ticker lists the newest songbook entries; the boot screen counts the book.
+let songbookCount=0;
+function loadSongbook(){api('/api/songbook').then(songs=>{songbookCount=songs.length;$('ticker-track').replaceChildren(...[0,1].flatMap(()=>newSongs(songs).map(s=>{const row=el('span');row.append(el('span',String(s.number),'lcd'),s.title,el('em',s.artist));return row;})));showBoot();}).catch(()=>{});}
+// The boot screen's status line, like a machine's self-check.
+function showBoot(){if(!state)return;const left=state.room_ends==null?null:Math.max(0,state.room_ends-(Date.now()/1000+serverSkew)),item=(label,value,cls)=>{const s=el('span',`${label} `);s.append(el('b',value,cls));return s;};
+ $('boot-status').replaceChildren(item('SONGBOOK',`${songbookCount}곡`),...(left==null?[]:[item('ROOM',`${String(Math.ceil(left/60)).padStart(3,'0')}분`)]),item('SOUND','OFF','off'));}
+loadSongbook();
+// The big LCD fills in as someone dials: lit digits, a blinking cursor, blank digits after it.
+function showAttractDial(digits){$('attract-dial').replaceChildren(digits,...(digits.length<5?[el('span','8','blink')]:[]),'!'.repeat(Math.max(0,4-digits.length)));}
+showAttractDial('');
+// Score after each song: random like the machines, mostly flattering, a perfect 100 now and then.
+const SCORE_TIERS=[[100,'퍼펙트!!','완벽 그 자체!','가수 데뷔 하셔도 되겠어요!','Perfect score!'],[95,'앵콜곡!!','듣는 사람들 모두 감동!','남다른 멋진 목소리!','What a voice! Encore!'],[85,'훌륭해요!','분위기 최고!','노래 실력이 대단해요!','Great singing!'],[75,'좋아요!','즐거운 노래였어요!','다음 곡도 기대할게요!','Nice one!'],[60,'힘내요!','연습하면 더 잘할 수 있어요!','다시 한 번 도전!','Keep going!']];
+function randomScore(){const r=Math.random(),pick=(low,count)=>low+Math.floor(Math.random()*count);return r<.03?100:r<.6?pick(85,15):r<.85?pick(75,10):pick(60,15);}
+// It shows once the singing is over (the outro plays under it) and leaves after the breather that follows the song.
+let scoreTimer=null,scoredKey=null;
+function showScore(){
+ const score=randomScore(),[,label,,highlight,en]=SCORE_TIERS.find(([min])=>score>=min),start=performance.now();
+ scoredKey=currentKey;clearTimeout(scoreTimer);scoreTimer=null;
+ $('score-label').textContent=label;$('score-msg').replaceChildren(el('b',highlight),` · ${en}`);$('score').hidden=false;
+ (function roll(now){const k=Math.min(1,(now-start)/1200);$('score-value').textContent=Math.round(score*(1-(1-k)**3));if(k<1)requestAnimationFrame(roll);})(start);
+}
+function endScore(){if(!$('score').hidden&&!scoreTimer)scoreTimer=setTimeout(()=>{$('score').hidden=true;scoreTimer=null;},3000);}  // SCORE_HOLD in queue.py: Classic adds it to the breather, so the 예약곡 board follows
+{const colours=['#ffe033','#ff3ea5','#63dcff','#7dff9a','#fff'];for(let i=0;i<40;i++){const bit=el('i');bit.style.cssText=`left:${Math.random()*100}%;background:${colours[i%5]};animation-delay:${-Math.random()*3.2}s;animation-duration:${2.6+Math.random()*1.6}s`;$('score-confetti').append(bit);}}
+// Songbook dialling from the remote: digits show in the strip as they're typed.
+let dialTimer;
+function dial(digits){
+ $('cb-dial').textContent=digits;$('cb-dial').hidden=!digits;showAttractDial(digits);
+ clearTimeout(dialTimer);dialTimer=setTimeout(()=>{$('cb-dial').hidden=true;showAttractDial('');},8000);  // a keypad left mid-number
+}
+function reserved(){$('cb-dial').hidden=true;showAttractDial('');}
 function placeLyrics(list){
  lyrics=list;firstLine=lyrics.findIndex(line=>line.text);$('lyrics').replaceChildren();
  slots=[];let slot=0;lyrics.forEach((line,i)=>{if(breakAfter(i-1))slot=0;slots[i]=slot;slot^=1;});
- lyrics.forEach(line=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';for(const [text,,,latin,hangul,jyutping] of line.units||[]){const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
+ lyrics.forEach((line,i)=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';p.dataset.slot=slots[i];for(const [text,,,latin,hangul,jyutping] of line.units||[]){const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
 }
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
 // Speed changes tempo only (the browser keeps pitch); the key shift is applied by the worklet.
 function applyTempo(){const speed=state?.speed??1;for(const media of [music,voice,video]){media.defaultPlaybackRate=speed;if(media.playbackRate!==speed)media.playbackRate=speed;}if(shifter)shifter.parameters.get('ratio').value=2**((state?.key??0)/12);}
 function applyGain(){applyTempo();if(!musicGain)return;musicGain.gain.value=(state?.music??1)*stemGain;voiceGain.gain.value=(state?.vocal??0.1)*stemGain;}
+// The theme can be picked before sound is on; it switches the whole room (TV and phones).
+for(const b of document.querySelectorAll('[data-theme-pick]'))b.onclick=()=>send({action:'theme',value:b.dataset.themePick});
 $('enable-button').onclick=async()=>{
  try{
   if(!context){
@@ -233,11 +288,15 @@ $('tv-skip').onclick=()=>send({action:'skip'});
 $('tv-guide').onclick=()=>send({action:'guide',value:'cycle'});
 music.onwaiting=()=>{buffering=true;voice.pause();video.pause();};
 music.onplaying=()=>{buffering=false;if(enabled&&state?.playing&&currentKey){voice.currentTime=music.currentTime;voice.play().catch(()=>error('Vocals could not resume. Pause and play to retry.'));}};
-music.onended=()=>{voice.pause();video.pause();send({action:'ended',key:currentKey});};
+// A song ends when its file does, or in Classic where its music stops (music_end), so the score never waits through trailing silence.
+let finishedKey=null;
+function finish(){if(!currentKey||finishedKey===currentKey)return;finishedKey=currentKey;if(classic()){if(scoredKey!==currentKey)showScore();endScore();}music.pause();voice.pause();video.pause();send({action:'ended',key:currentKey});}
+music.onended=finish;
 for(const audio of [music,voice])audio.onerror=()=>{if(currentKey)error('Audio could not load. Check the server or skip this song.');};
 video.onerror=()=>{video.hidden=true;$('video-shade').hidden=true;document.body.classList.remove('has-video');};
 async function start(){
- if(starting||!music.paused||music.ended||music.readyState<3||voice.readyState<3)return;
+ // A finished song stays paused while the server moves on, even if it stopped short of its file's end.
+ if(starting||(finishedKey&&finishedKey===currentKey)||!music.paused||music.ended||music.readyState<3||voice.readyState<3)return;
  const token=generation;starting=true;
  try{
   if(seekTo!==null){music.currentTime=seekTo;seekTo=null;}
@@ -258,7 +317,7 @@ function frame(now){
   if(waiting){
    if(!breather)showUpNext();
    const left=Math.max(0,state.transition_until-(Date.now()/1000+serverSkew));breather=Math.max(breather,left);
-   $('countdown-ring').style.strokeDashoffset=(100*(1-left/breather)).toFixed(2);const seconds=String(Math.ceil(left));if($('countdown').textContent!==seconds)$('countdown').textContent=seconds;
+   $('countdown-ring').style.strokeDashoffset=(100*(1-left/breather)).toFixed(2);const seconds=String(Math.ceil(left));if($('countdown').textContent!==seconds)$('countdown').textContent=seconds;if($('board-go'))$('board-go').textContent=seconds.padStart(2,'0');
   }else breather=0;
   if(!state.current||waiting)document.body.classList.remove('intro');
   document.body.classList.toggle('between',!!waiting);
@@ -294,6 +353,7 @@ function frame(now){
    if(state.lyric_mode==='two'&&!waiting)twoLines(index,time);
    // Karaoke count-in: lyrics stay hidden through the intro, then dots count down to the first line.
    const remaining=firstLine>=0?startOf(firstLine)-time:0;
+   if(classic()&&document.body.classList.contains('intro'))$('prelude').textContent=clock(Math.max(0,remaining));
    // Title card over the intro, like a karaoke machine: it fades before the count-in dots,
    // and a song whose lyrics start almost at once skips it.
    const cardEnd=firstLine>=0?Math.min(12,time+remaining-COUNT_IN-0.5):8;
@@ -312,6 +372,7 @@ function frame(now){
     if(units&&spans)units.forEach(([,from,to],i)=>spans[i]?.style.setProperty('--p',Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)))));
    }
    $('elapsed').textContent=clock(music.currentTime);$('progress').parentElement.style.setProperty('--p',Math.min(1,music.currentTime/(state.current.duration||1)));
+   if(classic()&&state.current.music_end&&!music.paused&&music.currentTime>=state.current.music_end)finish();
    if(now-lastReport>2000&&!music.paused){lastReport=now;send({action:'progress',key:currentKey,position:music.currentTime});}
   }
  }
@@ -364,10 +425,12 @@ function showQueueChange(s){
   showBadge(up?'↑':'↓',`Moved to #${moved+1}`,queue[moved].title);
  }
 }
+// Classic names each notice the way the machine does.
+const KO_NAMES={Music:'반주',Vocals:'음성',Speed:'템포',Key:'키','Lyric timing':'싱크','Lyric size':'가사 크기',Video:'영상',Lyrics:'가사',Pronunciation:'가이드',Queued:'예약',Removed:'취소','Couldn’t prepare':'오류','Ready to sing':'준비 완료'};
 // Springs in, pulses the icon on each further change while visible, then shrinks away.
 function showBadge(icon,name,value,range){
  const osd=$('guide-badge'),meter=$('osd-meter'),visible=!osd.hidden&&!osd.classList.contains('out');
- $('guide-icon').textContent=icon;$('osd-name').textContent=name;$('guide-label').textContent=value;
+ $('guide-icon').textContent=icon;$('osd-name').textContent=classic()?KO_NAMES[name]??(name.startsWith('Moved')?'순서':name):name;$('guide-label').textContent=value;
  meter.hidden=!range;
  if(range){const [a,b]=range;meter.style.setProperty('--from',Math.min(a,b));meter.style.setProperty('--to',Math.max(a,b));}
  clearTimeout(badgeTimer);osd.classList.remove('out');osd.hidden=false;

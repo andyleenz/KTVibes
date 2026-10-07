@@ -24,6 +24,7 @@
   - Japanese: romaji.
   - English: Hangul.
 - **Key and speed.** Shift the key ±6 semitones without changing tempo, or slow a song down without changing pitch.
+- **Classic theme.** A Korean noraebang look, chosen in the remote's Settings or on the TV's Enable sound screen. The TV gets a top strip with the song's number and a room clock, lyrics alternating left and right, a score after each song sung to the end, and a 예약곡 board between songs. The remote becomes a handset: a keypad that reserves songs by number, a 노래책 songbook of everything downloaded, the 예약 list, and 설정.
 - **Party-friendly display.** Blur or hide the music video, show lyrics as two karaoke lines (the default) or a scrolling list, or hide them.
 - **Phone remote.** Scan the QR code on the TV to join. Everyone shares one queue: reorder, undo removals, and re-add recent songs. The TV shows a popup card for every change.
 - **Lyrics picker.** If a song has lyrics in several languages or editions (e.g. a K-pop song's Japanese release), choose which one to show. If none were found, or the wrong song came up, search LRCLIB by hand from the remote.
@@ -70,6 +71,17 @@ Plan for about 8 GB of disk: the install itself is 6.5 GB (mostly PyTorch with C
 3. Scan the QR code with a phone, search for a song, and tap it to queue it.
 
 The first song starts as soon as it is ready. Later songs are prepared while earlier ones play, so queue a few ahead; without a GPU, a song takes a minute or so to prepare. Re-queuing a song is instant because everything is cached in `cache/`.
+
+### Classic theme
+
+Switch to Classic in the remote's **Settings** (or on the TV before you enable sound). The remote's tabs are:
+
+- **리모컨** (handset): dial a song's number and press **예약** to reserve it, or **우선예약** to sing it next. Pause, skip, the pronunciation guide, 👏 and the music and vocal levels are on the keys below.
+- **노래책** (songbook): every downloaded song with its number, newest (신곡) first, then 최근 (recent) and A–Z, with tabs down the side to jump. Typing filters the book; **Search** asks YouTube.
+- **예약** (reserved): the queue as a table, with 우선 (play next), 취소 (cancel) and 재시도 (retry).
+- **설정** (settings): mix, key, display, lyrics timing, room time and the theme.
+
+A Classic room starts with 30 minutes; add time from 설정. When a song is sung to the end, the TV shows a score, then the 예약곡 board counts down to the next song. While a song plays, a small QR code in the corner lets more people join.
 
 From the remote's controls panel you can also blur or hide the music video (handy for lyric videos, whose own lyrics clash), switch the lyrics between the classic two-line karaoke layout (the default) and a scrolling list, or turn them off.
 

@@ -1,0 +1,497 @@
+/* Classic theme on the remote: the room's handset and songbook. Every rule is scoped to Classic; new markup carries .classic-only. */
+@font-face{font-family:DSEG7;src:url(/static/fonts/DSEG7Classic-BoldItalic.woff2) format('woff2');font-display:block}
+body:not([data-theme=classic]) .classic-only{display:none!important}
+body[data-theme=classic] .default-only{display:none!important}
+body[data-theme=classic] [hidden]{display:none!important}
+body[data-theme=classic]{--yellow:#ffe033;--cyan:#63dcff;--lcd:#061128;--lcd-on:#7fe9ff;--pink:#ff3ea5}
+.lcd{position:relative;display:inline-block;font-family:DSEG7,monospace;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa;white-space:pre}
+.lcd::before{content:attr(data-ghost);position:absolute;left:0;top:0;opacity:.09;text-shadow:none}
+.blink{animation:lcd-blink 1s steps(1) infinite}
+@keyframes lcd-blink{50%{opacity:0}}
+/* Classic theme: the remote matches the noraebang TV. Navy and yellow, bevelled chip buttons, cyan digital read-outs. */
+body[data-theme=classic]{--bg:#0a0a1a;--panel:#14143a;--panel2:#1c1c4a;--line:#2e2e66;--ink:#f2f3ff;--muted:#9aa0c8;--lime:#ffe14a;--on-lime:#1b1f5a;--digits:#7fe3ff;font-family:'IBM Plex Sans KR','Noto Sans CJK KR',sans-serif;background:radial-gradient(ellipse at 50% 0,#1e1a5a,#0a0a1a 60%) fixed}
+body[data-theme=classic] :is(h1,h2,h3,.brand){font-family:'IBM Plex Sans KR','Noto Sans CJK KR',sans-serif;letter-spacing:-.02em}
+body[data-theme=classic] .brand{display:inline-block;padding:2px 10px;border-radius:5px;background:#e9ecf2;color:#1b1f5a;box-shadow:inset 0 -3px 0 #0003}
+body[data-theme=classic] .brand span{color:#c2185b}
+body[data-theme=classic] :is(.play,.ghost,.small,.qchip,.lyric-sheet-head button){border-radius:6px;box-shadow:inset 0 -3px 0 #0005,0 1px 0 #000}
+body[data-theme=classic] :is(.ghost,.small,.qchip){border:1px solid #ffffff26;background:linear-gradient(#2c2c70,#16164a);color:#e9ecf2}
+body[data-theme=classic] :is(.play,.primary){background:linear-gradient(#ffe97a,#f5c800);color:var(--on-lime)}
+body[data-theme=classic] .hero h1{color:#ffe14a;text-shadow:2px 2px 0 #000}
+body[data-theme=classic] :is(.hero-time,#position,#length,#dock-count){font-family:'Share Tech Mono',monospace;color:var(--digits)}
+body[data-theme=classic] .sheet h4{color:var(--digits);font-family:'Share Tech Mono',monospace;letter-spacing:.15em}
+body[data-theme=classic] .seg{border-radius:6px;background:#05051a}
+body[data-theme=classic] .seg .pill{border-radius:4px;background:linear-gradient(#ffe97a,#f5c800)}
+body[data-theme=classic] .seg button[aria-pressed=true]{color:var(--on-lime)}
+body[data-theme=classic] .searchbar:focus-within{border-color:#ffe14a66}
+body[data-theme=classic] :is(.tag,.presets button[aria-pressed=true]){background:#ffe14a22;border-color:#ffe14a66}
+body[data-theme=classic] .empty-icon{background:#ffe14a1a}
+body[data-theme=classic] .row.lifted{box-shadow:0 18px 40px #000c,0 0 0 1px #ffe14a44}
+body[data-theme=classic] .lyric-sheet-panel{border-radius:14px 14px 0 0;border-color:#ff3ea555}
+/* Classic polish (design review): one type family, distinct surfaces (panels vs buttons), digital read-outs for numbers. */
+body[data-theme=classic] :is(h1,h2,h3,.brand,.empty strong,.dock .info strong,.sheet .now strong,.stepper button){font-family:'IBM Plex Sans KR','Noto Sans CJK KR',sans-serif}
+body[data-theme=classic]{--panel:#15143f;--panel2:#26245f;--line:#3c3984}
+body[data-theme=classic] :is(.ghost,.small,.qchip){background:linear-gradient(#302e78,#26245f);border-color:#4b48a0}
+body[data-theme=classic] .roll{font-family:'Share Tech Mono',monospace;font-weight:400;letter-spacing:0;color:var(--digits)}
+/* Messages show above the keypad and lyrics sheets (z-index 45), at the top like with Settings open, so a failed 예약 is seen. */
+body:has(.lyric-sheet) .toast.toast{z-index:46;bottom:auto;top:calc(16px + env(safe-area-inset-top));transform:translate(-50%,-20px)}
+body:has(.lyric-sheet) .toast.on{transform:translate(-50%,0)}
+/* Classic, second design review (all points applied). */
+body[data-theme=classic]{--machine-yellow:#ffe033;--machine-cyan:#63dcff;--machine-blue:#26245f;--machine-panel:#15143f;--machine-border:#3c3984;--lime:var(--machine-yellow);--on-lime:#11133f;--digits:var(--machine-cyan);--panel:var(--machine-panel);--panel2:var(--machine-blue);--line:var(--machine-border)}
+body[data-theme=classic] :is(.ghost,.small,.qchip){background:var(--machine-blue);border-color:var(--machine-border)}
+/* 8. Roomier page, clearer sections, sheets like a songbook controller. */
+body[data-theme=classic] .result{min-height:92px}
+body[data-theme=classic] :is(.sheet,.lyric-sheet-panel){border-radius:20px 20px 0 0;background:#171643;border:1px solid #a52a91;box-shadow:0 -12px 36px rgba(0,0,0,.45)}
+/* Tabs: each shows only its own sections; the header and the LCD window are always there. */
+body[data-theme=classic] .dock{display:none}
+body[data-theme=classic] .wrap{padding:calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom))}
+body[data-theme=classic]:not([data-tab=handset]) #handset,
+body[data-theme=classic]:not([data-tab=book]) .wrap>:is(#book-head,#search-form,#results,#more,#results-end,#book-new,#recent-heading,#recent,#book-all,#book-request),
+body[data-theme=classic]:not([data-tab=queue]) .wrap>:is(#hero,#queue-heading,#queue){display:none}
+body[data-theme=classic] #hero .reactions{display:none}
+/* The LCD window. */
+.lcd-window{margin:10px 0 14px;padding:12px 14px 10px;background:var(--lcd);border-radius:12px;box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e,inset 0 8px 18px #000a}
+.lcd-top{display:flex;justify-content:space-between;font:700 11px 'IBM Plex Sans KR',sans-serif;color:#7f9cff;letter-spacing:.12em}
+.lcd-top b{color:var(--yellow)}
+.lcd-digits{display:flex;align-items:baseline;justify-content:space-between;margin-top:4px}
+.lcd-digits>.lcd{font-size:46px;letter-spacing:.05em}
+.lcd-stat{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font:700 10px 'IBM Plex Sans KR',sans-serif;color:#7f9cff;letter-spacing:.1em}
+.lcd-stat .lcd{font-size:18px}
+.lcd-song{margin-top:6px;padding-top:6px;border-top:1px dashed #2b3c8e;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:700 13px 'IBM Plex Sans KR',sans-serif;color:var(--yellow)}
+.lcd-song span{color:#8fb4ff;font-weight:500}
+/* The tab bar replaces the dock. */
+body[data-theme=classic] .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#101015;border-top:1px solid #26272f}
+.tabs button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0 6px;border:0;border-radius:12px;background:none;color:#8c8ea3;font:700 12px 'IBM Plex Sans KR',sans-serif}
+.tabs svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs button[aria-current=page]{background:#1f2050;color:var(--yellow);box-shadow:inset 0 0 0 1px #3c3984}
+.tabs .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--pink);color:#fff;font:700 10px/16px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .toast,body[data-theme=classic] .dock.away~.toast{bottom:calc(84px + env(safe-area-inset-bottom))}
+/* 설정: the settings sheet as the tab's page, room time first. */
+body[data-theme=classic]:not([data-tab=settings]) .sheet{display:none}
+body[data-theme=classic][data-tab=settings] .sheet{position:static;inset:auto;display:flex;flex-direction:column;width:auto;max-width:none;max-height:none;margin:0 16px calc(96px + env(safe-area-inset-bottom));transform:none;visibility:visible;opacity:1;overflow:visible;border-radius:14px;box-shadow:none}
+body[data-theme=classic][data-tab=settings] .sheet :is(.handle,.now){display:none}
+body[data-theme=classic][data-tab=settings] #room-time{order:-1}
+body[data-theme=classic] .scrim{display:none}
+body[data-theme=classic][data-tab=settings] .wrap{padding-bottom:0}
+body[data-theme=classic] #room-end{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
+/* Rubber keys in the remote's colours. */
+.rk{display:grid;place-items:center;border:0;border-radius:16px;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 4px 0 #0b0b0f,0 6px 10px #0007;color:#fff;font:700 15px 'IBM Plex Sans KR',sans-serif;-webkit-user-select:none;user-select:none}
+.rk:active{transform:translateY(3px);box-shadow:inset 0 1px 0 #ffffff26,0 1px 0 #0b0b0f}
+.rk:disabled{opacity:.45}
+.rk small{display:block;font:500 10px 'IBM Plex Sans KR',sans-serif;color:#aeb0c4;letter-spacing:.08em}
+.rk.red{background:linear-gradient(#ea4651,#b01f2a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #5e0d14,0 6px 10px #0007}
+.rk.org{background:linear-gradient(#ffa133,#d9700b);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #6e3502,0 6px 10px #0007}
+.rk.grn{background:linear-gradient(#36d47c,#14954a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #0a5a2b,0 6px 10px #0007}
+.rk.blu{background:linear-gradient(#4b55d6,#2a2f9a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #141760,0 6px 10px #0007}
+.rk.ylw{background:linear-gradient(#ffe866,#f2c400);color:#1b1f5a;box-shadow:inset 0 1px 0 #fff8,0 4px 0 #7a6100,0 6px 10px #0007}
+.rk:is(.red,.org,.grn,.blu) small{color:#fffc}
+.rk.ylw small{color:#5a4a00}
+.hs-fn{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px}
+.hs-fn .rk{height:50px;font-size:16px}
+.hs-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 14px;margin-top:14px}
+.hs-pad .rk{height:56px}
+.hs-pad .digit{font:400 30px 'Black Han Sans',sans-serif}
+.hs-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.hs-row .rk{height:54px;font-size:13px}
+.hs-row svg{display:block;width:18px;height:18px;margin:0 auto 1px;fill:currentColor}
+.hs-row b{display:block;font:700 15px/1.1 'Space Grotesk',sans-serif}
+#hs-play.paused svg{display:none}
+#hs-play.paused span::before{content:'▶';display:block;font-size:15px}
+.hs-mix{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.rocker{display:flex;align-items:center;justify-content:space-between;height:50px;padding:0 6px;border-radius:25px;background:linear-gradient(#2c2d36,#202128);box-shadow:inset 0 1px 0 #ffffff1a,0 3px 0 #0b0b0f}
+.rocker button{width:38px;height:38px;border:0;border-radius:50%;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 2px 0 #0b0b0f;color:#fff;font:700 18px 'IBM Plex Sans KR',sans-serif}
+.rocker>span{display:flex;flex-direction:column;align-items:center;font:700 12px 'IBM Plex Sans KR',sans-serif;letter-spacing:.06em}
+.rocker .mtr{display:flex;flex-direction:row;gap:2px;margin-top:3px}
+.rocker .mtr i{width:5px;height:8px;border-radius:1px;background:#ffffff1f}
+.rocker .mtr i.on{background:var(--cyan);box-shadow:0 0 4px var(--cyan)}
+.hs-row .react{width:auto;height:54px;border-radius:16px;font-size:13px;transition:none}
+.hs-row .react:active{transform:translateY(3px);border-radius:16px}
+/* 노래책: a paper songbook with red numbers, section bands and binder tabs. */
+body[data-theme=classic][data-tab=book]{background:#f4eedc}
+body[data-theme=classic][data-tab=book] .wrap{color:#1d1b16}
+.book-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 -16px;padding:12px 16px 10px;background:#c2185b;color:#fff;box-shadow:0 3px 0 #7d0e3a}
+.book-head h2{margin:0;font:400 26px 'Black Han Sans',sans-serif;letter-spacing:.04em}
+.book-head small{font:700 11px 'IBM Plex Sans KR',sans-serif;letter-spacing:.14em;opacity:.85}
+body[data-theme=classic][data-tab=book] .searchbar{margin:10px 0 0;background:#fff;color:#1d1b16;border-color:#d9cfb4}
+body[data-theme=classic][data-tab=book] .searchbar input{color:#1d1b16}
+body[data-theme=classic] #results:not(:empty)::before{content:'YouTube 검색 · SEARCH';display:block;margin:12px -16px 0;padding:6px 16px;background:#1b1f5a;color:#fff;font:400 15px 'Black Han Sans',sans-serif;letter-spacing:.06em}
+body[data-theme=classic] #recent-heading{margin:0 -16px;padding:0}
+body[data-theme=classic] #recent-heading h2,.book-sect h3{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:8px;height:30px;margin:0;padding:0 16px;background:#1b1f5a;color:#fff;font:400 15px 'Black Han Sans',sans-serif;letter-spacing:.06em}
+body[data-theme=classic] #recent-heading small,.book-sect h3 small{font:700 10px 'IBM Plex Sans KR',sans-serif;color:#aab0ff;letter-spacing:.14em}
+.book-part{margin:0 -16px}
+body[data-theme=classic] #book-new,body[data-theme=classic] #recent-heading,.book-sect{scroll-margin-top:8px}
+body[data-theme=classic] .result.book-row{display:grid;grid-template-columns:62px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 34px 0 16px;border:0;border-bottom:1px solid #d9cfb4;border-radius:0;background:#f4eedc;color:#1d1b16;text-align:left}
+.book-row .n{font:700 17px 'Share Tech Mono',monospace;color:#c2185b}
+.book-row .t{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:700 15px 'IBM Plex Sans KR',sans-serif}
+.book-row .a{margin-left:6px;font-size:13px;font-weight:500;color:#6b6556}
+.book-row .d{font:500 12px 'Share Tech Mono',monospace;color:#8a8270}
+body[data-theme=classic][data-tab=book] #recent .result{background:#f4eedc;color:#1d1b16;border-color:#d9cfb4}
+body[data-theme=classic][data-tab=book] #recent .result small{color:#6b6556}
+body[data-theme=classic][data-tab=book] .empty{color:#6b6556}
+.book-request{display:flex;align-items:center;gap:12px;margin:14px 0 4px;padding:12px 14px;border:2px dashed #b8ac8c;border-radius:10px;color:#4a4536;font:500 13px/1.35 'IBM Plex Sans KR',sans-serif}
+.book-request b{display:block;color:#1d1b16;font-size:14px}
+.book-request .rk{flex:none;height:38px;padding:0 14px;font-size:13px}
+body[data-theme=classic][data-tab=book] .book-index{position:fixed;right:0;top:120px;bottom:96px;z-index:20;display:flex;flex-direction:column;gap:2px;width:28px}
+body[data-theme=classic]:not([data-tab=book]) .book-index{display:none}
+.book-index button{flex:1 1 0;min-height:0;max-height:56px;padding:0;border:0;border-radius:6px 0 0 6px;background:#1b1f5a;color:#fff;font:700 11px 'IBM Plex Sans KR',sans-serif}
+.book-index button:nth-child(4n+2){background:#2a3a9a}.book-index button:nth-child(4n+3){background:#3a7a3a}.book-index button:nth-child(4n){background:#c26a00}
+.book-index button:first-child{background:#c2185b}
+/* On paper: the sticky search bar's ring is paper, the ⋯ key sits clear of the binder tabs, and the tab bar turns navy. */
+body[data-theme=classic][data-tab=book] .searchbar{border-radius:10px;box-shadow:0 0 0 8px #f4eedc}
+/* Section bands stick just under the sticky search bar. */
+body[data-theme=classic][data-tab=book] :is(#recent-heading h2,.book-sect h3){top:calc(70px + env(safe-area-inset-top))}
+/* 최근 rows are ruled like the rest of the book, with a small thumbnail. */
+body[data-theme=classic][data-tab=book] #recent{grid-template-columns:minmax(0,1fr);gap:0;margin:0 -16px}
+body[data-theme=classic][data-tab=book] #recent .result{min-height:56px;padding:6px 70px 6px 16px;border:0;border-bottom:1px solid #d9cfb4;border-radius:0}
+body[data-theme=classic][data-tab=book] #recent .result img{width:64px;height:36px;border-radius:4px}
+body[data-theme=classic][data-tab=book] #recent .result strong{font:700 15px 'IBM Plex Sans KR',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-theme=classic][data-tab=book] .result-icon{color:#c2185b}
+body[data-theme=classic][data-tab=book] .swipe .result{padding-right:70px}
+body[data-theme=classic][data-tab=book] .song-more{right:30px;color:#8a8270}
+body[data-theme=classic] #recent-heading h2{flex:1}
+body[data-theme=classic][data-tab=book] .tabs{background:#1b1f5a;border-top:0}
+body[data-theme=classic][data-tab=book] .tabs button:not([aria-current=page]){color:#aab0ff}
+/* The 최근 band's own box is only as tall as the band, so the box itself is what sticks. */
+body[data-theme=classic][data-tab=book] #recent-heading{position:sticky;top:calc(70px + env(safe-area-inset-top));z-index:3}
+body[data-theme=classic][data-tab=book] #recent-heading h2{position:static}
+/* YouTube results on paper (mockup P5): a red band, ruled rows, two-line titles and a red + key. */
+body[data-theme=classic] #results:not(:empty)::before{background:#b3122e}
+body[data-theme=classic][data-tab=book] #results{grid-template-columns:minmax(0,1fr);gap:0;margin:0 -16px;background:#fffaf0}
+body[data-theme=classic][data-tab=book] #results .result{gap:10px;padding:9px 12px 9px 16px;border:0;border-bottom:1px solid #e6dcc0;border-radius:0;background:#fffaf0;color:#1d1b16}
+body[data-theme=classic][data-tab=book] #results .result img{width:84px;height:47px;border-radius:6px}
+body[data-theme=classic][data-tab=book] #results .result strong{display:-webkit-box;overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;font:700 13.5px/1.3 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic][data-tab=book] #results .result small{color:#6b6556}
+body[data-theme=classic][data-tab=book] #results .result-icon{background:linear-gradient(#ea4651,#b01f2a);color:#fff;box-shadow:inset 0 1px 0 #fff4,0 3px 0 #5e0d14}
+body[data-theme=classic][data-tab=book] #results .result-icon.added{background:linear-gradient(#36d47c,#14954a);box-shadow:inset 0 1px 0 #fff4,0 3px 0 #0a5a2b}
+body[data-theme=classic][data-tab=book] #more{width:calc(100% + 32px);margin:0 -16px;padding:12px 16px 14px;border:0;border-radius:0;background:#fffaf0;color:#1d1b16;font:700 13px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic][data-tab=book] #results:not(:empty)::before{margin:0}
+body[data-theme=classic][data-tab=book] #results .result{padding-right:40px}
+body[data-theme=classic][data-tab=book] #results .result .tag{background:#14954a;color:#fff}
+body[data-theme=classic][data-tab=book] .searchbar{margin:14px 0 10px}
+body[data-theme=classic][data-tab=book] .empty{justify-items:start;margin:0;padding:18px 16px;border:0;border-bottom:1px solid #d9cfb4;border-radius:0;background:none;box-shadow:none;color:#6b6556;text-align:left}
+/* Autocomplete on paper (mockup P5): a white drop under a yellow-ringed search, typed part grey, completion bold. */
+body[data-theme=classic] .searchbar:has(#suggestions:not([hidden])){border-radius:10px 10px 0 0;box-shadow:0 0 0 3px var(--yellow),0 0 0 8px #f4eedc}
+body[data-theme=classic] .suggestions{top:calc(100% + 1px);left:-4px;right:-4px;padding:2px 0 4px;background:#fff;border:3px solid var(--yellow);border-top:1px solid #e6dcc0;border-radius:0 0 10px 10px;box-shadow:0 16px 30px #0006}
+body[data-theme=classic] .suggestions li{padding:0 15px;height:40px;line-height:40px;border-radius:0;font:500 14px/40px 'IBM Plex Sans KR',sans-serif;color:#6b6556}
+body[data-theme=classic] .suggestions b{font-weight:700;color:#1d1b16}
+body[data-theme=classic] .suggestions li:is(:hover,[aria-selected=true]){background:#ffe03355;color:#6b6556}
+body:has(#suggestions:not([hidden])) .book-index{display:none}
+/* 예약 (mockup "예약" + P9): a navy now card with an LED bar, then the reservation list as an LCD table. */
+body[data-theme=classic] .hero{padding:12px;border:0;border-radius:14px;background:linear-gradient(#26245f,#15143f);box-shadow:inset 0 0 0 2px #3c3984}
+body[data-theme=classic] .hero :is(.glow,.eq,#hero-state){display:none}
+body[data-theme=classic] .hero::after{display:none}
+body[data-theme=classic] .hero-top{gap:12px}
+body[data-theme=classic] .hero .art{width:64px;height:64px;border-radius:8px;box-shadow:none}
+body[data-theme=classic] .hero .eyebrow::after{content:'지금 부르는 곡 · NOW';font:700 10px 'IBM Plex Sans KR',sans-serif;color:#8fb4ff;letter-spacing:.14em}
+body[data-theme=classic] .hero.paused .eyebrow::after{content:'일시정지 · PAUSED';color:#ffb86b}
+body[data-theme=classic] .hero h1{margin-top:2px;font:900 17px/1.25 'Noto Sans KR',sans-serif;color:var(--yellow);text-shadow:none;letter-spacing:0;-webkit-line-clamp:2}
+body[data-theme=classic] .hero p{font:500 13px 'IBM Plex Sans KR',sans-serif;color:#cfd3ff}
+body[data-theme=classic] .hero-time{margin-top:12px;color:var(--lcd-on)}
+body[data-theme=classic] .hero-time span{font:12px DSEG7,monospace;color:var(--cyan);text-shadow:0 0 6px #2ab4ff88}
+body[data-theme=classic] .hero .bar{height:8px;border-radius:0;background:#0a0b2e;-webkit-mask:repeating-linear-gradient(90deg,#000 0 8px,transparent 8px 10px);mask:repeating-linear-gradient(90deg,#000 0 8px,transparent 8px 10px)}
+body[data-theme=classic] .hero .bar i{border-radius:0;background:linear-gradient(var(--yellow),#ffb800)}
+body[data-theme=classic] .hero .bar i::after{display:none}
+body[data-theme=classic] #hero-play{display:flex;align-items:center;gap:6px;width:auto;height:44px;padding:0 16px;border-radius:12px;background:linear-gradient(#36d47c,#14954a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #0a5a2b;color:#fff}
+body[data-theme=classic] #hero-play::after{content:'일시정지';font:700 13px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .hero.paused #hero-play::after{content:'재생'}
+body[data-theme=classic] #skip{display:flex;align-items:center;gap:6px;width:auto;height:44px;padding:0 14px;border:0;border-radius:12px;background:linear-gradient(#ea4651,#b01f2a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #5e0d14;color:#fff}
+body[data-theme=classic] #skip::after{content:'다음곡';font:700 13px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] :is(#hero-play,#skip) svg{width:18px;height:18px}
+body[data-theme=classic] #open-controls{display:none}
+/* The list's own header band: 예약곡 · RESERVED, the count and the time it adds up to. */
+body[data-theme=classic] #queue-heading{margin:16px 0 0;padding:10px 14px;border-radius:14px 14px 0 0;background:linear-gradient(#3b3aa6,#26245f);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e}
+body[data-theme=classic] #queue-heading h2{display:flex;align-items:center;gap:6px;width:100%;font:400 17px 'Black Han Sans',sans-serif;letter-spacing:.04em;color:#fff}
+body[data-theme=classic] #queue-heading h2 small{margin-left:4px;font:700 10px 'IBM Plex Sans KR',sans-serif;color:#aab0ff;letter-spacing:.14em}
+body[data-theme=classic] #queue-count{margin-left:auto;padding:0;background:none;font:14px DSEG7,monospace;color:var(--cyan)}
+body[data-theme=classic] .qtotal{font:700 11px 'IBM Plex Sans KR',sans-serif;color:#cfd3ff;letter-spacing:.06em}
+body[data-theme=classic] #queue{grid-template-columns:minmax(0,1fr);margin-top:0;padding:4px;border-radius:0 0 14px 14px;overflow:hidden;background:var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e}
+body[data-theme=classic] #queue .row{gap:10px;padding:10px 10px 10px 14px;border:0;border-top:1px solid #ffffff10;border-radius:0;background:none}
+body[data-theme=classic] #queue .row:first-child{border-top:0;background:#ffe0331a;box-shadow:inset 3px 0 0 var(--yellow)}
+body[data-theme=classic] #queue .thumb{display:none}
+body[data-theme=classic] #queue .num{width:22px;font:400 17px 'Black Han Sans',sans-serif;color:#6f76c8}
+body[data-theme=classic] #queue .row:first-child .num{color:var(--yellow)}
+body[data-theme=classic] #queue h3{font:700 14px 'IBM Plex Sans KR',sans-serif;color:#fff}
+body[data-theme=classic] #queue p{font:500 12px 'IBM Plex Sans KR',sans-serif;color:#8f95d8}
+.qnum{margin-right:2px;font:11px DSEG7,monospace;color:var(--lcd-on)}
+body[data-theme=classic] #queue .status-ko{margin-right:4px;color:#aab0ff}
+body[data-theme=classic] #queue .row:first-child .status-ko{color:var(--yellow)}
+body[data-theme=classic] #queue .row.ready .status{display:none}
+body[data-theme=classic] #queue .row.ready:not(:first-child) :is(.sep,.status-ko){display:none}
+body[data-theme=classic] #queue .row:not(.ready):not(.error) :is(.status,.status-ko){color:#ffb86b}
+body[data-theme=classic] #queue .row.queued :is(.status,.status-ko){color:#aab0ff}
+.prepbar{height:4px;margin-top:5px;border-radius:2px;background:#ffffff14;overflow:hidden}
+.prepbar i{display:block;width:calc(var(--p,0)*100%);height:100%;background:#ffb86b;transition:width .5s}
+body[data-theme=classic] #queue .row.queued .prepbar i{width:100%;background:repeating-linear-gradient(90deg,#8f95d855 0 6px,#0000 6px 10px);animation:lcd-blink 2s steps(1) infinite}
+body[data-theme=classic] #queue .row.error{background:#ff4d4d14;box-shadow:inset 3px 0 0 var(--red,#e2424c)}
+body[data-theme=classic] #queue .row.error .num{color:#ff6b6b}
+body[data-theme=classic] #queue .row.error .status-ko{color:#ff8a8a}
+body[data-theme=classic] #queue .row.error .status{display:none}
+body[data-theme=classic] #queue .error{margin-top:2px;font:500 11.5px 'IBM Plex Sans KR',sans-serif;color:#ff8a8a}
+/* Row keys: 우선 (orange), 취소 (grey), 재시도 (orange), and a dotted grip. */
+body[data-theme=classic] #queue :is(.row-button.first,.row-button:not(.grip),.retry){width:auto;height:30px;padding:0 9px;border:0;border-radius:9px;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 2px 0 #0b0b0f;color:#fff;font:700 11px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] #queue :is(.row-button.first,.retry){background:linear-gradient(#ffa133,#d9700b);box-shadow:inset 0 1px 0 #fff4,0 2px 0 #6e3502}
+body[data-theme=classic] #queue .row-button:not(.grip):not(.first){font-size:0}
+body[data-theme=classic] #queue .row-button:not(.grip):not(.first)::after{content:'취소';font:700 11px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] #queue .row .info .retry{margin-top:6px;font-size:0}
+body[data-theme=classic] #queue .retry::after{content:'재시도 RETRY';font:700 11px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] #queue .grip{width:22px;height:30px;color:#cfd3ff}
+body[data-theme=classic] #queue .grip svg{width:16px;height:16px;fill:currentColor}
+body[data-theme=classic] #queue .row.lifted{border-radius:12px;background:linear-gradient(#34358a,#232466);box-shadow:inset 0 0 0 2px var(--yellow),0 14px 26px #000c,0 4px 0 #05061a;transform:rotate(-1.5deg) scale(1.03)}
+/* Empty: the table stays, with a ghosted 00 and a red 노래 찾기 key. */
+body[data-theme=classic] #queue .empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:22px 16px 20px;border-radius:0;background:none;animation:none}
+body[data-theme=classic] #queue .empty .lcd{font-size:40px}
+body[data-theme=classic] #queue .empty :is(.empty-icon,strong){display:none}
+body[data-theme=classic] #queue .empty>b{margin-top:6px;font:400 20px 'Black Han Sans',sans-serif;letter-spacing:.04em;color:#fff}
+body[data-theme=classic] #queue .empty small{font:500 12.5px 'IBM Plex Sans KR',sans-serif;color:#8f95d8}
+body[data-theme=classic] #queue .empty-action{display:flex;flex-direction:column;align-items:center;justify-content:center;height:46px;margin-top:12px;padding:0 22px;border-radius:12px;background:linear-gradient(#ea4651,#b01f2a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #5e0d14;color:#fff;font-size:0}
+body[data-theme=classic] #queue .empty-action::before{content:'노래 찾기';font:700 15px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] #queue .empty-action::after{content:'FIND A SONG';font:500 10px 'IBM Plex Sans KR',sans-serif;letter-spacing:.08em;color:#fffc}
+/* ── 설정 as designed (mockup P10): one panel per group, LCD wells, rubber keys, faders ── */
+body:not([data-theme=classic]) :is(.sg,.mixline){display:contents}
+body[data-theme=classic][data-tab=settings] .sheet{gap:16px;padding:0;border:0;background:none}
+body[data-theme=classic] .sheet .sg{display:block;padding:0 14px 14px;border-radius:14px;background:#1d1e26;box-shadow:inset 0 0 0 1px #2c2d38}
+body[data-theme=classic] .sheet .sg>h4{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px;padding:12px 0 0;font:400 16px 'Black Han Sans',sans-serif;letter-spacing:.04em;text-transform:none;color:#fff}
+body[data-theme=classic] .sheet .sg>h4>.classic-only{display:flex;justify-content:space-between;width:100%}
+body[data-theme=classic] .sheet .sg>h4 small{align-self:center;font:700 10px 'IBM Plex Sans KR',sans-serif;color:#8c8ea3;letter-spacing:.14em}
+body[data-theme=classic] .sheet :is(.slider-label,.seg-row,.offset,.presets,.stepper,.scrub){margin-top:0}
+/* Shared key look for the sheet's own buttons. */
+body[data-theme=classic] .sheet :is(.stepper button,.offset button,#key-reset,#lyric-version,.room-add button,.mixline .rk){display:flex;flex-direction:column;align-items:center;justify-content:center;border:0;border-radius:12px;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 4px 0 #0b0b0f,0 6px 10px #0007;color:#fff;font:700 15px/1.1 'IBM Plex Sans KR',sans-serif;transition:none}
+body[data-theme=classic] .sheet :is(.stepper button,.offset button,#key-reset,#lyric-version,.room-add button,.mixline .rk):not(:disabled):active{transform:translateY(3px);border-radius:12px;box-shadow:inset 0 1px 0 #ffffff26,0 1px 0 #0b0b0f;background:linear-gradient(#3a3c47,#272830);color:#fff}
+body[data-theme=classic] .sheet :is(.stepper button,.offset button,#key-reset,#lyric-version,.room-add button) small{display:block;margin-top:2px;font:500 9px 'IBM Plex Sans KR',sans-serif;color:#aeb0c4;letter-spacing:.06em}
+/* 남은 시간: an LCD of minutes and the end time, then two 서비스 keys. */
+body[data-theme=classic] #room-time .seg-row{display:block}
+body[data-theme=classic] #room-time .seg-row>span:first-child{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:10px;background:var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e}
+body[data-theme=classic] #room-left{display:flex;align-items:baseline;font:inherit;color:inherit;text-shadow:none}
+body[data-theme=classic] #room-left .lcd{font-size:44px}
+body[data-theme=classic] #room-left .u{margin-left:4px;font:400 22px 'Black Han Sans',sans-serif;color:var(--lcd-on)}
+body[data-theme=classic] #room-end{display:block;max-width:92px;margin:0;font:700 11px/1.4 'IBM Plex Sans KR',sans-serif;color:#7f9cff;letter-spacing:.1em;text-align:right}
+body[data-theme=classic] #room-time.up .seg-row>span:first-child{box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #a51d27}
+body[data-theme=classic] #room-time.up #room-left .lcd{color:#ff6b6b;text-shadow:0 0 .35em #ff4d4daa;animation:lcd-blink 1s steps(1) infinite}
+body[data-theme=classic] #room-time.up .room-add{animation:svc-glow 1.6s ease-in-out infinite}
+@keyframes svc-glow{50%{filter:brightness(1.25)}}
+body[data-theme=classic] .sheet .room-add{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:12px}
+body[data-theme=classic] .sheet .room-add button{width:auto;height:54px;padding:0;font:400 20px 'Black Han Sans',sans-serif}
+body[data-theme=classic] .sheet .room-add button::after{content:none}
+body[data-theme=classic] .sheet .room-add button:first-child{background:linear-gradient(#ea4651,#b01f2a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #5e0d14}
+body[data-theme=classic] .sheet .room-add button:last-child{background:linear-gradient(#4b55d6,#2a2f9a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #141760}
+body[data-theme=classic] .sheet .room-add button small{color:#fffc;font-weight:700;font-size:10px}
+/* 위치: LCD times over an LED well with a yellow fader knob. */
+body[data-theme=classic] .sheet .scrub{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:8px 6px}
+body[data-theme=classic] .sheet :is(#position,#length){font:20px DSEG7,monospace;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa}
+body[data-theme=classic] .seek-hint{text-align:center;font:700 10px 'IBM Plex Sans KR',sans-serif;color:#7f9cff;letter-spacing:.1em}
+body[data-theme=classic] #scrub{grid-column:1/-1;--track:24px;--handle:34px;height:34px;margin:4px 0 0}
+body[data-theme=classic] #scrub::-webkit-slider-runnable-track{border-radius:8px;background:repeating-linear-gradient(90deg,#0000 0 calc(100%/30 - 2px),var(--lcd) calc(100%/30 - 2px) calc(100%/30)) 6px 50%/calc(100% - 12px) 12px no-repeat,linear-gradient(90deg,var(--yellow) calc(var(--v)*100%),#16224a 0) 6px 50%/calc(100% - 12px) 12px no-repeat,var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 3px #2b3c8e}
+body[data-theme=classic] #scrub::-webkit-slider-thumb{width:16px;border-radius:5px;background:linear-gradient(#ffe866,#f2c400);box-shadow:inset 0 1px 0 #fff8,0 3px 0 #7a6100,0 4px 8px #000a}
+/* 믹스: name, −, an LCD block meter (still the slider), +. */
+body[data-theme=classic] .sheet .mixline{position:relative;display:grid;grid-template-columns:44px 38px 1fr 38px;align-items:center;gap:8px;margin-top:10px}
+body[data-theme=classic] .sheet .mixline:first-of-type{margin-top:0}
+body[data-theme=classic] .sheet .mixline .slider-label{display:block;margin:0}
+body[data-theme=classic] .nm{display:block;font:400 16px/1.05 'Black Han Sans',sans-serif;color:#fff}
+body[data-theme=classic] .nm small{display:block;font:700 9px 'IBM Plex Sans KR',sans-serif;color:#8c8ea3;letter-spacing:.1em}
+body[data-theme=classic] .mixline .slider-label>span[id]{position:absolute;left:108px;top:50%;z-index:1;transform:translateY(-50%);font:700 15px 'Share Tech Mono',monospace;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa;pointer-events:none}
+body[data-theme=classic] .sheet .mixline .rk{width:38px;height:38px;padding:0;font-size:18px}
+body[data-theme=classic] .mixline input[type=range]{--track:42px;--handle:42px;height:42px;margin:0}
+body[data-theme=classic] .mixline input[type=range]::-webkit-slider-runnable-track{border-radius:10px;background:repeating-linear-gradient(90deg,#0000 0 calc(10% - 2px),var(--lcd) calc(10% - 2px) 10%) 52px 50%/calc(100% - 62px) 16px no-repeat,linear-gradient(90deg,var(--cyan) calc(var(--v)*100%),#16224a 0) 52px 50%/calc(100% - 62px) 16px no-repeat,var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 3px #2b3c8e}
+body[data-theme=classic] .mixline input[type=range]::-webkit-slider-thumb{width:2px;background:transparent}
+body[data-theme=classic] .sublbl{margin:14px 0 0;font:700 10px 'IBM Plex Sans KR',sans-serif;color:#8c8ea3;letter-spacing:.14em}
+/* Presets: five toggle keys; the pressed one sits lower with its green lamp lit. */
+body[data-theme=classic] .sheet .presets{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+body[data-theme=classic] .sheet .presets button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:52px;padding:8px 0 0;border:0;border-radius:10px;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 4px 0 #0b0b0f,0 6px 10px #0007;color:#aeb0c4;font:500 8.5px 'IBM Plex Sans KR',sans-serif;white-space:nowrap}
+body[data-theme=classic] .sheet .presets button .ko{font:700 12px/1.2 'IBM Plex Sans KR',sans-serif;color:#fff}
+body[data-theme=classic] .sheet .presets button::before{content:'';position:absolute;top:6px;left:50%;width:14px;height:3px;margin-left:-7px;border-radius:2px;background:#11121a;box-shadow:inset 0 1px 1px #000}
+body[data-theme=classic] .sheet .presets button[aria-pressed=true]{transform:translateY(3px);background:linear-gradient(#30323c,#22232a);box-shadow:inset 0 1px 0 #ffffff1a,0 1px 0 #0b0b0f;border-color:transparent}
+body[data-theme=classic] .sheet .presets button[aria-pressed=true] .ko{color:var(--yellow)}
+body[data-theme=classic] .sheet .presets button[aria-pressed=true]::before{background:#7dff9a;box-shadow:0 0 6px #7dff9a}
+/* 키 · 속도: ♭ / ♯ keys around an LCD key with a 원키 lamp, a speed fader, a reset key. */
+body[data-theme=classic] .sheet .stepper{display:grid;grid-template-columns:58px 1fr 58px;gap:10px;padding:0;border:0;border-radius:0;background:none}
+body[data-theme=classic] .sheet .stepper button{width:auto;height:76px;font:700 28px/1 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .stepper .mid{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;background:var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e}
+body[data-theme=classic] .stepper .roll{height:36px;font:28px/36px DSEG7,monospace;letter-spacing:0;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa}
+body[data-theme=classic] .stepper #key-note{margin-top:4px;padding:0 7px;border-radius:4px;font:700 10px/17px 'IBM Plex Sans KR',sans-serif;color:#8fb4ff;letter-spacing:.04em}
+body[data-theme=classic] .stepper #key-note.orig{background:#7dff9a1f;color:#7dff9a}
+body[data-theme=classic] .stepper #key-note.orig::before{content:'원키 · '}
+body[data-theme=classic] .sheet .slider-label:has(+#speed),body[data-theme=classic] .sheet .slider-label:has(+#lyric-scale){display:flex;align-items:center;justify-content:space-between;margin-top:16px}
+body[data-theme=classic] .sheet .slider-label:has(+#lyric-scale){margin-top:12px;padding-top:10px;border-top:1px solid #2c2d38}
+body[data-theme=classic] :is(#speed-value,#lyric-scale-value){padding:4px 10px;border-radius:8px;background:var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 3px #2b3c8e;font:700 15px 'Share Tech Mono',monospace;color:var(--lcd-on)}
+body[data-theme=classic] .sheet .slider-label .nm{font:700 14px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .sheet .slider-label .nm small{font:500 11px 'IBM Plex Sans KR',sans-serif;letter-spacing:0}
+body[data-theme=classic] :is(#speed,#lyric-scale){--track:20px;--handle:32px;height:40px;margin:4px 0 0}
+body[data-theme=classic] :is(#speed,#lyric-scale)::-webkit-slider-runnable-track{border-radius:0;background:linear-gradient(#0b0b10,#0b0b10) 4px 0/calc(100% - 8px) 6px no-repeat,repeating-linear-gradient(90deg,#4a4c5c 0 1px,#0000 1px calc((100% - 8px)/8)) 4px 100%/calc(100% - 7px) 6px no-repeat;box-shadow:none}
+body[data-theme=classic] #speed::-webkit-slider-runnable-track{background:linear-gradient(#0b0b10,#0b0b10) 4px 0/calc(100% - 8px) 6px no-repeat,linear-gradient(var(--yellow),var(--yellow)) 50% 100%/1px 9px no-repeat,repeating-linear-gradient(90deg,#4a4c5c 0 1px,#0000 1px calc((100% - 8px)/8)) 4px 100%/calc(100% - 7px) 6px no-repeat}
+body[data-theme=classic] :is(#speed,#lyric-scale)::-webkit-slider-thumb{width:22px;height:32px;margin-top:-13px;border-radius:5px;background:linear-gradient(#0000 14px,var(--yellow) 14px 16px,#0000 16px),linear-gradient(#5a5c6a,#2c2d36);box-shadow:inset 0 1px 0 #ffffff40,0 3px 0 #0b0b0f,0 5px 8px #000a}
+body[data-theme=classic] .sheet .ends{display:flex;justify-content:space-between;margin-top:2px;font:500 10px 'Share Tech Mono',monospace;color:#6d6f85}
+body[data-theme=classic] .sheet .row-end{display:block}
+body[data-theme=classic] .sheet #key-reset{width:100%;height:46px;margin-top:14px;font-size:14px}
+/* 화면: hardware switches (a dark well, the active one a yellow key). */
+body[data-theme=classic] .sheet .sg .seg-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #2c2d38;font:500 11px 'IBM Plex Sans KR',sans-serif;color:#8c8ea3}
+body[data-theme=classic] .sheet .sg>h4+.seg-row,body[data-theme=classic] .sheet .sg .seg-row[hidden]+.seg-row{border-top:0}
+body[data-theme=classic] .sheet .seg-row .ko{display:block;font:700 14px 'IBM Plex Sans KR',sans-serif;color:#fff}
+body[data-theme=classic] .sheet .seg{padding:3px;border:0;border-radius:10px;background:#101015;box-shadow:inset 0 2px 4px #000a}
+body[data-theme=classic] .sheet .seg .pill{top:3px;bottom:3px;border-radius:8px;background:linear-gradient(#ffe866,#f2c400);box-shadow:0 2px 0 #7a6100}
+body[data-theme=classic] .sheet .seg button{height:30px;padding:0 11px;color:#8c8ea3;font:700 12px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .sheet .seg button[aria-pressed=true]{color:#1b1f5a}
+/* 가사 고치기: −0.5s / an LCD offset / +0.5s, then 가사 선택. */
+body[data-theme=classic] .sheet .offset{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:10px}
+body[data-theme=classic] .sheet .offset #earlier{order:1}
+body[data-theme=classic] .sheet .offset>span{order:2;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e}
+body[data-theme=classic] .sheet .offset #later{order:3}
+body[data-theme=classic] .sheet .offset button{height:52px;padding:0}
+body[data-theme=classic] #offset-value{font:700 22px 'Share Tech Mono',monospace;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa}
+body[data-theme=classic] .sheet .sg .muted{display:block;margin-top:8px;font:500 11px 'IBM Plex Sans KR',sans-serif;color:#8c8ea3}
+body[data-theme=classic] .sheet #lyric-version{flex:none;width:auto;height:38px;padding:0 14px;font-size:13px;background:linear-gradient(#4b55d6,#2a2f9a);box-shadow:inset 0 1px 0 #fff4,0 4px 0 #141760}
+body[data-theme=classic] .sheet #lyric-version small{color:#fffc}
+/* 테마: two swatch cards; the chosen one ringed in yellow. */
+body[data-theme=classic] .sheet #sg-theme .seg-row{display:block;padding:0;border:0}
+body[data-theme=classic] .sheet [data-action=theme]{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;padding:0;background:none;box-shadow:none}
+body[data-theme=classic] .sheet [data-action=theme] .pill{display:none}
+body[data-theme=classic] .sheet [data-action=theme] button{height:auto;padding:10px;border-radius:10px;background:#101015;box-shadow:inset 0 0 0 1px #2c2d38;color:#8c8ea3;font:700 13px 'IBM Plex Sans KR',sans-serif;text-align:left}
+body[data-theme=classic] .sheet [data-action=theme] button::before{content:'';display:block;width:auto;height:44px;margin:0 0 8px;border-radius:6px;background:linear-gradient(135deg,#101418,#2a3a22)}
+body[data-theme=classic] .sheet [data-action=theme] button[data-value=classic]::before{background:repeating-conic-gradient(#1d2aa8 0 8deg,#14197a 8deg 16deg)}
+body[data-theme=classic] .sheet [data-action=theme] button[aria-pressed=true]{color:var(--yellow);box-shadow:inset 0 0 0 2px var(--yellow)}
+body[data-theme=classic] .stepper .roll{width:100%;text-align:center}
+body[data-theme=classic] .sheet .offset{align-items:stretch}
+body[data-theme=classic] .sheet .scrub #position{grid-area:1/1}
+body[data-theme=classic] .sheet .scrub .seek-hint{grid-area:1/2}
+body[data-theme=classic] .sheet .scrub #length{grid-area:1/3}
+body[data-theme=classic] #scrub{grid-area:2/1/3/4}
+body[data-theme=classic] #room-end{white-space:pre-line}
+/* Toasts (mockup P8/P15): a label key, the message with the song in bold and a Korean line, a timer line. */
+body[data-theme=classic] .toast{left:12px;right:12px;width:auto;max-width:none;gap:0;align-items:stretch;min-height:48px;padding:0;overflow:hidden;border:0;border-radius:12px;background:#101236;box-shadow:inset 0 0 0 2px #000,0 0 0 1px #3c3984,0 10px 24px #000c;transform:translateY(20px)}
+body[data-theme=classic] .toast.on{transform:none}
+body[data-theme=classic] .toast-key{display:grid;place-items:center;flex:none;min-width:48px;padding:0 12px!important;background:var(--yellow);color:#1b1f5a;font:400 17px 'Black Han Sans',sans-serif;letter-spacing:.04em;white-space:nowrap}
+body[data-theme=classic] .toast-key.org{background:linear-gradient(#ffa133,#d9700b);color:#fff}
+body[data-theme=classic] .toast-key.amb{background:#ffb86b;color:#3a1f00}
+body[data-theme=classic] .toast-key.grn{background:linear-gradient(#36d47c,#14954a);color:#fff}
+body[data-theme=classic] .toast-key.emo{font-size:20px}
+body[data-theme=classic] .toast.err .toast-key{background:linear-gradient(#ea4651,#b01f2a);color:#fff}
+body[data-theme=classic] #toast-text{flex:1;align-self:center;min-width:0;padding:9px 12px 11px;white-space:normal;font:700 13.5px/1.3 'IBM Plex Sans KR',sans-serif;color:#fff}
+body[data-theme=classic] #toast-text b{color:var(--yellow)}
+body[data-theme=classic] #toast-text small{display:block;font:500 11px 'IBM Plex Sans KR',sans-serif;color:#8f95d8}
+body[data-theme=classic] #toast-text .lcd{margin-right:2px;font-size:13px}
+body[data-theme=classic] .toast.err #toast-text .lcd{color:#ff8a8a;text-shadow:0 0 .35em #ff4d4daa}
+body[data-theme=classic] #toast-action{flex:none;align-self:center;display:flex;flex-direction:column;align-items:center;justify-content:center;height:38px;margin-right:9px;padding:0 12px;border-radius:10px;background:linear-gradient(#ffe866,#f2c400);box-shadow:inset 0 1px 0 #fff8,0 3px 0 #7a6100;color:#1b1f5a;font-size:0}
+body[data-theme=classic] #toast-action::before{content:'되돌리기';font:700 13px/1.1 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] #toast-action::after{content:'UNDO';font:700 9px 'IBM Plex Sans KR',sans-serif;color:#5a4a00}
+body[data-theme=classic] .toast::after{content:'';position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--yellow);opacity:.75;transform-origin:left}
+body[data-theme=classic] .toast.err::after{background:#e2424c}
+body[data-theme=classic] .toast.on::after{animation:toast-time var(--toast-ms,2600ms) linear forwards}
+@keyframes toast-time{to{transform:scaleX(0)}}
+/* The header pill (mockup P12): a recessed lamp and its text, one look per connection state. */
+body[data-theme=classic] .connection{display:block;position:relative;min-width:0;height:30px;padding:0 12px 0 25px;border-radius:15px;background:#101015;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #2c2d38;font:700 11.5px/30px 'IBM Plex Sans KR',sans-serif;color:#aab0ff;overflow:hidden;text-overflow:ellipsis}
+body[data-theme=classic] .connection::before{position:absolute;left:10px;top:11px;background:#7f9cff;box-shadow:0 0 6px #7f9cff;animation:lcd-blink .6s steps(1) infinite}
+body[data-theme=classic] .connection.online{color:#cfd3ff}
+body[data-theme=classic] .connection.online::before{background:#7dff9a;box-shadow:0 0 6px #7dff9a;animation:none}
+body[data-theme=classic] .connection.online:not(.warn)::after{content:' · 연결됨'}
+body[data-theme=classic] .connection.online.warn{color:#ffd59a;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #6e3502}
+body[data-theme=classic] .connection.online.warn::before{background:#ffb86b;box-shadow:0 0 6px #ffb86b;animation:lcd-blink 1s steps(1) infinite}
+body[data-theme=classic] .connection.online.off{color:#ff9a9a;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #5e0d14}
+body[data-theme=classic] .connection.online.off::before{background:#e2424c;box-shadow:0 0 6px #e2424c;animation:none}
+body[data-theme=classic] .connection.lost{color:#8c8ea3;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #3a3b46}
+body[data-theme=classic] .connection.lost::before{background:none;box-shadow:inset 0 0 0 1.5px #8c8ea3;animation:none}
+body[data-theme=classic] .connection.lost::after{content:' · 연결 끊김'}
+/* The handset with nothing playing, and offline. */
+body[data-theme=classic] .rk:disabled{filter:saturate(.35)}
+#lcd-status.idle{color:#7f9cff}
+#lcd-status.off{color:#ff8a8a}
+.lcd-window.dead .lcd-song{color:#8fb4ff}
+/* 노래책 states (mockup P13). */
+body[data-theme=classic] #results[data-state=loading]::before{content:'YouTube 검색 · SEARCHING…'}
+body[data-theme=classic] #results[data-state=none]::before{content:'YouTube 검색 · SEARCH · 0'}
+body[data-theme=classic][data-tab=book] #results .skeleton{display:grid;grid-template-columns:84px 1fr;gap:10px;padding:9px 16px;border:0;border-bottom:1px solid #e6dcc0;border-radius:0;background:#fffaf0}
+body[data-theme=classic][data-tab=book] #results .skeleton i{background:linear-gradient(90deg,#efe6cc 25%,#f8f1de 50%,#efe6cc 75%) 0 0/300% 100%}
+body[data-theme=classic][data-tab=book] #results .skeleton>i{width:84px;height:47px;border-radius:6px}
+body[data-theme=classic][data-tab=book] #results .skeleton div i:first-child{width:85%}
+/* A notice with a rubber stamp: no results, nothing sung yet, an empty book. */
+body[data-theme=classic][data-tab=book] .empty:has(.stamp){display:flex;gap:12px;align-items:flex-start;padding:16px 16px 18px;background:#fffaf0;font:500 13px/1.45 'IBM Plex Sans KR',sans-serif;animation:none}
+body[data-theme=classic][data-tab=book] :is(#recent,#book-all) .empty:has(.stamp){margin:0 -16px;background:#f4eedc}
+body[data-theme=classic] .empty .stamp{flex:none;display:grid;place-items:center;width:44px;height:44px;border:2px dashed #c2185b88;border-radius:50%;color:#c2185b;font:400 14px 'Black Han Sans',sans-serif;transform:rotate(-8deg)}
+body[data-theme=classic] .empty:has(.stamp) b{display:block;margin-bottom:2px;color:#1d1b16;font:400 17px 'Black Han Sans',sans-serif;letter-spacing:.03em}
+/* What happened to an add replaces the channel line; a failed add gets a white key with a red !. */
+.result-note:empty{display:none}
+body[data-theme=classic] .result:is(.added,.failed) small:not(.result-note){display:none}
+body[data-theme=classic] .result-note em{font-style:normal;color:#14954a;font-weight:700}
+body[data-theme=classic] #results .result.failed .result-note,body[data-theme=classic] .result.failed .result-note{color:#b01f2a}
+body[data-theme=classic][data-tab=book] #results .result-icon.failed{background:#fff;color:#b01f2a;box-shadow:inset 0 0 0 2px #e2424c,0 3px 0 #b8ac8c}
+/* More results is a rubber key on the paper; it greys out with three blinking dots while the next page loads. */
+body[data-theme=classic][data-tab=book] #more{position:relative;width:calc(100% + 32px);height:auto;padding:12px 16px 14px;background:#fffaf0;color:#fff;font-size:0}
+body[data-theme=classic][data-tab=book] #more::before{content:'더 보기 · More results';display:flex;align-items:center;justify-content:center;height:42px;border-radius:16px;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 4px 0 #0b0b0f,0 6px 10px #0004;font:700 13px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic][data-tab=book] #more:active::before{transform:translateY(3px);box-shadow:inset 0 1px 0 #ffffff26,0 1px 0 #0b0b0f}
+body[data-theme=classic][data-tab=book] #more:disabled{opacity:1}
+body[data-theme=classic][data-tab=book] #more:disabled::before{content:'불러오는 중 · Loading';padding-right:34px;color:#8c8ea3}
+body[data-theme=classic][data-tab=book] #more:disabled::after{content:'';position:absolute;top:calc(50% - 4px);left:calc(50% + 62px);width:6px;height:6px;border-radius:50%;animation:more-dots 1.2s steps(1) infinite}
+@keyframes more-dots{0%{background:var(--yellow);box-shadow:10px 0 #0000,20px 0 #0000}33%{background:var(--yellow);box-shadow:10px 0 var(--yellow),20px 0 #0000}66%{background:var(--yellow);box-shadow:10px 0 var(--yellow),20px 0 var(--yellow)}}
+.results-end{display:flex;align-items:center;gap:10px;margin:0 -16px;padding:12px 16px 14px;background:#fffaf0;color:#8a8270;font:700 11px 'IBM Plex Sans KR',sans-serif;letter-spacing:.14em}
+.results-end::before,.results-end::after{content:'';flex:1;border-top:1px dashed #c9bd9c}
+/* 예약 states (mockup P14): a paused now card, a dim 00 with nothing playing, and a lamp on a row that just turned ready. */
+body[data-theme=classic] .hero.paused .art{filter:grayscale(.7) brightness(.6)}
+body[data-theme=classic] .hero.paused h1{color:#cfd3ff}
+body[data-theme=classic] .hero.paused h1::after{content:'❚❚ PAUSED';display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;background:#ffffff1a;color:#cfd3ff;font:700 10px/16px 'IBM Plex Sans KR',sans-serif;letter-spacing:.08em;vertical-align:2px}
+body[data-theme=classic] .hero.paused .bar i{background:linear-gradient(#cfd3ff,#9aa0d8)}
+body[data-theme=classic] .hero.paused .bar i::after{content:'';display:block;position:absolute;inset:0 0 0 auto;width:8px;height:auto;margin:0;border-radius:0;box-shadow:none;background:#fff;animation:lcd-blink 1s steps(1) infinite}
+body[data-theme=classic] #queue .empty .lcd.dim{opacity:.35}
+body[data-theme=classic] #queue .ready-lamp{font-style:normal;color:#7dff9a;animation:ready-lamp 3.2s ease-in forwards}
+body[data-theme=classic] #queue .ready-lamp::before{content:'';display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:#7dff9a;box-shadow:0 0 6px #7dff9a;vertical-align:1px;animation:lcd-blink .5s steps(1) 3}
+@keyframes ready-lamp{80%{opacity:1;font-size:inherit}to{opacity:0;font-size:0}}
+body[data-theme=classic] #queue .row.ready:not(:first-child):has(.ready-lamp) .status-ko{display:none}
+/* The ⋯ key and its menu (mockup P6): a navy machine menu with the song's number in LCD. */
+body[data-theme=classic] .song-more{right:4px;width:30px;height:30px;border-radius:8px;color:#8a8270;font:700 18px/1 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .song-more:hover{background:#0000000d;color:#1d1b16}
+body[data-theme=classic] .swipe:has(.song-menu) .song-more{background:#1b1f5a;color:#fff;box-shadow:0 2px 0 #0b0d33}
+body[data-theme=classic][data-tab=book] :is(#recent,#book-new,#book-all) .swipe:has(.song-menu) .result{background:#fff}
+body[data-theme=classic] .song-menu{top:calc(50% + 18px);right:4px;width:240px;min-width:0;padding:6px;border:0;border-radius:12px;background:#1b1f5a;box-shadow:inset 0 0 0 2px #3c3984,0 14px 30px #0007;color:#fff}
+body[data-theme=classic] .menu-head{padding:6px 10px 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-bottom:1px dashed #3c3984;font:700 11px 'IBM Plex Sans KR',sans-serif;color:#aab0ff;letter-spacing:.06em}
+body[data-theme=classic] .menu-head .lcd{margin-right:6px;font-size:11px}
+body[data-theme=classic] .song-menu button{display:grid;grid-template-columns:18px 1fr;align-items:center;column-gap:10px;text-align:left;margin-top:4px;padding:9px 10px;border-radius:8px;color:#aab0ff;font:500 11px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .song-menu button:first-of-type{background:#ffffff12}
+body[data-theme=classic] .song-menu button span{display:block;margin-bottom:1px;color:#fff;font:700 14px/1.25 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .song-menu button svg{grid-row:span 2;width:18px;height:18px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+body[data-theme=classic] .song-menu .danger{color:#d98a9a}
+body[data-theme=classic] .song-menu .danger span{color:#ff8a8a}
+body[data-theme=classic] .song-menu .danger svg{stroke:#ff8a8a}
+/* Swiped left: the paper slides aside to show a red rubber 삭제 key. */
+body[data-theme=classic] .swipe-delete{inset:0 0 0 auto;width:96px;border-radius:0;background:linear-gradient(#ea4651,#b01f2a);font-size:0}
+body[data-theme=classic] .swipe-delete::before{content:'삭제';display:block;font:400 16px/1.1 'Black Han Sans',sans-serif;letter-spacing:.06em}
+body[data-theme=classic] .swipe-delete::after{content:'DELETE';display:block;font:700 9px 'IBM Plex Sans KR',sans-serif;letter-spacing:.12em;opacity:.85}
+body[data-theme=classic] .swipe.open .result,body[data-theme=classic] .swipe.dragging .result{box-shadow:4px 0 10px #0004}
+/* The lyrics sheet (mockup P7, P16): the 예약곡 table's blue band, a recessed search field and LCD version cards. */
+body[data-theme=classic] .lyric-sheet{background:#05061acc}
+body[data-theme=classic] .lyric-sheet-panel{position:relative;padding:0 0 calc(14px + env(safe-area-inset-bottom));overflow:hidden;border:0;border-radius:22px 22px 0 0;background:#1d1e26;box-shadow:inset 0 0 0 1px #2c2d38,0 -12px 30px #000a}
+body[data-theme=classic] .lyric-sheet-panel::before{content:'';position:absolute;top:7px;left:50%;z-index:1;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#ffffff66}
+body[data-theme=classic] .lyric-sheet-head{margin:0;padding:18px 14px 12px 16px;background:linear-gradient(#3b3aa6,#26245f);border-bottom:2px solid #000}
+body[data-theme=classic] .lyric-sheet-head strong{min-width:0;font:400 20px/1.2 'Black Han Sans',sans-serif;letter-spacing:.02em;color:#fff}
+body[data-theme=classic] .lyric-sheet-head strong small{display:block;font:700 10px 'IBM Plex Sans KR',sans-serif;color:#cfd3ff;letter-spacing:.16em}
+body[data-theme=classic] .lyric-sheet-head strong span{color:var(--yellow)}
+body[data-theme=classic] .lyric-sheet-head button{flex:none;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 3px 0 #0b0b0f;color:#fff;font-size:0}
+body[data-theme=classic] .lyric-sheet-head button::before{content:'✕';font:700 14px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .lyric-search{margin:12px 14px 0}
+body[data-theme=classic] .lyric-search input{height:40px;padding:0 12px;border:0;border-radius:10px;background:#101015;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #2c2d38;color:#e8eaff;font:500 14px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .lyric-search button{height:40px;padding:0 14px;border-radius:10px;background:linear-gradient(#ea4651,#b01f2a);box-shadow:inset 0 1px 0 #fff4,0 3px 0 #5e0d14;color:#fff;font:700 13px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .lyric-options{gap:10px;padding:12px 14px 4px}
+body[data-theme=classic] .lyric-option{display:block;padding:11px 12px 10px;border:0;border-radius:12px;background:var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 3px #2b3c8e;color:#fff}
+body[data-theme=classic] .lyric-option.current{box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px var(--yellow)}
+body[data-theme=classic] .lyric-option>div{flex-wrap:wrap;align-items:center;row-gap:2px}
+body[data-theme=classic] .lyric-option>div>b{color:#fff;font:700 15px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .lyric-option>div>span:not(.cnt){order:3;flex:0 0 100%;font:500 11.5px 'IBM Plex Sans KR',sans-serif;color:#8f95d8}
+body[data-theme=classic] .lyric-option em{padding:0 7px;border-radius:4px;background:var(--yellow);color:#1b1f5a;font-size:0;line-height:17px}
+body[data-theme=classic] .lyric-option em::after{content:'사용중 IN USE';font:700 10px/17px 'IBM Plex Sans KR',sans-serif;letter-spacing:.06em}
+body[data-theme=classic] .lyric-option .cnt{margin-left:auto;text-align:right;white-space:nowrap;font:700 10px 'IBM Plex Sans KR',sans-serif;color:#7f9cff;letter-spacing:.08em}
+body[data-theme=classic] .lyric-option .cnt .lcd{margin-right:4px;font-size:14px}
+body[data-theme=classic] .lyric-option .cnt .gap{display:block;margin-top:2px;color:#ffb86b;letter-spacing:.02em}
+body[data-theme=classic] .lyric-option small:not(.count){display:block;color:#cfe6ff;font:500 12.5px/1.45 'IBM Plex Sans KR',sans-serif;opacity:1}
+body[data-theme=classic] .lyric-option>div+small{margin-top:7px;padding-top:7px;border-top:1px dashed #2b3c8e}
+body[data-theme=classic] .lyric-option small.count{display:none}
+body[data-theme=classic] .lyric-option:disabled{opacity:.45}
+body[data-theme=classic] .lyric-option.busy{opacity:.95;box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px var(--cyan)}
+body[data-theme=classic] .lyric-option.busy .cnt{font-size:0;color:transparent}
+body[data-theme=classic] .lyric-option.busy .cnt>*{display:none}
+body[data-theme=classic] .lyric-option.busy .cnt::after{content:'';display:inline-block;width:5px;height:12px;margin-right:16px;border-radius:1px;background:var(--cyan);box-shadow:8px 0 var(--cyan),16px 0 var(--cyan);animation:lcd-blink .9s steps(1) infinite}
+body[data-theme=classic] .lyric-all{height:44px;margin-top:2px;border-radius:16px;background:linear-gradient(#3a3c47,#272830);box-shadow:inset 0 1px 0 #ffffff26,0 4px 0 #0b0b0f;color:#fff;font:700 13px 'IBM Plex Sans KR',sans-serif}
+/* Looking up: an LCD well with a chasing bar. Nothing found: a dashed card. A failure: a red-edged line. */
+body[data-theme=classic] .lyric-options .lyric-wait{display:flex;flex-direction:column;align-items:center;gap:10px;margin:10px 0 0;padding:18px 14px;border-radius:12px;background:var(--lcd);box-shadow:inset 0 0 0 2px #000,inset 0 0 0 3px #2b3c8e;text-align:center;font:700 14px 'IBM Plex Sans KR',sans-serif;color:#e8eaff}
+body[data-theme=classic] .lyric-wait>span:not(.pbar){font:500 12.5px 'IBM Plex Sans KR',sans-serif;color:#8fb4ff}
+body[data-theme=classic] .lyric-wait .pbar{display:grid;grid-template-columns:repeat(40,1fr);gap:2px;width:100%;height:16px;padding:3px;border-radius:4px;background:#020817;box-shadow:inset 0 0 0 1px #1b2a6e}
+.lyric-wait .pbar i{border-radius:1px;background:#0f1d44;animation:lyric-chase 1.8s steps(1) infinite}
+@keyframes lyric-chase{0%{background:var(--yellow);box-shadow:0 0 4px #ffd40088}15%,100%{background:#0f1d44;box-shadow:none}}
+body[data-theme=classic] .lyric-options .lyric-none{margin:4px 0 0;padding:16px 14px;border-radius:12px;border:2px dashed #3c3984;color:#aab0ff;font:500 12.5px/1.5 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic] .lyric-none b{display:block;color:#fff;font:400 17px 'Black Han Sans',sans-serif;letter-spacing:.03em}
+body[data-theme=classic] .lyric-options .error{margin:4px 0 0;padding:12px 14px;border-radius:12px;background:#1a0610;box-shadow:inset 3px 0 0 #e2424c;color:#ffc9c9;font:500 12.5px/1.45 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic][data-tab=book]:has(.song-menu) .book-index{display:none}

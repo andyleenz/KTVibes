@@ -1,4 +1,8 @@
 import asyncio
+import json
+import os
+from pathlib import Path
+import tempfile
 import time
 import unittest
 import unittest.mock
@@ -80,6 +84,24 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         third['status'] = 'ready'
         state.promote()
         self.assertLessEqual(state.transition_until, time.time())
+
+    async def test_classic_breather_leaves_room_for_the_score(self):
+        import time
+        state = State()
+        await state.control({'action': 'theme', 'value': 'classic'})
+        songs = []
+        for vid in ('abcdefghijk', 'bbbbbbbbbbb', 'ccccccccccc'):
+            song = await state.add(vid, 'A', vid)
+            song['status'] = 'ready'
+            songs.append(song)
+        state.promote()
+        # A song sung to the end: the score (3 s) shows, then the 예약곡 board (4 s).
+        await state.control({'action': 'ended', 'key': songs[0]['key']})
+        self.assertIs(state.current, songs[1])
+        self.assertAlmostEqual(state.transition_until - time.time(), 7, delta=0.5)
+        # A skipped song gets no score, so only the board.
+        await state.control({'action': 'skip'})
+        self.assertAlmostEqual(state.transition_until - time.time(), 4, delta=0.5)
 
     async def test_seek_and_lyric_scale_are_clamped(self):
         state = State()
@@ -261,6 +283,98 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(state.offset, 1.0)
             await state.control({'action': 'offset', 'delta': .5})
             self.assertEqual(json.loads(meta.read_text(encoding='utf-8')), {'title': '晴天', 'lyric_offset': 1.5})
+
+    async def test_classic_room_timer_holds_the_next_song_until_time_is_added(self):
+        state = State()
+        clock = unittest.mock.patch('ktvibes.queue.time.time')
+        now = clock.start()
+        self.addCleanup(clock.stop)
+        now.return_value = 1000.0
+        state.lyric_mode = 'scroll'
+        await state.control({'action': 'theme', 'value': 'classic'})
+        self.assertEqual(state.room_ends, 1000.0 + 30 * 60)
+        self.assertEqual(state.lyric_mode, 'two')  # Classic is always two lines
+        await state.control({'action': 'lyric_mode', 'value': 'scroll'})
+        self.assertEqual(state.lyric_mode, 'two')
+        now.return_value = 1100.0
+        await state.control({'action': 'theme', 'value': 'classic'})  # choosing it again keeps the time
+        self.assertEqual(state.room_ends, 1000.0 + 30 * 60)
+        for video_id in ('aaaaaaaaaaa', 'bbbbbbbbbbb'):
+            item = await state.add(video_id, 'IU', video_id)
+            item['status'], item['duration'] = 'ready', 100
+        state.promote()
+        now.return_value = 1000.0 + 31 * 60
+        self.assertTrue(state.snapshot()['time_up'])
+        await state.control({'action': 'skip'})
+        self.assertIsNone(state.current)  # the room's time is up
+        await state.control({'action': 'add_time', 'minutes': 10})
+        self.assertEqual(state.current['id'], 'bbbbbbbbbbb')
+        self.assertEqual(state.room_ends, 1000.0 + 41 * 60)
+        await state.control({'action': 'theme', 'value': 'default'})
+        self.assertIsNone(state.room_ends)
+        self.assertFalse(state.snapshot()['time_up'])
+        with self.assertRaises(ValueError):
+            await state.control({'action': 'add_time', 'minutes': 10})  # no timer in Default
+        await state.control({'action': 'theme', 'value': 'classic'})
+        self.assertEqual(state.room_ends, 1000.0 + 61 * 60)  # a fresh 30 minutes
+
+    async def test_theme_and_room_time_survive_restart(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'queue.json'
+            state = State()
+            state.path = path
+            await state.control({'action': 'theme', 'value': 'classic'})
+            ends = state.room_ends
+            again = State()
+            again.restore(path)
+            self.assertEqual((again.theme, again.room_ends), ('classic', ends))
+            with self.assertRaises(ValueError):
+                await again.control({'action': 'add_time', 'minutes': 0})
+
+    async def test_reserve_next_puts_the_song_first_with_its_number(self):
+        with tempfile.TemporaryDirectory() as temp:
+            cache = Path(temp)
+            for video_id, number in [('aaaaaaaaaaa', 10001), ('bbbbbbbbbbb', 10002)]:
+                (cache / video_id).mkdir()
+                (cache / video_id / 'meta.json').write_text(json.dumps({'artist': 'IU', 'title': video_id, 'number': number}), encoding='utf-8')
+            state = State()
+            state.path = cache / 'queue.json'
+            await state.control({'action': 'reserve', 'number': 10001})
+            await state.control({'action': 'reserve', 'number': 10002, 'next': True})
+            self.assertEqual([(i['id'], i['number']) for i in state.upcoming], [('bbbbbbbbbbb', 10002), ('aaaaaaaaaaa', 10001)])
+
+    async def test_dial_reaches_the_tv_and_reserve_queues_by_number(self):
+        with tempfile.TemporaryDirectory() as temp:
+            cache = Path(temp)
+            (cache / 'aaaaaaaaaaa').mkdir()
+            (cache / 'aaaaaaaaaaa' / 'meta.json').write_text(json.dumps({'artist': 'IU', 'title': '좋은 날', 'number': 10001}), encoding='utf-8')
+            state = State()
+            state.path = cache / 'queue.json'
+            state.player = tv = object()
+            sent = []
+            async def send(ws, message):
+                sent.append((ws, message))
+                return True
+            state.send = send
+            revision = state.revision
+            await state.control({'action': 'dial', 'digits': '100'})
+            self.assertEqual(sent, [(tv, {'type': 'dial', 'digits': '100'})])
+            self.assertEqual(state.revision, revision)  # nothing saved or broadcast
+            with self.assertRaises(ValueError):
+                await state.control({'action': 'dial', 'digits': '12a'})
+            await state.control({'action': 'reserve', 'number': 10001})
+            self.assertEqual((state.upcoming[0]['id'], state.upcoming[0]['title']), ('aaaaaaaaaaa', '좋은 날'))
+            self.assertIn((tv, {'type': 'reserved', 'number': 10001}), sent)
+            with self.assertRaises(ValueError):
+                await state.control({'action': 'reserve', 'number': 10001})  # already queued
+            with self.assertRaisesRegex(ValueError, 'No song 10099'):
+                await state.control({'action': 'reserve', 'number': 10099})
+            self.assertEqual(len(state.upcoming), 1)
+            # Reserving while the room's time is up queues the song but doesn't start it.
+            state.theme, state.room_ends = 'classic', 1.0
+            state.upcoming[0]['status'] = 'ready'
+            state.promote()
+            self.assertIsNone(state.current)
 
 class WorkerRunTests(unittest.IsolatedAsyncioTestCase):
     async def test_removed_song_stops_holding_up_the_queue(self):
@@ -570,3 +684,84 @@ class GuideTests(unittest.TestCase):
         units = [['晴', 0, 1, 'qíng'], ['天 ', 1, 2, 'tiān'], ['kiss', 2, 3]]
         add_hangul([{'t': 0, 'text': '晴天 kiss', 'units': units}])
         self.assertEqual([u[3:] for u in units], [['qíng', '칭'], ['tiān', '톈'], ['', '키스']])
+
+
+class SongbookTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.cache = Path(self.temp.name)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def song(self, video_id, mtime, **meta):
+        folder = self.cache / video_id
+        folder.mkdir()
+        path = folder / 'meta.json'
+        path.write_text(json.dumps({'artist': 'IU', 'title': video_id, **meta}), encoding='utf-8')
+        os.utime(path, (mtime, mtime))
+        return path
+
+    def test_numbers_start_at_10001_and_never_repeat(self):
+        from ktvibes import songbook
+        meta = {}
+        self.assertEqual(songbook.assign(self.cache, meta), 10001)
+        self.song('aaaaaaaaaaa', 1, number=10001)
+        self.song('bbbbbbbbbbb', 2, number=10007)
+        meta = {}
+        self.assertEqual(songbook.assign(self.cache, meta), 10008)
+        kept = {'number': 10003}
+        self.assertEqual(songbook.assign(self.cache, kept), 10003)  # a number is for life
+        self.assertEqual(songbook.numbers(self.cache), {10001: 'aaaaaaaaaaa', 10007: 'bbbbbbbbbbb'})
+        self.assertEqual(songbook.find(self.cache, 10007)[0], 'bbbbbbbbbbb')
+        self.assertIsNone(songbook.find(self.cache, 10002))
+
+    def test_backfill_numbers_prepared_songs_oldest_first_and_keeps_timestamps(self):
+        from ktvibes import songbook
+        newer = self.song('bbbbbbbbbbb', 200)
+        older = self.song('aaaaaaaaaaa', 100)
+        self.song('ccccccccccc', 300)  # not prepared: no stems
+        self.song('ddddddddddd', 50, number=10001)
+        songbook.backfill(self.cache, lambda folder: folder.name != 'ccccccccccc')
+        self.assertEqual(json.loads(older.read_text(encoding='utf-8'))['number'], 10002)
+        self.assertEqual(json.loads(newer.read_text(encoding='utf-8'))['number'], 10003)
+        self.assertNotIn('number', json.loads((self.cache / 'ccccccccccc' / 'meta.json').read_text(encoding='utf-8')))
+        self.assertEqual(older.stat().st_mtime, 100)  # "prepared" times feed the Recent list
+
+class MusicEndTest(unittest.TestCase):
+    def stem(self, folder, seconds_of_tone, seconds_of_silence, name="no_vocals"):
+        import numpy as np, soundfile as sf
+        rate = 48000
+        t = np.arange(int(rate * seconds_of_tone)) / rate
+        tone = 0.3 * np.sin(2 * np.pi * 440 * t)
+        data = np.concatenate([tone, np.zeros(int(rate * seconds_of_silence))])
+        path = Path(folder) / f"{name}.opus"
+        sf.write(path, np.stack([data, data], axis=1), rate, format="OGG", subtype="OPUS")
+        return path
+
+    def test_music_end_is_where_the_trailing_silence_starts(self):
+        from ktvibes import stems
+        with tempfile.TemporaryDirectory() as folder:
+            end = stems.music_end(self.stem(folder, 5, 4))
+        self.assertAlmostEqual(end, 5, delta=0.3)
+
+    def test_music_end_is_the_length_when_the_track_plays_to_the_end(self):
+        from ktvibes import stems
+        with tempfile.TemporaryDirectory() as folder:
+            end = stems.music_end(self.stem(folder, 6, 0))
+        self.assertAlmostEqual(end, 6, delta=0.3)
+
+    def test_song_end_waits_for_a_last_line_sung_after_the_music_stops(self):
+        from ktvibes import stems
+        with tempfile.TemporaryDirectory() as folder:
+            self.stem(folder, 5, 4)
+            self.stem(folder, 7, 2, name="vocals")
+            end = stems.song_end(Path(folder))
+        self.assertAlmostEqual(end, 7, delta=0.3)
+
+    def test_song_end_is_none_when_a_stem_cannot_be_read(self):
+        from ktvibes import stems
+        with tempfile.TemporaryDirectory() as folder:
+            self.stem(folder, 5, 4)
+            (Path(folder) / "vocals.opus").write_bytes(b"not audio")
+            self.assertIsNone(stems.song_end(Path(folder)))

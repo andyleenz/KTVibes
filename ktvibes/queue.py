@@ -3,10 +3,12 @@ import asyncio
 import json
 import math
 from pathlib import Path
+import re
 import time
 import uuid
+from . import songbook
 
-DISPLAY = {"video_mode": ("show", "blur", "hide"), "lyric_mode": ("two", "scroll", "off")}
+DISPLAY = {"video_mode": ("show", "blur", "hide"), "lyric_mode": ("two", "scroll", "off"), "theme": ("default", "classic")}
 def following(options, current):
     """The option after `current`, wrapping round: what a "cycle" control switches to."""
     return options[(options.index(current) + 1) % len(options)]
@@ -17,6 +19,8 @@ HISTORY = 200  # remembered plays, for the remote's "Recent" list
 UNDO_SECONDS = 15  # how long a removal can be taken back
 SAVE_EVERY = 10  # seconds between queue.json writes for position reports alone
 BREATHER = 4  # seconds between one song ending and the next starting
+SCORE_HOLD = 3  # Classic: the score shows this long when a song is sung to the end, before the 예약곡 board
+ROOM_MINUTES = 30  # a Classic room starts with this much singing time
 
 def number(value) -> float:
     """Control values arrive as JSON; reject text and NaN/inf before clamping."""
@@ -40,6 +44,8 @@ class State:
         self.lyric_scale = 1.5
         self.video_mode = "show"  # show | blur | hide: blur suits lyric videos, whose own lyrics clash
         self.lyric_mode = "two"  # two (classic two-line KTV) | scroll | off
+        self.theme = "default"  # default | classic (Korean noraebang look, with a room timer)
+        self.room_ends = None  # unix time a Classic room's singing time runs out
         self.speed = 1.0  # playback tempo, 0.5-1.5; pitch is kept
         self.key = 0  # pitch shift in semitones, -6..+6
         self.seek_id = 0
@@ -63,11 +69,14 @@ class State:
             return list(GUIDES)
         return ["off"] + [mode for index, mode in ((3, "latin"), (5, "jyutping"), (4, "hangul")) if any(len(u) > index and u[index] for u in units)]
 
+    def time_up(self):
+        return self.room_ends is not None and time.time() >= self.room_ends
+
     def snapshot(self, lyrics=True):
         """Lyrics are large and only the TV draws them, so broadcasts leave them out (see broadcast)."""
         brief = lambda item: item if lyrics or item is None else {k: v for k, v in item.items() if k != "lyrics"}
         return {"current": brief(self.current), "upcoming": [brief(i) for i in self.upcoming], "playing": self.playing,
-                "offset": self.offset, "vocal": self.vocal, "music": self.music, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "video_mode": self.video_mode, "lyric_mode": self.lyric_mode, "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
+                "offset": self.offset, "vocal": self.vocal, "music": self.music, "guide": self.guide, "guides": self.guides(), "lyric_scale": self.lyric_scale, "video_mode": self.video_mode, "lyric_mode": self.lyric_mode, "theme": self.theme, "room_ends": self.room_ends, "time_up": self.time_up(), "speed": self.speed, "key": self.key, "seek_id": self.seek_id, "position": self.position,
                 "transition_until": self.transition_until, "server_time": time.time(),
                 "player_connected": self.player is not None, "player_audio": self.player is not None and self.audio,
                 "revision": self.revision, "build": self.build}
@@ -81,6 +90,8 @@ class State:
             saved = {}
         # Before play history existed, fall back to whatever seed() knows (e.g. cache timestamps).
         self.played = saved["played"] if isinstance(saved.get("played"), dict) else seed()
+        self.theme = saved.get("theme") if saved.get("theme") in DISPLAY["theme"] else "default"
+        self.room_ends = float(saved["room_ends"]) if self.theme == "classic" and isinstance(saved.get("room_ends"), (int, float)) else None
         entries = saved.get("upcoming", [])
         if saved.get("current"):
             entries = [saved["current"], *entries]
@@ -96,7 +107,8 @@ class State:
             return
         brief = lambda i: {"id": i["id"], "artist": i["artist"], "title": i["title"]}
         data = {"current": self.current and {**brief(self.current), "position": self.position},
-                "upcoming": [brief(i) for i in self.upcoming if i["status"] != "error"], "played": self.played}
+                "upcoming": [brief(i) for i in self.upcoming if i["status"] != "error"], "played": self.played,
+                "theme": self.theme, "room_ends": self.room_ends}
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         temporary.replace(self.path)
@@ -137,7 +149,7 @@ class State:
             self.player = None
             self.audio = False
 
-    def advance(self):
+    def advance(self, scored=False):
         self.current = None
         self.position = 0
         self.offset = 0
@@ -145,10 +157,12 @@ class State:
         self.speed = 1.0
         self.key = 0
         # A short breather between songs shows who's up next; a song on an empty stage starts at once.
-        self.transition_until = time.time() + BREATHER
+        self.transition_until = time.time() + BREATHER + (SCORE_HOLD if scored and self.theme == "classic" else 0)
         self.promote()
 
     def promote(self):
+        if self.time_up():
+            return  # the song on stage finishes; the next waits for more time
         if self.current is None:
             candidate = next((item for item in self.upcoming if item["status"] != "error"), None)
             if candidate and candidate["status"] == "ready":
@@ -217,12 +231,37 @@ class State:
             if self.player is not None:
                 await self.send(self.player, {"type": "react", "value": message["value"]})
             return
+        if action == "dial":
+            # Keypad digits go straight to the TV to show and read out; nothing changes.
+            digits = message.get("digits")
+            if not isinstance(digits, str) or not re.fullmatch(r"\d{0,5}", digits):
+                raise ValueError("Expected up to 5 digits")
+            if self.player is not None:
+                await self.send(self.player, {"type": "dial", "digits": digits})
+            return
+        if action == "reserve":
+            wanted = int(number(message.get("number")))
+            found = self.path and songbook.find(self.path.parent, wanted)
+            if not found:
+                raise ValueError(f"No song {wanted}")
+            if len(self.upcoming) >= 100:
+                raise ValueError("Queue is full")
+            video_id, meta = found
+            item = await self.add(video_id, meta["artist"], meta["title"])
+            item["number"] = wanted
+            if message.get("next"):  # 우선예약: sing it next
+                self.upcoming.remove(item)
+                self.upcoming.insert(0, item)
+                await self.broadcast()
+            if self.player is not None:
+                await self.send(self.player, {"type": "reserved", "number": wanted})
+            return
         if action == "play":
             self.playing = True
         elif action == "pause":
             self.playing = False
         elif action == "skip" or action == "ended":
-            self.advance()
+            self.advance(scored=action == "ended")
         elif action == "undo":
             self.take_back()
         elif action == "audio":
@@ -246,7 +285,21 @@ class State:
                 value = following(options, getattr(self, action))
             if value not in options:
                 raise ValueError(f"Unknown {action.replace('_', ' ')}")
+            if action == "lyric_mode" and self.theme == "classic":
+                value = "two"  # Classic always shows two lines (a TV restoring its own setting must not fail)
             setattr(self, action, value)
+            if action == "theme":
+                if value == "classic":
+                    self.lyric_mode = "two"
+                # Switching to Classic opens a room; leaving it ends the room.
+                self.room_ends = (self.room_ends or time.time() + ROOM_MINUTES * 60) if value == "classic" else None
+        elif action == "add_time":
+            if self.theme != "classic":
+                raise ValueError("Room time is part of the Classic theme")
+            minutes = int(number(message.get("minutes")))
+            if not 1 <= minutes <= 120:
+                raise ValueError("Add between 1 and 120 minutes")
+            self.room_ends = max(time.time(), self.room_ends or 0) + minutes * 60
         elif action == "speed":
             self.speed = round(max(0.5, min(1.5, number(message["value"]))), 2)
         elif action == "key":

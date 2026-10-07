@@ -4,8 +4,20 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-07
+
 ### Added
+- A Classic theme in the style of a Korean noraebang, chosen at the bottom of the remote's Settings. The TV and remote switch to navy and yellow; the TV gets a top strip with the song's number, title and a room clock; two-line lyrics alternate left and right with a blue wipe; and a score from 60 to 100 shows after each song.
+- Classic rooms start with 30 minutes. Add time from Settings on the remote; when time runs out, the current song finishes and the next waits.
+- Every downloaded song gets a songbook number. In Classic, the remote is a handset with four tabs: 리모컨 (a keypad that reserves by number, with 우선예약 to sing next), 노래책 (the songbook: 신곡, 최근 and A–Z with jump tabs; typing filters it), 예약 (the queue as an LCD table with 우선, 취소 and 재시도) and 설정. Dialled digits show on the TV's top strip.
+- In Classic, the TV shows a 예약곡 board between songs, a small QR code during songs, and a machine-style boot screen before sound is enabled. The theme can also be picked on the TV's Enable sound screen, in either theme.
+- In Classic, the score shows only when a song is sung to the end (not when it's skipped), as soon as its music stops, for 3 seconds before the 예약곡 board.
+- In Classic, 👏 is the remote's only cheer.
 - The TV and remote pages show the KT icon in browser tabs, and when the remote is added to a phone's home screen.
+
+### Fixed
+- Messages on the remote show above the lyrics picker instead of behind it.
+- If the TV loses its connection just as a song ends, it tells the server again when it reconnects, so the room moves on to the next song.
 
 ## [0.5.0] - 2026-10-05
 
@@ -81,7 +93,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/andyleenz/KTVibes/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/andyleenz/KTVibes/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/andyleenz/KTVibes/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/andyleenz/KTVibes/compare/v0.2.1...v0.3.0

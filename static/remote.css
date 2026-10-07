@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&family=Share+Tech+Mono&family=Black+Han+Sans&family=Noto+Sans+KR:wght@900&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap');
 /* Phone remote. Motion follows M3 Expressive: springs for space, quick fades for colour. */
 :root{color-scheme:dark;--bg:#111313;--panel:#1b1e1d;--panel2:#232826;--line:#343a36;--ink:#f2f3e8;--muted:#9aaba0;--lime:#d7fc70;--on-lime:#172013;--amber:#ffbf80;--red:#ff9a93;
  --spring:cubic-bezier(.34,1.56,.64,1);--spring-soft:cubic-bezier(.38,1.21,.22,1);--bouncy:cubic-bezier(.42,1.67,.21,.9);--emph:cubic-bezier(.2,0,0,1);
@@ -31,6 +31,7 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .searchbar .clear{width:40px;color:var(--muted);font-size:20px}
 .suggestions{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:5;margin:0;padding:6px;list-style:none;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 40px #000a;animation:drop .2s var(--spring)}
 .suggestions li{padding:12px 14px;border-radius:10px;font-size:15px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.suggestions b{font-weight:inherit}
 .suggestions li:hover,.suggestions li[aria-selected=true]{background:var(--panel2);color:var(--lime)}
 @keyframes drop{from{opacity:0;transform:translateY(-6px)}}
 
@@ -173,6 +174,7 @@ body.sheet-open .scrim{opacity:1;pointer-events:auto}body.sheet-open .sheet{tran
 .sheet .now .info{min-width:0}.sheet .now strong{display:block;font:700 16px 'Space Grotesk','Noto Sans CJK SC',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sheet .now small{font-size:12px;color:var(--muted)}
 .scrub{display:flex;align-items:center;gap:12px;margin-top:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .slider-label{display:flex;justify-content:space-between;margin-top:12px;font-size:14px}.slider-label span{color:var(--muted);font-variant-numeric:tabular-nums}
+.slider-label .default-only{color:inherit}  /* the words stay white; only the value is muted */
 .muted{display:block;margin-top:4px;color:var(--muted);font-size:12px}
 .small{height:36px;padding:0 14px;border:1px solid var(--line);border-radius:18px;background:var(--panel2);font-size:13px;transition:border-radius .3s var(--bouncy)}
 .small:not(:disabled):active{border-radius:8px}
@@ -242,3 +244,5 @@ body.sheet-open .toast.on{transform:translate(-50%,0)}
 @keyframes fade-in{from{opacity:0}}@keyframes fade-out{to{opacity:0}}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* Classic theme: room time. */
+.room-add{display:flex;gap:8px}

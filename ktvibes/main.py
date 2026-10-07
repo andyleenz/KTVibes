@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from .queue import State
-from . import lyrics, stems, worker, youtube
+from . import lyrics, songbook, stems, worker, youtube
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = Path(os.environ.get("KTVIBES_CACHE", ROOT / "cache"))
@@ -25,6 +25,7 @@ state = State()
 async def lifespan(app):
     CACHE.mkdir(parents=True, exist_ok=True)
     state.build = build()
+    await asyncio.to_thread(songbook.backfill, CACHE, stems.prepared)  # caches from before the songbook
     state.restore(CACHE / "queue.json", seed=lambda: {id: meta["prepared"] for id, meta in prepared_songs().items()})
     task = asyncio.create_task(worker.run(state, CACHE))
     try:
@@ -110,7 +111,7 @@ def prepared_songs() -> dict:
         video_id = meta_path.parent.name
         if youtube.ID.fullmatch(video_id) and meta.get("artist") and meta.get("title") and stems.prepared(meta_path.parent):
             songs[video_id] = {"id": video_id, "artist": meta["artist"], "title": meta["title"], "duration": meta.get("duration"),
-                               "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg", "prepared": prepared}
+                               "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg", "prepared": prepared, "number": meta.get("number")}
     return songs
 
 @app.get("/api/recent")
@@ -119,6 +120,11 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
     songs = prepared_songs()
     played = sorted((when, video_id) for video_id, when in state.played.items() if video_id in songs)
     return [{k: v for k, v in songs[video_id].items() if k != "prepared"} for _, video_id in reversed(played[-limit:])]
+
+@app.get("/api/songbook")
+async def songbook_list():
+    """Prepared songs by songbook number, for the remote's keypad and songbook (with when each was prepared, for 신곡)."""
+    return sorted((s for s in prepared_songs().values() if s.get("number")), key=lambda s: s["number"])
 
 @app.get("/api/ambient")
 async def ambient():
@@ -264,7 +270,7 @@ async def websocket(ws: WebSocket):
             try:
                 if not isinstance(message, dict):
                     raise ValueError("Expected a control object")
-                for field in ("value", "delta", "position"):
+                for field in ("value", "delta", "position", "minutes"):
                     # Text values (guide modes) pass through; State.control converts numbers itself.
                     if isinstance(message.get(field), (int, float)) and not math.isfinite(message[field]):
                         raise ValueError("Expected a finite number")

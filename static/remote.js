@@ -1,23 +1,27 @@
+import {classicRemote,toastParts,emptyNote,secondsLeft} from './classic-remote.js';
 import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail} from './shared.js';
-let state;
+let state,classicUi;
 const SPRING='cubic-bezier(.38,1.21,.22,1)';
 const haptic=pattern=>{try{navigator.vibrate?.(pattern);}catch{}};
 function showImage(img,src){if(img.getAttribute('src')!==src){if(src)img.src=src;else img.removeAttribute('src');}img.hidden=!src;}
 // One toast for every message; an action (Undo) keeps it up a little longer.
 let toastTimer;
-function toast(text,action){
- $('toast-text').textContent=text;$('toast-action').hidden=!action;
+function toast(text,action,kind){
+ // Classic dresses the same message as the machine's toast: a label key, the title in bold, a Korean line.
+ if(document.body.dataset.theme==='classic'){const parts=toastParts(text,kind);$('toast-key').textContent=parts.key;$('toast-key').className=`toast-key classic-only ${parts.tone}`;$('toast-text').replaceChildren(...parts.body);$('toast').classList.toggle('err',kind==='err');}
+ else $('toast-text').textContent=text;
+ $('toast').style.setProperty('--toast-ms',`${action?6000:2600}ms`);$('toast-action').hidden=!action;
  if(action){$('toast-action').textContent=action.label;$('toast-action').onclick=()=>{$('toast').classList.remove('on');action.run();};}
  $('toast').classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('on'),action?6000:2600);
 }
-const send=connect('remote',render,toast);
+const send=connect('remote',render,message=>toast(message,undefined,'err'));
 function render(next){
  const before=state;state=next;state.received=Date.now()/1000;
  // The header pill reports the TV, since that decides whether anything can play.
- $('connection').textContent=!state.player_connected?'Open /tv on a device':state.player_audio?'Device ready':'Tap Enable sound on the device';$('connection').classList.toggle('warn',!state.player_audio);
- showNow(!before);showControls(before);showQueue(before);
+ $('connection').textContent=!state.player_connected?'Open /tv on a device':state.player_audio?'Device ready':'Tap Enable sound on the device';$('connection').classList.toggle('warn',!state.player_audio);$('connection').classList.toggle('off',!state.player_connected);
+ document.body.dataset.theme=state.theme||'default';showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
- if(ready!==readyKeys){readyKeys=ready;loadRecent();}
+ if(ready!==readyKeys){readyKeys=ready;loadRecent();classicUi?.loadBook();}
 }
 // Now playing: a card at the top, handing over to the dock once scrolled away.
 function showNow(first){
@@ -97,7 +101,7 @@ function showControls(before){
  $('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;
  for(const seg of SEGMENTED){
   for(const b of seg.querySelectorAll('button')){b.setAttribute('aria-pressed',b.dataset.value===state[seg.dataset.action]);if(seg.dataset.action==='guide')b.hidden=!(state.guides||[]).includes(b.dataset.value);}
-  if(document.body.classList.contains('sheet-open'))placePill(seg);  // openSheet measures the rest
+  if(document.body.classList.contains('sheet-open')||state.theme==='classic')placePill(seg);  // openSheet measures the rest; in Classic the settings are a page
  }
  syncRanges();
 }
@@ -111,7 +115,7 @@ function rollKey(key,direction){
   old.animate([{transform:'none',opacity:1},{transform:`translateY(${-60*d}px) scale(.6)`,opacity:0}],{duration:350,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}).onfinish=()=>old.remove();
   next.animate([{transform:`translateY(${60*d}px) scale(.6)`,opacity:0},{transform:'none',opacity:1}],{duration:500,easing:'cubic-bezier(.34,1.56,.64,1)'});
  }else old.remove();
- $('key-note').textContent=key===0?'Original key':`${Math.abs(key)} semitone${Math.abs(key)>1?'s':''} ${key>0?'higher':'lower'}`;
+ $('key-note').classList.toggle('orig',key===0);$('key-note').textContent=key===0?'Original key':`${Math.abs(key)} semitone${Math.abs(key)>1?'s':''} ${key>0?'higher':'lower'}`;
 }
 $('key-down').onclick=()=>{haptic(8);send({action:'key',value:state.key-1});};
 $('key-up').onclick=()=>{haptic(8);send({action:'key',value:state.key+1});};
@@ -141,18 +145,27 @@ function placePill(seg){
  if(!seg.classList.contains('ready'))requestAnimationFrame(()=>seg.classList.add('ready'));
 }
 for(const seg of SEGMENTED)seg.onclick=e=>{const b=e.target.closest('button');if(b){haptic(6);send({action:seg.dataset.action,value:b.dataset.value});}};
+// A control measured while hidden (the Classic settings tab, a closed sheet) gets its pill once it has a size.
 addEventListener('resize',()=>SEGMENTED.forEach(placePill));
+{const sized=new ResizeObserver(entries=>entries.forEach(entry=>placePill(entry.target)));SEGMENTED.forEach(seg=>sized.observe(seg));}
 $('earlier').onclick=()=>send({action:'offset',delta:-0.5});$('later').onclick=()=>send({action:'offset',delta:0.5});
 $('lyric-version').onclick=()=>state?.current&&pickLyrics(state.current);
 function openSheet(){document.body.classList.add('sheet-open');$('sheet').inert=false;haptic(8);requestAnimationFrame(()=>SEGMENTED.forEach(placePill));}
 function closeSheet(){document.body.classList.remove('sheet-open');$('sheet').inert=true;}
-$('open-controls').onclick=$('dock-now').onclick=$('dock-settings').onclick=openSheet;
+$('open-controls').onclick=$('dock-now').onclick=$('dock-settings').onclick=()=>document.body.dataset.theme==='classic'?classicUi.setTab('settings'):openSheet();
 $('scrim').onclick=$('sheet-handle').onclick=closeSheet;
+// Classic theme: room time in Settings. Classic is always two-line lyrics.
+function showClassic(){const on=state.theme==='classic';$('room-time').hidden=!on;document.querySelector('[data-action=lyric_mode]').closest('.seg-row').hidden=on;roomLeft();}
+function roomLeft(){if(!state?.room_ends)return;const left=secondsLeft(state),end=new Date(state.room_ends*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+ if(state.theme==='classic'){const lcd=el('span',String(Math.ceil(left/60)).padStart(3,'0'),'lcd');lcd.dataset.ghost='888';$('room-left').replaceChildren(lcd,el('span','분','u'));$('room-time').classList.toggle('up',!left);$('room-end').textContent=left?`종료 예정\n${end}`:'시간 종료\nTIME\'S UP';return;}
+ $('room-left').textContent=left?`${Math.ceil(left/60)}분 left`:'Time is up';$('room-end').textContent=`${end} 종료`;}
+setInterval(roomLeft,1000);
+for(const b of document.querySelectorAll('[data-minutes]'))b.onclick=()=>{haptic(6);send({action:'add_time',minutes:+b.dataset.minutes});};
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('.lyric-sheet'))closeSheet();});
 // Drag the sheet down by its top to dismiss it.
 {
  const sheet=$('sheet');let startY=null;
- sheet.addEventListener('pointerdown',e=>{if(sheet.scrollTop>0||e.target.closest('input,button:not(.handle)'))return;startY=e.clientY;sheet.style.transition='none';});
+ sheet.addEventListener('pointerdown',e=>{if(document.body.dataset.theme==='classic')return;if(sheet.scrollTop>0||e.target.closest('input,button:not(.handle)'))return;startY=e.clientY;sheet.style.transition='none';});
  addEventListener('pointermove',e=>{if(startY!==null)sheet.style.transform=`translateY(${Math.max(0,e.clientY-startY)}px)`;});
  addEventListener('pointerup',e=>{if(startY===null)return;const moved=e.clientY-startY;startY=null;sheet.style.transition='';sheet.style.transform='';if(moved>100)closeSheet();});
 }
@@ -161,10 +174,13 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('.ly
 let queueShape,dragging=null;
 const RING=2*Math.PI*23;
 const statusText=item=>item.status==='ready'?'Ready':item.status==='error'?'Failed':prepLabel(item).text;
+// Classic shows the machine's Korean status beside it.
+const STATUS_KO={queued:'다운로드 대기',downloading:'다운로드 중',separating:'보컬 분리 중',syncing:'가사 찾는 중',ready:'준비 완료',error:'준비 실패'};
+const statusKo=(item,index)=>index===0&&item.status==='ready'?'다음곡':STATUS_KO[item.status]||'';
 function showQueue(before){
  const count=state.upcoming.length;$('queue-count').textContent=$('dock-count').textContent=count;
  if(before&&count>before.upcoming.length&&!REDUCED.matches)for(const id of ['queue-count','dock-count']){const c=$(id);c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump');}
- const shape=JSON.stringify(state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.error]));
+ const shape=JSON.stringify([!!state.current,...state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.error])]);  // the empty notice reads differently while a song plays
  if(shape!==queueShape&&!dragging){
   // A song that turns ready while queued flashes its ring once.
   const preparing=new Set(before?.upcoming.filter(i=>i.status!=='ready').map(i=>i.key));
@@ -180,9 +196,9 @@ function showQueue(before){
    else if(Math.abs(was-top)>1)row.animate([{transform:`translateY(${was-top}px)`},{transform:'none'}],{duration:500,easing:SPRING});
   }
  }
- for(const item of state.upcoming){
+ for(const [index,item] of state.upcoming.entries()){
   const row=$('queue').querySelector(`[data-key="${item.key}"]`);if(!row)continue;
-  row.querySelector('.status').textContent=statusText(item);
+  row.querySelector('.status').textContent=statusText(item);row.querySelector('.status-ko').textContent=statusKo(item,index);row.querySelector('.prepbar')?.style.setProperty('--p',item.progress||0);
   const ring=row.querySelector('.ring');if(ring){ring.style.setProperty('--p',item.progress||0);ring.classList.toggle('busy',!item.progress&&item.status!=='ready');}
  }
 }
@@ -190,8 +206,9 @@ function showQueue(before){
 function emptyQueue(){
  const box=el('div',undefined,'empty'),icon=el('span',undefined,'empty-icon'),find=el('button','Find a song','empty-action');
  icon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>';
- find.onclick=()=>{$('search-form').scrollIntoView({behavior:REDUCED.matches?'auto':'smooth',block:'center'});$('query').focus({preventScroll:true});};
- box.append(icon,el('strong',state.current?'Nothing up next':'The queue is empty'),el('small',state.current?'Add a song and it plays when this one ends.':'Add a song and it starts right away.'),find);
+ find.onclick=()=>{if(document.body.dataset.theme==='classic')classicUi.setTab('book');$('search-form').scrollIntoView({behavior:REDUCED.matches?'auto':'smooth',block:'center'});$('query').focus({preventScroll:true});};
+ const lcd=el('span','00',`lcd classic-only${state.current?'':' dim'}`);lcd.dataset.ghost='88';
+ box.append(lcd,icon,el('b','예약곡이 없어요','classic-only'),el('strong',state.current?'Nothing up next':'The queue is empty'),el('small',state.current?'Add a song and it plays when this one ends.':'Add a song and it starts right away.'),find);
  return box;
 }
 const GRIP='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
@@ -201,13 +218,17 @@ function queueRow(item,index,justReady){
  // The ring shows while the song prepares, and once more as it turns ready.
  if(item.status!=='ready'&&item.status!=='error'||justReady&&item.status==='ready')thumb.insertAdjacentHTML('beforeend',`<svg class="ring" viewBox="0 0 52 52" style="--c:${RING}" aria-hidden="true"><circle class="track" cx="26" cy="26" r="23"/><circle class="fill" cx="26" cy="26" r="23"/></svg>`);
  if(justReady&&item.status==='ready')haptic(10);
- const info=el('div',undefined,'info'),line=el('p',`${item.artist} · `);line.append(el('span',statusText(item),'status'));info.append(el('h3',item.title),line);
+ const info=el('div',undefined,'info'),line=el('p');if(item.number)line.append(el('span',String(item.number),'qnum classic-only'),' ');line.append(item.artist,...(justReady&&item.status==='ready'?[el('em','준비 완료','ready-lamp classic-only')]:[]),el('span',' · ','sep'),el('span',statusKo(item,index),'status-ko classic-only'),el('span',statusText(item),'status'));info.append(el('h3',item.title),line);
+ if(item.status!=='ready'&&item.status!=='error'){const bar=el('div',undefined,'prepbar classic-only');bar.append(el('i'));info.append(bar);}
  if(item.error){const retry=el('button','Retry','retry');retry.onclick=()=>send({action:'retry',key:item.key});info.append(el('p',item.error,'error'),retry);}
  const remove=el('button','×','row-button');remove.setAttribute('aria-label',`Remove ${item.title}`);
  remove.onclick=()=>{send({action:'remove',key:item.key});toast(`Removed ${item.title}`,{label:'Undo',run:()=>send({action:'undo'})});};
  const grip=el('button',undefined,'row-button grip');grip.innerHTML=GRIP;grip.setAttribute('aria-label',`Move ${item.title}. Arrow keys move it up or down.`);
  grip.onkeydown=e=>{const to=index+({ArrowUp:-1,ArrowDown:1}[e.key]||0);if(to!==index&&to>=0&&to<state.upcoming.length){e.preventDefault();move(index,to);}};
- row.append(el('span',String(index+1),'num'),thumb,info,remove,grip);
+ // Classic: 우선 moves a song to sing next, as on the machine.
+ const first=el('button','우선','row-button first classic-only');first.setAttribute('aria-label',`Play ${item.title} next`);first.hidden=index===0;
+ first.onclick=()=>{haptic(8);move(index,0);toast(`${item.title} 우선예약`);};
+ row.append(el('span',String(index+1),'num'),thumb,info,first,remove,grip);
  dragHandlers(row,grip);
  return row;
 }
@@ -267,7 +288,7 @@ async function loadRecent(){
   if(shape===recentShape)return;
   recentShape=shape;$('recent').replaceChildren();
   songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent'),row=>swipeable(row,song)));
-  if(!songs.length)$('recent').append(el('p','Nothing sung yet.','empty'));
+  if(!songs.length)$('recent').append(emptyNote('♪','아직 부른 노래가 없어요','Nothing sung yet.'));
  }catch{}
 }
 // Search in pages of 10; "More results" appends the next page.
@@ -279,13 +300,15 @@ function icon(node,name){node.className=`result-icon ${name}`;node.innerHTML=`<s
 // One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs).
 function showResult(song,list=$('results'),wrap=row=>row,index=-1){
  const b=el('button',undefined,index<0?'result':'result enter');if(index>=0)b.style.setProperty('--i',index);
- const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');const title=el('strong',song.title);if(song.cached)title.append(el('span','READY','tag'));info.append(title,el('small',`${song.channel} · ${clock(song.duration)}`));const status=el('span');icon(status,'add');b.append(image,info,status);
+ const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');const title=el('strong',song.title);if(song.cached)title.append(el('span','READY','tag'));const note=el('small',undefined,'result-note classic-only');info.append(title,el('small',`${song.channel} · ${clock(song.duration)}`),note);const status=el('span');icon(status,'add');b.append(image,info,status);
+ // Classic swaps the channel line for what happened to the add.
+ const mark=(name,...text)=>{b.classList.remove('added','failed');b.classList.add(name);note.replaceChildren(...text);};
  b.onclick=async()=>{
   // A swipe ends in a click; an open row closes on tap instead of queueing.
   if(b.dataset.dragged){delete b.dataset.dragged;return;}if(b.parentElement?.classList.contains('open')){closeSwipe();return;}
   b.disabled=true;
-  try{await enqueue({id:song.id,...song.parsed});icon(status,'added');haptic([10,40,10]);flyToQueue(image);toast(`Added ${song.parsed.title}`);}
-  catch(error){icon(status,'failed');toast(error.message);}finally{b.disabled=false;}
+  try{await enqueue({id:song.id,...song.parsed});icon(status,'added');mark('added',el('em','예약됨'),' · added');haptic([10,40,10]);flyToQueue(image);toast(`Added ${song.parsed.title}`);}
+  catch(error){icon(status,'failed');mark('failed',"Couldn't add. Try again");toast(error.message,undefined,'err');}finally{b.disabled=false;}
  };
  list.append(wrap(b));
 }
@@ -294,7 +317,7 @@ function showResult(song,list=$('results'),wrap=row=>row,index=-1){
 function flyToQueue(source){
  if(REDUCED.matches)return;
  const from=source.getBoundingClientRect(),count=$('queue-count').getBoundingClientRect();
- const target=(count.top>60&&count.bottom<innerHeight-90||$('dock').classList.contains('away')?$('queue-count'):$('dock-count')).getBoundingClientRect();
+ const target=(document.body.dataset.theme==='classic'?document.querySelector('#tabs [data-tab=queue]'):count.top>60&&count.bottom<innerHeight-90||$('dock').classList.contains('away')?$('queue-count'):$('dock-count')).getBoundingClientRect();
  const outer=el('div'),inner=source.cloneNode();
  inner.style.cssText=`display:block;width:${from.width}px;height:${from.height}px;border-radius:8px;object-fit:cover;box-shadow:0 10px 30px #000a`;
  outer.style.cssText=`position:fixed;left:${from.left}px;top:${from.top}px;z-index:55;pointer-events:none`;
@@ -312,7 +335,7 @@ async function pickLyrics(song){
  const sheet=el('div',undefined,'lyric-sheet'),panel=el('div',undefined,'lyric-sheet-panel'),list=el('div',undefined,'lyric-options'),close=el('button','Close');
  const shut=()=>{sheet.classList.add('out');sheet.addEventListener('animationend',()=>sheet.remove(),{once:true});};
  close.onclick=shut;sheet.onclick=e=>{if(e.target===sheet)shut();};
- const head=el('div',undefined,'lyric-sheet-head');head.append(el('strong',`Lyrics · ${song.title}`),close);
+ const head=el('div',undefined,'lyric-sheet-head'),name=el('strong');name.append(el('small','가사 선택 · LYRICS','classic-only'),'Lyrics · ',el('span',song.title));head.append(name,close);close.setAttribute('aria-label','Close');
  // Search LRCLIB by hand when the automatic lookup found nothing or the wrong song.
  const form=el('form',undefined,'lyric-search'),input=el('input'),go=el('button','Search');
  input.type='search';input.value=`${song.artist} ${song.title}`;input.placeholder='Artist and song title';input.setAttribute('aria-label','Search lyrics');go.type='submit';
@@ -321,27 +344,31 @@ async function pickLyrics(song){
  let latest=0;  // a slow earlier lookup must not replace newer results
  async function show(query){
   const mine=++latest;
-  list.replaceChildren(el('p',query?'Searching…':'Looking up every version…','muted'));
+  const wait=el('p',query?'Searching…':'Looking up every version…','muted lyric-wait'),bar=el('span',undefined,'pbar busy classic-only');
+  for(let i=0;i<40;i++){const cell=el('i');cell.style.animationDelay=`${(i*.045).toFixed(3)}s`;bar.append(cell);}
+  wait.append(el('span',query?'검색 중':'모든 가사 버전을 찾는 중','classic-only'),bar);list.replaceChildren(wait);
   try{
    const options=await api(`/api/songs/${song.id}/lyrics${query?`?q=${encodeURIComponent(query)}`:''}`);
    if(mine!==latest)return;
-   list.replaceChildren(...(options.length?[]:[el('p',query?'Nothing found. Try fewer words, or the title in its original language.':'No synced lyrics found automatically. Try a search above.','muted')]));
+   const none=el('p',undefined,'muted lyric-none');none.append(el('b','싱크 가사를 못 찾았어요','classic-only'),query?'Nothing found. Try fewer words, or the title in its original language.':'No synced lyrics found automatically. Try a search above.');
+   list.replaceChildren(...(options.length?[]:[none]));
    // One row per language (its best version) first; other editions sit behind "Show all". Searches list everything.
    const seen=new Set(),extra=[];
    for(const o of options){
     const first=!seen.has(o.language);seen.add(o.language);
     const b=el('button',undefined,'lyric-option'+(o.current?' current':'')),top=el('div');
     const gap=Math.abs(o.difference)>10?` · ${Math.abs(o.difference)}s ${o.difference>0?'longer':'shorter'} than this video`:'';
-    top.append(el('b',o.language),el('span',[o.track,o.artist,o.album].filter(Boolean).join(' · ')),...(o.current?[el('em','In use')]:[]));
+    const lines=el('span',undefined,'cnt classic-only'),figure=el('span',String(o.lines),'lcd');figure.dataset.ghost='88';lines.append(figure,'LINES',...(gap?[el('span',gap.slice(3),'gap')]:[]));
+    top.append(el('b',o.language),el('span',[o.track,o.artist,o.album].filter(Boolean).join(' · ')),...(o.current?[el('em','In use')]:[]),lines);
     b.append(top,...o.preview.map(line=>el('small',line)),el('small',`${o.lines} lines${gap}`,'count'));
     b.onclick=async()=>{
      for(const other of list.children)other.disabled=true;b.classList.add('busy');
      try{await api(`/api/songs/${song.id}/lyrics`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:o.id})});toast(`Lyrics for ${song.title} set to ${o.track||o.language}`);shut();}
-     catch(error){toast(error.message);for(const other of list.children)other.disabled=false;b.classList.remove('busy');}
+     catch(error){toast(error.message,undefined,'err');for(const other of list.children)other.disabled=false;b.classList.remove('busy');}
     };
     if(query||first||o.current)list.append(b);else extra.push(b);
    }
-   if(extra.length){const all=el('button',`Show all ${options.length} versions`,'lyric-all');all.onclick=()=>{all.replaceWith(...extra);};list.append(all);}
+   if(extra.length){const all=el('button',undefined,'lyric-all');all.append(el('span',`${options.length}개 모두 보기 · `,'classic-only'),`Show all ${options.length} versions`);all.onclick=()=>{all.replaceWith(...extra);};list.append(all);}
   }catch(error){if(mine===latest)list.replaceChildren(el('p',error.message,'error'));}
  }
  show('');
@@ -353,11 +380,14 @@ document.addEventListener('pointerdown',e=>{if(openMenu&&!openMenu.contains(e.ta
 function songMenu(wrap,song,del){
  if(openMenu?.parentElement===wrap)return closeMenu();
  closeMenu();closeSwipe();
- const menu=el('div',undefined,'song-menu'),refetch=el('button','Lyrics…'),remove=el('button','Delete download','danger');
+ const menu=el('div',undefined,'song-menu'),refetch=el('button'),remove=el('button',undefined,'danger'),label=el('div',undefined,'menu-head classic-only');
+ if(song.number){const n=el('span',String(song.number),'lcd');n.dataset.ghost='88888';label.append(n);}label.append(song.title);
+ refetch.innerHTML='<svg class="classic-only" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/></svg>';refetch.append(el('span','가사 고르기','classic-only'),'Lyrics…');
+ remove.innerHTML='<svg class="classic-only" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';remove.append(el('span','다운로드 삭제','classic-only'),'Delete download');
  menu.setAttribute('role','menu');for(const item of [refetch,remove])item.setAttribute('role','menuitem');
  refetch.onclick=()=>{closeMenu();pickLyrics(song);};
  remove.onclick=()=>{closeMenu();del.click();};
- menu.append(refetch,remove);wrap.append(menu);openMenu=menu;refetch.focus();
+ menu.append(label,refetch,remove);wrap.append(menu);openMenu=menu;refetch.focus();
 }
 function swipeable(row,song){
  const wrap=el('div',undefined,'swipe'),del=el('button','Delete','swipe-delete'),more=el('button','⋯','song-more');del.setAttribute('aria-label',`Delete ${song.title} from this device`);
@@ -385,13 +415,13 @@ function swipeable(row,song){
    if(!REDUCED.matches)await wrap.animate([{height:`${wrap.offsetHeight}px`,opacity:1},{height:'0px',opacity:0,marginBottom:'-8px'}],{duration:300,easing:'cubic-bezier(.3,0,.8,.15)'}).finished;
    wrap.remove();recentShape=null;toast(`Deleted ${song.title}`);
    if(!$('recent').children.length)loadRecent();
-  }catch(error){toast(error.message);closeSwipe();}finally{del.disabled=false;}
+  }catch(error){toast(error.message,undefined,'err');closeSwipe();}finally{del.disabled=false;}
  };
  return wrap;
 }
 async function loadPage(){
  const run=++searchRun,first=!search.page;
- $('more').disabled=true;
+ $('more').disabled=true;if(first){$('results').dataset.state='loading';$('results-end').hidden=true;}
  // Placeholder rows hold the space while YouTube answers.
  if(first)$('results').replaceChildren(...Array.from({length:5},()=>{const row=el('div',undefined,'skeleton');row.setAttribute('aria-hidden','true');row.innerHTML='<i></i><div><i></i><i></i></div>';return row;}));
  try{
@@ -399,10 +429,11 @@ async function loadPage(){
   if(run!==searchRun)return;
   if(first)$('results').replaceChildren();
   results.forEach((s,i)=>{search.seen.add(s.id);showResult(s,$('results'),row=>row,i);});
-  $('more').hidden=results.length===0||search.page>=9;
-  if(!search.seen.size)$('results').append(el('p','No songs found. Try the title in its original language, or just the artist.','empty'));
+  $('more').hidden=results.length===0||search.page>=9;$('results').dataset.state=search.seen.size?'':'none';
+  $('results-end').hidden=!$('more').hidden||!search.seen.size;
+  if(!search.seen.size)$('results').append(emptyNote('없음','검색 결과가 없어요','No songs found. Try the title in its original language, or just the artist.'));
   if(first)showResults();
- }catch(error){if(run!==searchRun)return;if(first)$('results').replaceChildren();toast(error.message);}finally{$('more').disabled=false;}
+ }catch(error){if(run!==searchRun)return;if(first){$('results').replaceChildren();$('results').dataset.state='';}toast(error.message,undefined,'err');}finally{$('more').disabled=false;}
 }
 // Autocomplete from YouTube's search box: type to see completions, tap or arrow+Enter to search one.
 let suggestTimer,suggestRun=0,suggestIndex=-1;
@@ -415,7 +446,7 @@ $('query').oninput=()=>{
  suggestTimer=setTimeout(async()=>{
   const list=await api(`/api/suggest?q=${encodeURIComponent(q)}`).catch(()=>[]);
   if(run!==suggestRun||document.activeElement!==$('query'))return;
-  $('suggestions').replaceChildren(...list.map(text=>{const li=el('li',text);li.setAttribute('role','option');li.onpointerdown=e=>{e.preventDefault();pickSuggestion(text);};return li;}));
+  $('suggestions').replaceChildren(...list.map(text=>{const li=el('li'),typed=text.toLowerCase().startsWith(q.toLowerCase())?text.slice(0,q.length):'';li.append(typed,el('b',text.slice(typed.length)));li.setAttribute('role','option');li.onpointerdown=e=>{e.preventDefault();pickSuggestion(text);};return li;}));
   suggestIndex=-1;$('suggestions').hidden=!list.length;$('query').setAttribute('aria-expanded',String(!!list.length));
  },150);
 };
@@ -426,7 +457,7 @@ $('query').onkeydown=e=>{
  else if(e.key==='Escape')hideSuggestions();
 };
 $('query').onblur=()=>setTimeout(hideSuggestions,100);
-$('clear').onclick=()=>{$('query').value='';$('clear').hidden=true;searchRun++;$('results').replaceChildren();$('more').hidden=true;$('query').focus();};
+$('clear').onclick=()=>{$('query').value='';$('clear').hidden=true;searchRun++;$('results').replaceChildren();$('more').hidden=$('results-end').hidden=true;$('query').focus();};
 $('search-form').onsubmit=e=>{
  e.preventDefault();suggestRun++;hideSuggestions();search={query:$('query').value.trim(),page:0,seen:new Set()};$('more').hidden=true;loadPage();
  $('query').blur();showResults();  // drop the keyboard so results have the screen
@@ -439,3 +470,4 @@ function showResults(){
 $('more').onclick=()=>{search.page++;loadPage();};
 // Keep the page's end clear of the dock, whatever its height.
 new ResizeObserver(()=>document.body.style.setProperty('--dock',`${$('dock').offsetHeight}px`)).observe($('dock'));
+classicUi=classicRemote({send,toast,haptic,swipeable});if(state)classicUi.render(state);

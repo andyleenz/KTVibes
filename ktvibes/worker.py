@@ -5,7 +5,7 @@ import logging
 import time
 from pathlib import Path
 import soundfile as sf
-from . import align, guides, stems, youtube, lyrics
+from . import align, guides, songbook, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
 TIMING_VERSION = 8  # bump when alignment or guide output changes, so cached timing is rebuilt
@@ -136,6 +136,16 @@ async def run(state, cache: Path):
                 item["video_warning"] = warning
             item["video"] = (folder / "video.mp4").is_file()
             item["duration"] = sf.info(stems.path(folder, "no_vocals")).duration
+            # Where the song stops, before any trailing silence: Classic scores it there. Remembered per stem
+            # file, and left unset (the TV waits for the file's end) if a stem can't be read.
+            stamps = [p.stat().st_mtime for name in stems.NAMES if (p := stems.path(folder, name))]
+            meta.pop("music_end", None)  # the old instrumental-only value
+            known = meta.get("song_end")
+            if stamps and not (isinstance(known, list) and len(known) == 2 and known[0] == stamps):
+                end = await asyncio.to_thread(stems.song_end, folder)
+                known = meta["song_end"] = [stamps, end] if end else None
+            if stamps and known:
+                item["music_end"] = known[1]
             item["gain"] = float(meta.get("stem_gain") or 1)
             item["status"], item["step"], item["progress"] = "syncing", None, None
             await state.broadcast()
@@ -170,6 +180,7 @@ async def run(state, cache: Path):
                     log.exception("Word timing unavailable for %s", item["id"])
             item["offset"] = float(meta.get("lyric_offset") or 0)
             meta.update(duration=item["duration"], artist=item["artist"], title=item["title"])
+            item["number"] = songbook.assign(cache, meta)
             save_meta(folder, meta)
             check()
             item["status"], item["step"], item["progress"] = "ready", None, None

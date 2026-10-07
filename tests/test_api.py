@@ -80,6 +80,20 @@ class APITests(unittest.TestCase):
         self.assertEqual([s['id'] for s in songs], ['bbbbbbbbbbb', 'aaaaaaaaaaa'])
         self.assertEqual(songs[0]['artist'], '아이유')
 
+    def test_songbook_lists_numbered_prepared_songs_in_order(self):
+        import json
+        cache = Path(self.temp.name)
+        for video_id, number in [('aaaaaaaaaaa', 10002), ('bbbbbbbbbbb', 10001), ('ccccccccccc', None)]:
+            folder = cache / video_id
+            folder.mkdir()
+            meta = {'artist': '아이유', 'title': video_id, **({'number': number} if number else {})}
+            (folder / 'meta.json').write_text(json.dumps(meta), encoding='utf-8')
+            (folder / 'no_vocals.wav').touch()
+            (folder / 'vocals.wav').touch()
+        songs = self.client.get('/api/songbook').json()
+        self.assertEqual([(s['number'], s['id']) for s in songs], [(10001, 'bbbbbbbbbbb'), (10002, 'aaaaaaaaaaa')])
+        self.assertIsInstance(songs[0]['prepared'], float)
+
     def test_delete_song_removes_download_and_history(self):
         import json
         cache = Path(self.temp.name)
