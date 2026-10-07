@@ -4,6 +4,9 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+### Added
+- The TV and remote pages show the KT icon in browser tabs, and when the remote is added to a phone's home screen.
+
 ## [0.5.0] - 2026-10-05
 
 ### Fixed
