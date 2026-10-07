@@ -19,7 +19,7 @@ HISTORY = 200  # remembered plays, for the remote's "Recent" list
 UNDO_SECONDS = 15  # how long a removal can be taken back
 SAVE_EVERY = 10  # seconds between queue.json writes for position reports alone
 BREATHER = 4  # seconds between one song ending and the next starting
-SCORE_HOLD = 3  # Classic: the score shows this long when a song is sung to the end, before the 예약곡 board
+SCORE_HOLD = 5  # Classic: the score shows this long when a song is sung to the end, before the 예약곡 board
 ROOM_MINUTES = 30  # a Classic room starts with this much singing time
 
 def number(value) -> float:

@@ -95,10 +95,10 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
             song['status'] = 'ready'
             songs.append(song)
         state.promote()
-        # A song sung to the end: the score (3 s) shows, then the 예약곡 board (4 s).
+        # A song sung to the end: the score (5 s) shows, then the 예약곡 board (4 s).
         await state.control({'action': 'ended', 'key': songs[0]['key']})
         self.assertIs(state.current, songs[1])
-        self.assertAlmostEqual(state.transition_until - time.time(), 7, delta=0.5)
+        self.assertAlmostEqual(state.transition_until - time.time(), 9, delta=0.5)
         # A skipped song gets no score, so only the board.
         await state.control({'action': 'skip'})
         self.assertAlmostEqual(state.transition_until - time.time(), 4, delta=0.5)

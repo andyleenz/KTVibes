@@ -2,7 +2,8 @@
 @font-face{font-family:DSEG7;src:url(/static/fonts/DSEG7Classic-BoldItalic.woff2) format('woff2');font-display:block}
 .tv:not([data-theme=classic]) .classic-only{display:none!important}
 .tv[data-theme=classic] [hidden]{display:none!important}
-.tv[data-theme=classic]{--yellow:#ffe033;--cyan:#63dcff;--lcd:#061128;--lcd-on:#7fe9ff;--pink:#ff3ea5}
+/* One scale unit: 1vh, capped in px so the browser zoom still scales the theme. */
+.tv[data-theme=classic]{--u:min(1vh,9px);--yellow:#ffe033;--cyan:#63dcff;--lcd:#061128;--lcd-on:#7fe9ff;--pink:#ff3ea5}
 /* LCD numbers: the unlit segments (data-ghost, e.g. 88888) show faintly behind the lit ones. In DSEG "!" is a blank digit. */
 .tv .lcd{position:relative;display:inline-block;font-family:DSEG7,monospace;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa;white-space:pre}
 .tv .lcd::before{content:attr(data-ghost);position:absolute;left:0;top:0;opacity:.09;text-shadow:none}
@@ -12,7 +13,7 @@
 /* Classic theme: a Korean noraebang screen. A top strip replaces the header; lyrics alternate left and right. */
 .classic-bar{display:none}
 .tv[data-theme=classic] header{display:none}
-.tv[data-theme=classic] .classic-bar{position:fixed;top:0;left:0;right:0;z-index:4;display:flex;align-items:center;gap:16px;height:clamp(44px,6vh,72px);padding:0 1.6vw;background:linear-gradient(#0a0a1af0,#14143ae0);border-bottom:2px solid #ffffff22;font:700 clamp(18px,2.1vw,34px) 'IBM Plex Sans KR',sans-serif}
+.tv[data-theme=classic] .classic-bar{position:fixed;top:0;left:0;right:0;z-index:4;display:flex;align-items:center;gap:16px;height:clamp(44px,calc(6*var(--u)),72px);padding:0 1.6vw;background:linear-gradient(#0a0a1af0,#14143ae0);border-bottom:2px solid #ffffff22;font:700 clamp(18px,2.1vw,34px) 'IBM Plex Sans KR',sans-serif}
 .cb-chip{display:flex;align-items:center;gap:.4em;padding:.1em .5em;border-radius:4px;background:#e9ecf2;color:#1b1f5a;font:700 .8em 'Space Grotesk',sans-serif;letter-spacing:-.03em;box-shadow:inset 0 -3px 0 #0003}
 .cb-chip span{color:#c2185b}
 .cb-chip i{display:inline-grid;place-items:center;width:1.3em;height:1.3em;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff7aa8,#c2185b 60%,#3a50ff);color:#fff;font-style:normal;font-size:.7em}
@@ -38,7 +39,7 @@
 .tv.has-video[data-theme=classic]{background:#000}
 .tv[data-theme=classic]{--machine-yellow:#ffe033;--machine-cyan:#63dcff;--machine-blue:#26245f;--machine-panel:#15143f;--machine-border:#3c3984;--lime:var(--machine-yellow);--digits:var(--machine-cyan);--panel:var(--machine-panel);--line:var(--machine-border);--on-accent:#11133f}
 /* 1. A compact, darker top strip; the chip is smaller with a lighter shadow. */
-.tv[data-theme=classic] .classic-bar{height:clamp(64px,6.5vh,72px);background:#08091f;border-bottom:2px solid #24234d}
+.tv[data-theme=classic] .classic-bar{height:clamp(64px,calc(6.5*var(--u)),72px);background:#08091f;border-bottom:2px solid #24234d}
 .cb-chip{box-sizing:border-box;height:42px;padding:6px 14px;box-shadow:inset 0 -2px 0 #0002}
 /* 2. Metadata stays compact next to the big lyrics. */
 .cb-title{font-size:clamp(22px,2.2vw,38px);font-weight:700}
@@ -52,7 +53,7 @@
 .tv[data-theme=classic]:not(.has-video)::before{content:'';position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(8,8,35,.58),rgba(8,8,35,.72));pointer-events:none}
 /* Between songs the break background wins over a music video's black, as in Default. */
 .tv.between[data-theme=classic],.tv.between.has-video[data-theme=classic]{background:radial-gradient(ellipse at 50% 40%,#2a1f6a,#0a0a1a 70%)}
-.tv[data-theme=classic].has-video .stage{height:calc(100vh - 11vh)}  /* lyrics sit just above the machine strip */
+.tv[data-theme=classic].has-video .stage{height:calc(100vh - calc(11*var(--u)))}  /* lyrics sit just above the machine strip */
 .tv[data-theme=classic][data-lyrics=two] #lyrics .lyric.past{color:#39cfff}  /* a fully sung line stays the sung colour */
 .tv[data-theme=classic] :is(.cb-number,.cb-dial,.cb-right){font-family:DSEG7,'Share Tech Mono',monospace}
 /* Between songs: the 예약곡 board over a turning starburst. */
@@ -65,179 +66,192 @@
 .tv[data-theme=classic]:is(:has(#idle:not([hidden])),.between)::before{display:none}
 .cb-title.idle{color:#fff;font-weight:500;opacity:.85;text-shadow:none}
 .tv[data-theme=classic] :is(#idle-hero,#idle .join){display:none}
-.tv[data-theme=classic] .attract{display:grid;justify-items:center;gap:3vh;text-align:center}
+.tv[data-theme=classic] .attract{display:grid;justify-items:center;gap:calc(3*var(--u));text-align:center}
 .tv[data-theme=classic] #idle:has(#time-up:not([hidden]),#idle-prep:not([hidden])) .attract{display:none}
-.attract .ask{font:400 5.2vh 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.02em;filter:drop-shadow(.3vh .3vh 0 #0a0b45)}
-.attract .ask small{display:block;margin-top:.6vh;font:500 2.4vh 'IBM Plex Sans KR',sans-serif;color:#bfe4ff;letter-spacing:.08em;filter:none}
-.dialbox{display:flex;align-items:center;gap:2vh;padding:2.4vh 3.6vh;background:var(--lcd);border:.5vh solid #000;border-radius:1.2vh;box-shadow:inset 0 0 0 .35vh #2b3c8e,inset 0 1.4vh 3vh #0008,0 1vh 0 #05062a}
-.dialbox .lbl{writing-mode:vertical-rl;font:700 2vh 'IBM Plex Sans KR',sans-serif;color:#8fb4ff;letter-spacing:.3em}
-.dialbox .lcd{font-size:14vh;letter-spacing:.06em}
-.tv[data-theme=classic] .ticker{position:fixed;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;height:9vh;overflow:hidden;background:linear-gradient(#141a6e,#0a0d42);border-top:.4vh solid var(--yellow);font:700 2.9vh 'IBM Plex Sans KR',sans-serif;color:#fff}
+.attract .ask{font:400 calc(5.2*var(--u)) 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.02em;filter:drop-shadow(calc(.3*var(--u)) calc(.3*var(--u)) 0 #0a0b45)}
+.attract .ask small{display:block;margin-top:calc(.6*var(--u));font:500 calc(2.4*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#bfe4ff;letter-spacing:.08em;filter:none}
+.dialbox{display:flex;align-items:center;gap:calc(2*var(--u));padding:calc(2.4*var(--u)) calc(3.6*var(--u));background:var(--lcd);border:calc(.5*var(--u)) solid #000;border-radius:calc(1.2*var(--u));box-shadow:inset 0 0 0 calc(.35*var(--u)) #2b3c8e,inset 0 calc(1.4*var(--u)) calc(3*var(--u)) #0008,0 calc(1*var(--u)) 0 #05062a}
+.dialbox .lbl{writing-mode:vertical-rl;font:700 calc(2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#8fb4ff;letter-spacing:.3em}
+.dialbox .lcd{font-size:calc(14*var(--u));letter-spacing:.06em}
+.tv[data-theme=classic] .ticker{position:fixed;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;height:calc(9*var(--u));overflow:hidden;background:linear-gradient(#141a6e,#0a0d42);border-top:calc(.4*var(--u)) solid var(--yellow);font:700 calc(2.9*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#fff}
 .tv[data-theme=classic] .ticker:has(.ticker-track:empty){display:none}
-.ticker .tag{flex:none;z-index:1;display:grid;place-items:center;height:100%;padding:0 2.4vh;background:var(--yellow);color:#1b1f5a;font:400 3.2vh 'Black Han Sans',sans-serif;box-shadow:1vh 0 2vh #0008}
-.ticker-track{display:flex;gap:6vh;padding-left:4vh;white-space:nowrap;animation:tick 40s linear infinite}
-.ticker-track>span{display:flex;align-items:center;gap:1.2vh}
-.ticker-track .lcd{font-size:2.6vh;color:var(--cyan)}
+.ticker .tag{flex:none;z-index:1;display:grid;place-items:center;height:100%;padding:0 calc(2.4*var(--u));background:var(--yellow);color:#1b1f5a;font:400 calc(3.2*var(--u)) 'Black Han Sans',sans-serif;box-shadow:calc(1*var(--u)) 0 calc(2*var(--u)) #0008}
+.ticker-track{display:flex;gap:calc(6*var(--u));padding-left:calc(4*var(--u));white-space:nowrap;animation:tick 40s linear infinite}
+.ticker-track>span{display:flex;align-items:center;gap:calc(1.2*var(--u))}
+.ticker-track .lcd{font-size:calc(2.6*var(--u));color:var(--cyan)}
 .ticker-track em{font-style:normal;font-weight:500;color:#9aa6ff}
 @keyframes tick{to{transform:translateX(-50%)}}
-.tv[data-theme=classic] .sticker{position:fixed;right:var(--edge);bottom:calc(18vh + 16px);z-index:3;display:flex;align-items:center;gap:1.6vh;padding:1.4vh 1.8vh 1.4vh 1.4vh;background:#fff;color:#1b1f5a;border-radius:1.2vh;box-shadow:0 .8vh 0 #0006}
-.sticker img{width:13vh;height:13vh}
-.sticker b{display:block;font:400 3vh 'Black Han Sans',sans-serif;color:#c2185b}
-.sticker p{margin:.3vh 0 0;font:500 1.9vh/1.3 'IBM Plex Sans KR',sans-serif;color:#3a3e6e}
+.tv[data-theme=classic] .sticker{position:fixed;right:var(--edge);bottom:calc(calc(18*var(--u)) + 16px);z-index:3;display:flex;align-items:center;gap:calc(1.6*var(--u));padding:calc(1.4*var(--u)) calc(1.8*var(--u)) calc(1.4*var(--u)) calc(1.4*var(--u));background:#fff;color:#1b1f5a;border-radius:calc(1.2*var(--u));box-shadow:0 calc(.8*var(--u)) 0 #0006}
+.sticker img{width:calc(13*var(--u));height:calc(13*var(--u))}
+.sticker b{display:block;font:400 calc(3*var(--u)) 'Black Han Sans',sans-serif;color:#c2185b}
+.sticker p{margin:calc(.3*var(--u)) 0 0;font:500 calc(1.9*var(--u))/1.3 'IBM Plex Sans KR',sans-serif;color:#3a3e6e}
 /* 시간 종료 takes the prompt's place. */
-.tv[data-theme=classic] .time-up{display:grid;justify-items:center;gap:2vh;text-align:center}
-.time-up h1{margin:0;font:400 18vh/1 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.06em;filter:drop-shadow(.6vh 0 0 #a51d27) drop-shadow(-.6vh 0 0 #a51d27) drop-shadow(0 .6vh 0 #a51d27) drop-shadow(0 -.6vh 0 #a51d27) drop-shadow(0 1.4vh 0 #000a)}
-.time-up .thanks{font:700 3.2vh 'IBM Plex Sans KR',sans-serif;color:var(--yellow)}
-.time-up .thanks small{display:block;font-size:2.2vh;font-weight:500;color:#cfd3ff;letter-spacing:.06em}
-.time-up .svc{display:flex;align-items:center;gap:2vh;margin-top:2vh;padding:1.6vh 2.4vh;background:#08091fcc;border:.25vh dashed #fff4;border-radius:1vh;font:500 2.2vh 'IBM Plex Sans KR',sans-serif;color:#e8eaff}
+.tv[data-theme=classic] .time-up{display:grid;justify-items:center;gap:calc(2*var(--u));text-align:center}
+.time-up h1{margin:0;font:400 calc(18*var(--u))/1 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.06em;filter:drop-shadow(calc(.6*var(--u)) 0 0 #a51d27) drop-shadow(calc(-.6*var(--u)) 0 0 #a51d27) drop-shadow(0 calc(.6*var(--u)) 0 #a51d27) drop-shadow(0 calc(-.6*var(--u)) 0 #a51d27) drop-shadow(0 calc(1.4*var(--u)) 0 #000a)}
+.time-up .thanks{font:700 calc(3.2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:var(--yellow)}
+.time-up .thanks small{display:block;font-size:calc(2.2*var(--u));font-weight:500;color:#cfd3ff;letter-spacing:.06em}
+.time-up .svc{display:flex;align-items:center;gap:calc(2*var(--u));margin-top:calc(2*var(--u));padding:calc(1.6*var(--u)) calc(2.4*var(--u));background:#08091fcc;border:calc(.25*var(--u)) dashed #fff4;border-radius:calc(1*var(--u));font:500 calc(2.2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#e8eaff}
 /* Hardware keys, shared by the time-up hint and the controls strip. */
-.tv[data-theme=classic] .key{display:inline-flex;align-items:center;justify-content:center;gap:.6vh;height:6vh;padding:0 2vh;border-radius:.9vh;background:linear-gradient(#3b3d6e,#232452);box-shadow:inset 0 .25vh 0 #fff3,0 .45vh 0 #07081f;color:#fff;font:700 2.2vh 'IBM Plex Sans KR',sans-serif}
+.tv[data-theme=classic] .key{display:inline-flex;align-items:center;justify-content:center;gap:calc(.6*var(--u));height:calc(6*var(--u));padding:0 calc(2*var(--u));border-radius:calc(.9*var(--u));background:linear-gradient(#3b3d6e,#232452);box-shadow:inset 0 calc(.25*var(--u)) 0 #fff3,0 calc(.45*var(--u)) 0 #07081f;color:#fff;font:700 calc(2.2*var(--u)) 'IBM Plex Sans KR',sans-serif}
 .tv[data-theme=classic] .key.red{background:linear-gradient(#e2424c,#a51d27)}
 .tv[data-theme=classic] .key.blue{background:linear-gradient(#4b55d6,#2a2f9a)}
 @media (prefers-reduced-motion:reduce){.tv .burst,.ticker-track{animation:none}}
 /* On the attract screen the big LCD shows the dialling, and the corner buttons sit above the ticker. */
 .tv[data-theme=classic]:has(#idle:not([hidden])) .cb-dial{display:none!important}
-.tv[data-theme=classic]:has(#idle:not([hidden])) .open-remote{bottom:calc(9vh + 16px)}
+.tv[data-theme=classic]:has(#idle:not([hidden])) .open-remote{bottom:calc(calc(9*var(--u)) + 16px)}
 /* Intro card: the TJ title screen over the prelude. */
-.tv[data-theme=classic] .title-card{padding-top:7vh;background:linear-gradient(#0000 40%,#000a)}
+.tv[data-theme=classic] .title-card{padding-top:calc(7*var(--u));background:linear-gradient(#0000 40%,#000a)}
 .tv[data-theme=classic] .title-card::after{display:none}
 .tv[data-theme=classic] .title-card>*{order:0}
-.card-eyebrow{display:inline-flex;align-items:center;gap:1.2vh;margin-bottom:2.4vh;padding:.6vh 1.6vh;background:#000a;border:.2vh solid #fff3;border-radius:.6vh;font:700 2.2vh 'IBM Plex Sans KR',sans-serif;color:#cfe6ff;letter-spacing:.12em}
+.card-eyebrow{display:inline-flex;align-items:center;gap:calc(1.2*var(--u));margin-bottom:calc(2.4*var(--u));padding:calc(.6*var(--u)) calc(1.6*var(--u));background:#000a;border:calc(.2*var(--u)) solid #fff3;border-radius:calc(.6*var(--u));font:700 calc(2.2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#cfe6ff;letter-spacing:.12em}
 .card-eyebrow .lcd{color:var(--cyan)}
-.tv[data-theme=classic] .title-card h1{margin:0;text-shadow:none;font:900 12vh/1.05 'Noto Sans KR',sans-serif;color:#fff;-webkit-text-stroke:0;letter-spacing:-.02em;filter:drop-shadow(.5vh 0 0 #1b1f8a) drop-shadow(-.5vh 0 0 #1b1f8a) drop-shadow(0 .5vh 0 #1b1f8a) drop-shadow(0 -.5vh 0 #1b1f8a) drop-shadow(0 1.2vh 0 #000a)}
-.tv[data-theme=classic] #card-artist{margin-top:2.6vh;font:900 5vh 'Noto Sans KR',sans-serif;color:var(--yellow);text-shadow:none;filter:drop-shadow(.3vh 0 0 #000) drop-shadow(-.3vh 0 0 #000) drop-shadow(0 .3vh 0 #000) drop-shadow(0 -.3vh 0 #000)}
-.tv[data-theme=classic] .title-card .card-credit{margin:1.6vh 0 0;font:500 2.4vh 'IBM Plex Sans KR',sans-serif;color:#d7dbff;letter-spacing:.06em}
-.tv[data-theme=classic] .specs{display:flex;gap:1vh;margin-top:4vh}
-.specs span{display:flex;flex-direction:column;align-items:center;gap:.2vh;min-width:13vh;padding:1vh 1.6vh;background:#08091fcc;border:.2vh solid #3c3984;border-radius:.6vh}
-.specs small{font:700 1.6vh 'IBM Plex Sans KR',sans-serif;color:#8f95d8;letter-spacing:.15em}
-.specs b{font:700 2.6vh 'IBM Plex Sans KR',sans-serif;color:#fff}
-.specs b.lcd{font:2.4vh DSEG7,monospace;color:var(--cyan)}
-.tv[data-theme=classic] .intro-foot{position:fixed;left:6vh;bottom:15vh;display:flex;align-items:center;gap:1.4vh;font:700 2.4vh 'IBM Plex Sans KR',sans-serif;color:#fff}
-.intro-foot .lcd{font-size:3.6vh}
+.tv[data-theme=classic] .title-card h1{margin:0;text-shadow:none;font:900 calc(12*var(--u))/1.05 'Noto Sans KR',sans-serif;color:#fff;-webkit-text-stroke:0;letter-spacing:-.02em;filter:drop-shadow(calc(.5*var(--u)) 0 0 #1b1f8a) drop-shadow(calc(-.5*var(--u)) 0 0 #1b1f8a) drop-shadow(0 calc(.5*var(--u)) 0 #1b1f8a) drop-shadow(0 calc(-.5*var(--u)) 0 #1b1f8a) drop-shadow(0 calc(1.2*var(--u)) 0 #000a)}
+.tv[data-theme=classic] #card-artist{margin-top:calc(2.6*var(--u));font:900 calc(5*var(--u)) 'Noto Sans KR',sans-serif;color:var(--yellow);text-shadow:none;filter:drop-shadow(calc(.3*var(--u)) 0 0 #000) drop-shadow(calc(-.3*var(--u)) 0 0 #000) drop-shadow(0 calc(.3*var(--u)) 0 #000) drop-shadow(0 calc(-.3*var(--u)) 0 #000)}
+.tv[data-theme=classic] .title-card .card-credit{margin:calc(1.6*var(--u)) 0 0;font:500 calc(2.4*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#d7dbff;letter-spacing:.06em}
+.tv[data-theme=classic] .specs{display:flex;gap:calc(1*var(--u));margin-top:calc(4*var(--u))}
+.specs span{display:flex;flex-direction:column;align-items:center;gap:calc(.2*var(--u));min-width:calc(13*var(--u));padding:calc(1*var(--u)) calc(1.6*var(--u));background:#08091fcc;border:calc(.2*var(--u)) solid #3c3984;border-radius:calc(.6*var(--u))}
+.specs small{font:700 calc(1.6*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#8f95d8;letter-spacing:.15em}
+.specs b{font:700 calc(2.6*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#fff}
+.specs b.lcd{font:calc(2.4*var(--u)) DSEG7,monospace;color:var(--cyan)}
+.tv[data-theme=classic] .intro-foot{position:fixed;left:calc(6*var(--u));bottom:calc(15*var(--u));display:flex;align-items:center;gap:calc(1.4*var(--u));font:700 calc(2.4*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#fff}
+.intro-foot .lcd{font-size:calc(3.6*var(--u))}
 /* Count-in: the existing dots, as the machine's yellow outlined lamps. */
 .tv[data-theme=classic] #lyrics .lyric[data-dots]::before{color:var(--yellow);letter-spacing:.35em;-webkit-text-stroke:.06em #000;paint-order:stroke fill;text-shadow:0 0 .4em #ffe03388}
 /* The controls become the machine strip: LCD clock, LED progress, hardware keys with Korean labels. */
-.tv[data-theme=classic] .tv-bottom{z-index:2;min-height:9.6vh;background:linear-gradient(#0b0c2ae6,#05061aee);border-top:.3vh solid #24234d;box-shadow:none}
-.tv[data-theme=classic] :is(#elapsed,#duration){padding:0;background:none;border:0;font:2.8vh DSEG7,monospace;color:var(--cyan);text-shadow:0 0 1vh #2ab4ff88}
-.tv[data-theme=classic] .track{height:2.2vh;margin:0 1.6vh}
+.tv[data-theme=classic] .tv-bottom{z-index:2;min-height:calc(9.6*var(--u));background:linear-gradient(#0b0c2ae6,#05061aee);border-top:calc(.3*var(--u)) solid #24234d;box-shadow:none}
+.tv[data-theme=classic] :is(#elapsed,#duration){padding:0;background:none;border:0;font:calc(2.8*var(--u)) DSEG7,monospace;color:var(--cyan);text-shadow:0 0 calc(1*var(--u)) #2ab4ff88}
+.tv[data-theme=classic] .track{height:calc(2.2*var(--u));margin:0 calc(1.6*var(--u))}
 .tv[data-theme=classic] .track::after{display:none}
-.tv[data-theme=classic] .track::before{content:'';position:absolute;inset:0;background:#1b1d4a;-webkit-mask:repeating-linear-gradient(90deg,#000 0 1.6vh,transparent 1.6vh 2vh);mask:repeating-linear-gradient(90deg,#000 0 1.6vh,transparent 1.6vh 2vh)}
-.tv[data-theme=classic] #progress{position:absolute;inset:0 auto 0 0;width:calc(var(--p)*100%);height:auto;border-radius:0;background:linear-gradient(var(--yellow),#ffb800);filter:none;-webkit-mask:repeating-linear-gradient(90deg,#000 0 1.6vh,transparent 1.6vh 2vh);mask:repeating-linear-gradient(90deg,#000 0 1.6vh,transparent 1.6vh 2vh)}
-.tv[data-theme=classic] .tv-controls{gap:1vh}
-.tv[data-theme=classic] :is(.tv-controls button,.tv-controls label){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2vh;width:auto;min-width:9vh;height:7vh;margin:0;padding:0 1.2vh;border:0;border-radius:.9vh;background:linear-gradient(#3b3d6e,#232452);box-shadow:inset 0 .25vh 0 #fff3,0 .45vh 0 #07081f;color:#fff}
-.tv[data-theme=classic] .tv-controls button{font:700 2.4vh 'Space Grotesk',sans-serif}
-.tv[data-theme=classic] .tv-controls button svg{width:2.6vh;height:2.6vh}
-.tv[data-theme=classic] .tv-controls button::after{font:700 1.6vh 'IBM Plex Sans KR',sans-serif;letter-spacing:.06em}
+.tv[data-theme=classic] .track::before{content:'';position:absolute;inset:0;background:#1b1d4a;-webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(1.6*var(--u)),transparent calc(1.6*var(--u)) calc(2*var(--u)));mask:repeating-linear-gradient(90deg,#000 0 calc(1.6*var(--u)),transparent calc(1.6*var(--u)) calc(2*var(--u)))}
+.tv[data-theme=classic] #progress{position:absolute;inset:0 auto 0 0;width:calc(var(--p)*100%);height:auto;border-radius:0;background:linear-gradient(var(--yellow),#ffb800);filter:none;-webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(1.6*var(--u)),transparent calc(1.6*var(--u)) calc(2*var(--u)));mask:repeating-linear-gradient(90deg,#000 0 calc(1.6*var(--u)),transparent calc(1.6*var(--u)) calc(2*var(--u)))}
+.tv[data-theme=classic] .tv-controls{gap:calc(1*var(--u))}
+.tv[data-theme=classic] :is(.tv-controls button,.tv-controls label){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(.2*var(--u));width:auto;min-width:calc(9*var(--u));height:calc(7*var(--u));margin:0;padding:0 calc(1.2*var(--u));border:0;border-radius:calc(.9*var(--u));background:linear-gradient(#3b3d6e,#232452);box-shadow:inset 0 calc(.25*var(--u)) 0 #fff3,0 calc(.45*var(--u)) 0 #07081f;color:#fff}
+.tv[data-theme=classic] .tv-controls button{font:700 calc(2.4*var(--u)) 'Space Grotesk',sans-serif}
+.tv[data-theme=classic] .tv-controls button svg{width:calc(2.6*var(--u));height:calc(2.6*var(--u))}
+.tv[data-theme=classic] .tv-controls button::after{font:700 calc(1.6*var(--u)) 'IBM Plex Sans KR',sans-serif;letter-spacing:.06em}
 .tv[data-theme=classic] #tv-play::after{content:'일시정지'}
 .tv[data-theme=classic] #tv-play.paused::after{content:'재생'}
 .tv[data-theme=classic] #tv-skip{background:linear-gradient(#e2424c,#a51d27)}
 .tv[data-theme=classic] #tv-skip::after{content:'다음곡'}
 .tv[data-theme=classic] #tv-guide::after{content:'가이드'}
-.tv[data-theme=classic] .tv-controls label{flex-direction:row;gap:1vh;padding:0 1.4vh;font-size:0;letter-spacing:0;text-transform:none}
-.tv[data-theme=classic] .tv-controls label::before{font:700 1.8vh 'IBM Plex Sans KR',sans-serif;color:#fff}
+.tv[data-theme=classic] .tv-controls label{flex-direction:row;gap:calc(1*var(--u));padding:0 calc(1.4*var(--u));font-size:0;letter-spacing:0;text-transform:none}
+.tv[data-theme=classic] .tv-controls label::before{font:700 calc(1.8*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#fff}
 .tv[data-theme=classic] .tv-controls label:has(#tv-music)::before{content:'반주'}
 .tv[data-theme=classic] .tv-controls label:has(#vocal)::before{content:'음성'}
 /* Volume as a block meter; still a range input, so click and drag set it. */
-.tv[data-theme=classic] .tv-controls input[type=range]{-webkit-appearance:none;appearance:none;width:12vh;height:2.4vh;margin:0;background:linear-gradient(90deg,var(--cyan) calc(var(--v,0)*100%),#ffffff22 0);-webkit-mask:repeating-linear-gradient(90deg,#000 0 .9vh,transparent .9vh 1.2vh);mask:repeating-linear-gradient(90deg,#000 0 .9vh,transparent .9vh 1.2vh)}
-.tv[data-theme=classic] .tv-controls input[type=range]::-webkit-slider-runnable-track{height:2.4vh;background:none;border:0}
-.tv[data-theme=classic] .tv-controls input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1px;height:2.4vh;margin:0;border:0;background:transparent;box-shadow:none}
+.tv[data-theme=classic] .tv-controls input[type=range]{-webkit-appearance:none;appearance:none;width:calc(12*var(--u));height:calc(2.4*var(--u));margin:0;background:linear-gradient(90deg,var(--cyan) calc(var(--v,0)*100%),#ffffff22 0);-webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(.9*var(--u)),transparent calc(.9*var(--u)) calc(1.2*var(--u)));mask:repeating-linear-gradient(90deg,#000 0 calc(.9*var(--u)),transparent calc(.9*var(--u)) calc(1.2*var(--u)))}
+.tv[data-theme=classic] .tv-controls input[type=range]::-webkit-slider-runnable-track{height:calc(2.4*var(--u));background:none;border:0}
+.tv[data-theme=classic] .tv-controls input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1px;height:calc(2.4*var(--u));margin:0;border:0;background:transparent;box-shadow:none}
 /* Notices: a TJ status box at the top right, a yellow tab and an LCD value with a block meter. */
-.tv[data-theme=classic] .osd{top:calc(clamp(64px,6.5vh,72px) + 2.4vh);left:auto;right:2.4vh;transform:none;min-width:0;gap:0;padding:0;border-radius:.8vh;border:.3vh solid #000;background:var(--lcd);box-shadow:0 .6vh 0 #0007;backdrop-filter:none;overflow:hidden}
+.tv[data-theme=classic] .osd{top:calc(clamp(64px,calc(6.5*var(--u)),72px) + calc(2.4*var(--u)));left:auto;right:calc(2.4*var(--u));transform:none;min-width:0;gap:0;padding:0;border-radius:calc(.8*var(--u));border:calc(.3*var(--u)) solid #000;background:var(--lcd);box-shadow:0 calc(.6*var(--u)) 0 #0007;backdrop-filter:none;overflow:hidden}
 .tv[data-theme=classic] .osd-icon{display:none}
-.tv[data-theme=classic] .osd-text{flex-direction:row;align-items:center;gap:1.4vh;padding:0 1.8vh 0 0}
-.tv[data-theme=classic] .osd-text small{align-self:stretch;display:grid;place-items:center;padding:0 1.6vh;background:var(--yellow);color:#1b1f5a;font:400 2.8vh 'Black Han Sans',sans-serif;letter-spacing:0;text-transform:none;white-space:nowrap}
-.tv[data-theme=classic] .osd-text span{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1vh 0;font:400 3vh 'Share Tech Mono',monospace;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa}
-.tv[data-theme=classic] .osd-meter{width:14vh;height:2.8vh;margin:0;border-radius:0;background:#16224a;-webkit-mask:repeating-linear-gradient(90deg,#000 0 1.3vh,transparent 1.3vh 1.7vh);mask:repeating-linear-gradient(90deg,#000 0 1.3vh,transparent 1.3vh 1.7vh)}
+.tv[data-theme=classic] .osd-text{flex-direction:row;align-items:center;gap:calc(1.4*var(--u));padding:0 calc(1.8*var(--u)) 0 0}
+.tv[data-theme=classic] .osd-text small{align-self:stretch;display:grid;place-items:center;padding:0 calc(1.6*var(--u));background:var(--yellow);color:#1b1f5a;font:400 calc(2.8*var(--u)) 'Black Han Sans',sans-serif;letter-spacing:0;text-transform:none;white-space:nowrap}
+.tv[data-theme=classic] .osd-text span{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:calc(1*var(--u)) 0;font:400 calc(3*var(--u)) 'Share Tech Mono',monospace;color:var(--lcd-on);text-shadow:0 0 .35em #2ab4ffaa}
+.tv[data-theme=classic] .osd-meter{width:calc(14*var(--u));height:calc(2.8*var(--u));margin:0;border-radius:0;background:#16224a;-webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(1.3*var(--u)),transparent calc(1.3*var(--u)) calc(1.7*var(--u)));mask:repeating-linear-gradient(90deg,#000 0 calc(1.3*var(--u)),transparent calc(1.3*var(--u)) calc(1.7*var(--u)))}
 .tv[data-theme=classic] .osd-meter i{border-radius:0;background:var(--cyan)}
 .tv[data-theme=classic] .osd.in{animation:classic-osd-in .25s ease-out both}
 .tv[data-theme=classic] .osd.out{animation:classic-osd-out .2s ease-in both}
-@keyframes classic-osd-in{from{opacity:0;transform:translateY(-1vh)}}
-@keyframes classic-osd-out{to{opacity:0;transform:translateY(-1vh)}}
+@keyframes classic-osd-in{from{opacity:0;transform:translateY(calc(-1*var(--u)))}}
+@keyframes classic-osd-out{to{opacity:0;transform:translateY(calc(-1*var(--u)))}}
 .tv[data-theme=classic] #tv-play{background:linear-gradient(#3b3d6e,#232452);color:#fff}
 /* 예약곡: the reservation table between songs. */
-.tv[data-theme=classic] #up-next{width:min(120vh,92vw);translate:0}
+.tv[data-theme=classic] #up-next{width:min(calc(120*var(--u)),92vw);translate:0}
 .tv[data-theme=classic] #up-next :is(.eyebrow,.next-stack){display:none}
-.board{border:.5vh solid #000;border-radius:1.4vh;overflow:hidden;background:#0a0b30ee;box-shadow:inset 0 0 0 .35vh #3c3984,0 1.6vh 0 #05061a}
-.board-head{display:flex;align-items:center;justify-content:space-between;padding:1.6vh 2.6vh;background:linear-gradient(#3b3aa6,#26245f);border-bottom:.35vh solid #000}
-.board-head h1{margin:0;font:400 4.2vh 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.04em;filter:drop-shadow(.25vh .25vh 0 #000)}
-.board-head h1 small{margin-left:1.4vh;font:700 2vh 'IBM Plex Sans KR',sans-serif;color:#aab0ff;letter-spacing:.14em;filter:none}
-.board-head .cnt{font:700 2vh 'IBM Plex Sans KR',sans-serif;color:#cfd3ff}
-.board-head .cnt .lcd{margin-left:.8vh;font-size:3.4vh}
+.board{border:calc(.5*var(--u)) solid #000;border-radius:calc(1.4*var(--u));overflow:hidden;background:#0a0b30ee;box-shadow:inset 0 0 0 calc(.35*var(--u)) #3c3984,0 calc(1.6*var(--u)) 0 #05061a}
+.board-head{display:flex;align-items:center;justify-content:space-between;padding:calc(1.6*var(--u)) calc(2.6*var(--u));background:linear-gradient(#3b3aa6,#26245f);border-bottom:calc(.35*var(--u)) solid #000}
+.board-head h1{margin:0;font:400 calc(4.2*var(--u)) 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.04em;filter:drop-shadow(calc(.25*var(--u)) calc(.25*var(--u)) 0 #000)}
+.board-head h1 small{margin-left:calc(1.4*var(--u));font:700 calc(2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#aab0ff;letter-spacing:.14em;filter:none}
+.board-head .cnt{font:700 calc(2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#cfd3ff}
+.board-head .cnt .lcd{margin-left:calc(.8*var(--u));font-size:calc(3.4*var(--u))}
 .board-rows{margin:0;padding:0;list-style:none}
-.board-rows li{display:grid;grid-template-columns:10vh 18vh minmax(0,1fr) auto;align-items:center;gap:2vh;height:8.6vh;padding:0 2.6vh;border-top:.2vh solid #ffffff12;font:700 3.2vh 'IBM Plex Sans KR',sans-serif;color:#fff;text-align:left}
+.board-rows li{display:grid;grid-template-columns:calc(10*var(--u)) calc(18*var(--u)) minmax(0,1fr) auto;align-items:center;gap:calc(2*var(--u));height:calc(8.6*var(--u));padding:0 calc(2.6*var(--u));border-top:calc(.2*var(--u)) solid #ffffff12;font:700 calc(3.2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#fff;text-align:left}
 .board-rows li:nth-child(even){background:#ffffff06}
-.board-rows .ord{font:400 3.4vh 'Black Han Sans',sans-serif;color:#8f95d8}
-.board-rows .lcd{font-size:3vh}
+.board-rows .ord{font:400 calc(3.4*var(--u)) 'Black Han Sans',sans-serif;color:#8f95d8}
+.board-rows .lcd{font-size:calc(3*var(--u))}
 .board-rows .t{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.board-rows .a{font:500 2.4vh 'IBM Plex Sans KR',sans-serif;color:#aab0ff}
-.board-rows li.next{height:12vh;background:linear-gradient(90deg,var(--yellow),#ffc400);color:#1b1f5a;border-top:0}
+.board-rows .a{font:500 calc(2.4*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#aab0ff}
+.board-rows li.next{height:calc(12*var(--u));background:linear-gradient(90deg,var(--yellow),#ffc400);color:#1b1f5a;border-top:0}
 .board-rows li.next .ord{color:#c2185b}
 .board-rows li.next>.lcd{color:#1b1f5a;text-shadow:none}
-.board-rows li.next .t{font:900 4.2vh 'Noto Sans KR',sans-serif}
+.board-rows li.next .t{font:900 calc(4.2*var(--u)) 'Noto Sans KR',sans-serif}
 .board-rows li.next .a{color:#4a3c00}
-.board-rows .go{display:flex;flex-direction:column;align-items:center;gap:.2vh;padding:.8vh 1.6vh;background:#1b1f5a;border-radius:.8vh;color:var(--yellow);font:700 1.6vh 'IBM Plex Sans KR',sans-serif;letter-spacing:.1em}
-.board-rows .go .lcd{font-size:4.4vh;color:var(--yellow);text-shadow:0 0 1vh #ffe03388}
+.board-rows .go{display:flex;flex-direction:column;align-items:center;gap:calc(.2*var(--u));padding:calc(.8*var(--u)) calc(1.6*var(--u));background:#1b1f5a;border-radius:calc(.8*var(--u));color:var(--yellow);font:700 calc(1.6*var(--u)) 'IBM Plex Sans KR',sans-serif;letter-spacing:.1em}
+.board-rows .go .lcd{font-size:calc(4.4*var(--u));color:var(--yellow);text-shadow:0 0 calc(1*var(--u)) #ffe03388}
 /* Score: the full-screen fanfare over the outro. */
-.tv[data-theme=classic] .score{position:fixed;inset:0;z-index:8;display:grid;place-items:center;align-content:center;text-align:center;overflow:hidden;background:radial-gradient(farthest-side at 50% 55%,#1d2aa8cc,#05061aee)}
+.tv[data-theme=classic] .score{position:fixed;inset:0;z-index:8;display:grid;place-items:center;align-content:center;text-align:center;overflow:hidden;background:radial-gradient(farthest-side at 50% 55%,#1d2aa8,#05061a)}
 .score-rays{position:absolute;inset:-50vmax;background:repeating-conic-gradient(#ffffff10 0 5deg,transparent 5deg 15deg);animation:burst-spin 40s linear infinite}
 .score-confetti{position:absolute;inset:0;pointer-events:none}
-.score-confetti i{position:absolute;top:-4vh;width:1.4vh;height:2.4vh;border-radius:.2vh;animation:confetti-fall 3.2s linear infinite}
+.score-confetti i{position:absolute;top:calc(-4*var(--u));width:calc(1.4*var(--u));height:calc(2.4*var(--u));border-radius:calc(.2*var(--u));animation:confetti-fall 3.2s linear infinite}
 @keyframes confetti-fall{to{transform:translateY(115vh) rotate(540deg)}}
-.score-say{position:relative;font:400 4vh 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.06em;filter:drop-shadow(.3vh .3vh 0 #000)}
-.score-say small{display:block;font:500 2.2vh 'IBM Plex Sans KR',sans-serif;color:#bfe4ff;letter-spacing:.2em;filter:none}
+.score-say{position:relative;font:400 calc(4*var(--u)) 'Black Han Sans',sans-serif;color:#fff;letter-spacing:.06em;filter:drop-shadow(calc(.3*var(--u)) calc(.3*var(--u)) 0 #000)}
+.score-say small{display:block;font:500 calc(2.2*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#bfe4ff;letter-spacing:.2em;filter:none}
 .score-big{position:relative;display:flex;align-items:flex-end;justify-content:center;animation:score-pop .5s cubic-bezier(.3,1.7,.5,1)}
 @keyframes score-pop{from{transform:scale(1.6);opacity:0}}
-.score-value{font:400 40vh/1 'Black Han Sans',sans-serif;letter-spacing:-.02em;background:linear-gradient(#fffbd0 10%,#ffe033 40%,#ff9d00 75%,#ff5e00);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(.8vh 0 0 #12115a) drop-shadow(-.8vh 0 0 #12115a) drop-shadow(0 .8vh 0 #12115a) drop-shadow(0 -.8vh 0 #12115a) drop-shadow(0 1.6vh 0 #05061a) drop-shadow(0 0 4vh #ffb40066);transform:skewX(-6deg)}
-.score-unit{margin:0 0 6vh 1vh;font:400 8vh 'Black Han Sans',sans-serif;color:#fff;filter:drop-shadow(.4vh 0 0 #12115a) drop-shadow(-.4vh 0 0 #12115a) drop-shadow(0 .4vh 0 #12115a) drop-shadow(0 -.4vh 0 #12115a)}
-.score-label{position:relative;margin-top:1vh;padding:1.2vh 8vh;background:var(--pink);color:#fff;font:400 5.6vh 'Black Han Sans',sans-serif;letter-spacing:.06em;clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%)}
-.score-msg{position:relative;margin-top:2vh;font:700 2.6vh 'IBM Plex Sans KR',sans-serif;color:#e8eaff;letter-spacing:.04em}
+.score-value{font:400 calc(40*var(--u))/1 'Black Han Sans',sans-serif;letter-spacing:-.02em;background:linear-gradient(#fffbd0 10%,#ffe033 40%,#ff9d00 75%,#ff5e00);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(calc(.8*var(--u)) 0 0 #12115a) drop-shadow(calc(-.8*var(--u)) 0 0 #12115a) drop-shadow(0 calc(.8*var(--u)) 0 #12115a) drop-shadow(0 calc(-.8*var(--u)) 0 #12115a) drop-shadow(0 calc(1.6*var(--u)) 0 #05061a) drop-shadow(0 0 calc(4*var(--u)) #ffb40066);transform:skewX(-6deg)}
+.score-unit{margin:0 0 calc(6*var(--u)) calc(1*var(--u));font:400 calc(8*var(--u)) 'Black Han Sans',sans-serif;color:#fff;filter:drop-shadow(calc(.4*var(--u)) 0 0 #12115a) drop-shadow(calc(-.4*var(--u)) 0 0 #12115a) drop-shadow(0 calc(.4*var(--u)) 0 #12115a) drop-shadow(0 calc(-.4*var(--u)) 0 #12115a)}
+.score-label{position:relative;margin-top:calc(1*var(--u));padding:calc(1.2*var(--u)) calc(8*var(--u));background:var(--pink);color:#fff;font:400 calc(5.6*var(--u)) 'Black Han Sans',sans-serif;letter-spacing:.06em;clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%)}
+.score-msg{position:relative;margin-top:calc(2*var(--u));font:700 calc(2.6*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#e8eaff;letter-spacing:.04em}
 .score-msg b{color:var(--yellow)}
 @media (prefers-reduced-motion:reduce){.score-rays,.score-confetti{display:none}}
 /* Sound off: the machine's boot screen, one big green 시작 key. */
 .tv[data-theme=classic] .enable{background:radial-gradient(farthest-side at 50% 45%,#16186a,#05061a)}
-.tv[data-theme=classic] .enable .panel{display:grid;justify-items:center;gap:2.6vh;padding:0;background:none;border:0;box-shadow:none;text-align:center}
+.tv[data-theme=classic] .enable .panel{display:grid;justify-items:center;gap:calc(2.6*var(--u));padding:0;background:none;border:0;box-shadow:none;text-align:center}
 .tv[data-theme=classic] .enable h2{display:none}
-.boot-logo{display:flex;align-items:center;gap:.4em;padding:1.6vh 3.4vh;border-radius:1.2vh;background:#e9ecf2;color:#1b1f5a;font:700 9vh 'Space Grotesk',sans-serif;letter-spacing:-.04em;box-shadow:inset 0 -1vh 0 #0002,0 1.4vh 0 #000}
+.boot-logo{display:flex;align-items:center;gap:.4em;padding:calc(1.6*var(--u)) calc(3.4*var(--u));border-radius:calc(1.2*var(--u));background:#e9ecf2;color:#1b1f5a;font:700 calc(9*var(--u)) 'Space Grotesk',sans-serif;letter-spacing:-.04em;box-shadow:inset 0 calc(-1*var(--u)) 0 #0002,0 calc(1.4*var(--u)) 0 #000}
 .boot-logo span{color:#c2185b}
-.boot-logo i{display:inline-grid;place-items:center;width:8vh;height:8vh;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff7aa8,#c2185b 60%,#3a50ff);color:#fff;font-style:normal;font-size:5vh}
-.tv[data-theme=classic] .boot-status{display:flex;gap:2.4vh;font:700 2vh 'Share Tech Mono',monospace;color:#8fb4ff;letter-spacing:.14em}
+.boot-logo i{display:inline-grid;place-items:center;width:calc(8*var(--u));height:calc(8*var(--u));border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff7aa8,#c2185b 60%,#3a50ff);color:#fff;font-style:normal;font-size:calc(5*var(--u))}
+.tv[data-theme=classic] .boot-status{display:flex;gap:calc(2.4*var(--u));font:700 calc(2*var(--u)) 'Share Tech Mono',monospace;color:#8fb4ff;letter-spacing:.14em}
 .boot-status b{color:#7dff9a}.boot-status b.off{color:#ff6b6b}
-.tv[data-theme=classic] .enable p{margin:0;font:500 2.1vh 'IBM Plex Sans KR',sans-serif;color:#9aa0c8}
-.tv[data-theme=classic] #enable-button{display:flex;flex-direction:column;align-items:flex-start;padding:2.2vh 5vh 2.2vh 13vh;border:0;border-radius:2vh;background:linear-gradient(#36d47c,#14954a) no-repeat;color:#fff;box-shadow:inset 0 .5vh 0 #fff5,0 1.2vh 0 #0a5a2b,0 1.8vh 3vh #000a;position:relative}
-.tv[data-theme=classic] #enable-button::before{content:'';position:absolute;left:4.5vh;top:50%;width:0;height:0;border-left:5vh solid #fff;border-top:3vh solid transparent;border-bottom:3vh solid transparent;transform:translateY(-50%)}
-.start-ko{font:400 6vh/1.1 'Black Han Sans',sans-serif;letter-spacing:.06em}
-.tv[data-theme=classic] .start-en{font:700 2vh 'IBM Plex Sans KR',sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.tv[data-theme=classic] .enable p{margin:0;font:500 calc(2.1*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#9aa0c8}
+.tv[data-theme=classic] #enable-button{display:flex;flex-direction:column;align-items:flex-start;padding:calc(2.2*var(--u)) calc(5*var(--u)) calc(2.2*var(--u)) calc(13*var(--u));border:0;border-radius:calc(2*var(--u));background:linear-gradient(#36d47c,#14954a) no-repeat;color:#fff;box-shadow:inset 0 calc(.5*var(--u)) 0 #fff5,0 calc(1.2*var(--u)) 0 #0a5a2b,0 calc(1.8*var(--u)) calc(3*var(--u)) #000a;position:relative}
+.tv[data-theme=classic] #enable-button::before{content:'';position:absolute;left:calc(4.5*var(--u));top:50%;width:0;height:0;border-left:calc(5*var(--u)) solid #fff;border-top:calc(3*var(--u)) solid transparent;border-bottom:calc(3*var(--u)) solid transparent;transform:translateY(-50%)}
+.start-ko{font:400 calc(6*var(--u))/1.1 'Black Han Sans',sans-serif;letter-spacing:.06em}
+.tv[data-theme=classic] .start-en{font:700 calc(2*var(--u)) 'IBM Plex Sans KR',sans-serif;letter-spacing:.12em;text-transform:uppercase}
 .tv[data-theme=classic] .start-en::before{content:'START · '}
 .tv[data-theme=classic] #audio-error{color:#ff8a8a}
 /* Fullscreen and remote: two more keys at the end of the machine strip, not floating circles. */
-.tv[data-theme=classic] .open-remote{bottom:25px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2vh;width:auto;min-width:9vh;height:7vh;padding:0 1.2vh;border:0;border-radius:.9vh;background:linear-gradient(#2a2c55,#17183d);box-shadow:inset 0 .25vh 0 #fff2,0 .45vh 0 #07081f;color:#cfd3ff}
+.tv[data-theme=classic] .open-remote{bottom:25px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(.2*var(--u));width:auto;min-width:calc(9*var(--u));height:calc(7*var(--u));padding:0 calc(1.2*var(--u));border:0;border-radius:calc(.9*var(--u));background:linear-gradient(#2a2c55,#17183d);box-shadow:inset 0 calc(.25*var(--u)) 0 #fff2,0 calc(.45*var(--u)) 0 #07081f;color:#cfd3ff}
 .tv[data-theme=classic]:not(.still) .open-remote{opacity:1}
-.tv[data-theme=classic] .open-remote:active{border-radius:.9vh;transform:translateY(.3vh);box-shadow:inset 0 .25vh 0 #fff2}
-.tv[data-theme=classic] .open-remote svg{width:2.6vh;height:2.6vh}
-.tv[data-theme=classic] .open-remote::after{font:700 1.6vh 'IBM Plex Sans KR',sans-serif;letter-spacing:.06em}
+.tv[data-theme=classic] .open-remote:active{border-radius:calc(.9*var(--u));transform:translateY(calc(.3*var(--u)));box-shadow:inset 0 calc(.25*var(--u)) 0 #fff2}
+.tv[data-theme=classic] .open-remote svg{width:calc(2.6*var(--u));height:calc(2.6*var(--u))}
+.tv[data-theme=classic] .open-remote::after{font:700 calc(1.6*var(--u)) 'IBM Plex Sans KR',sans-serif;letter-spacing:.06em}
 .tv[data-theme=classic] #open-remote::after{content:'리모컨'}
 .tv[data-theme=classic] #fullscreen::after{content:'전체화면'}
 .tv[data-theme=classic] #fullscreen.full::after{content:'창 모드'}
-.tv[data-theme=classic] #fullscreen{right:calc(var(--edge) + 11vh)}
-.tv[data-theme=classic] .tv-bottom{padding-right:calc(var(--edge) + 23vh)}
+.tv[data-theme=classic] #fullscreen{right:calc(var(--edge) + calc(11*var(--u)))}
+.tv[data-theme=classic] .tv-bottom{padding-right:calc(var(--edge) + calc(23*var(--u)))}
 /* Theme picker: two small lamp keys in the corner, well below the 시작 key. */
-.tv[data-theme=classic] .theme-pick{position:fixed;right:3vh;bottom:3vh;z-index:4;gap:1.2vh;margin:0;padding:1vh 1.2vh 1vh 1.8vh;border:.2vh solid #2b3c8e;border-radius:1vh;background:#05061acc;box-shadow:inset 0 .4vh 1vh #000a}
+.tv[data-theme=classic] .theme-pick{position:fixed;right:calc(3*var(--u));bottom:calc(3*var(--u));z-index:4;gap:calc(1.2*var(--u));margin:0;padding:calc(1*var(--u)) calc(1.2*var(--u)) calc(1*var(--u)) calc(1.8*var(--u));border:calc(.2*var(--u)) solid #2b3c8e;border-radius:calc(1*var(--u));background:#05061acc;box-shadow:inset 0 calc(.4*var(--u)) calc(1*var(--u)) #000a}
 .tv[data-theme=classic] .theme-pick .l>.dl{display:none}
-.tv[data-theme=classic] .theme-pick .l>span{display:flex;flex-direction:column;font:700 1.7vh/1.15 'IBM Plex Sans KR',sans-serif;color:#cfd3ff;letter-spacing:.06em;text-align:left}
-.tv[data-theme=classic] .theme-pick .l small{font:700 1.3vh 'IBM Plex Sans KR',sans-serif;color:#6f76c8;letter-spacing:.18em}
-.tv[data-theme=classic] .theme-pick .pills{gap:1vh;padding:0;background:none;box-shadow:none}
-.tv[data-theme=classic] .theme-pick button{gap:.8vh;height:4.6vh;padding:0 1.4vh;border-radius:.7vh;background:linear-gradient(#3b3d6e,#232452);box-shadow:inset 0 .25vh 0 #ffffff2a,0 .45vh 0 #07081f,0 .6vh 1vh #0008;color:#aab0ff;font:700 1.8vh 'IBM Plex Sans KR',sans-serif;white-space:nowrap}
-.tv[data-theme=classic] .theme-pick button i{display:block;width:1.1vh;height:1.1vh;border-radius:50%;background:#1b2350;box-shadow:inset 0 .15vh .2vh #000}
-.tv[data-theme=classic] .theme-pick button[aria-pressed=true]{transform:translateY(.3vh);background:linear-gradient(#2e3060,#1d1e48);box-shadow:inset 0 .25vh .4vh #0008,0 .15vh 0 #07081f;color:var(--yellow)}
-.tv[data-theme=classic] .theme-pick button[aria-pressed=true] i{width:1.1vh;height:1.1vh;background:var(--yellow);box-shadow:0 0 1vh var(--yellow)}
+.tv[data-theme=classic] .theme-pick .l>span{display:flex;flex-direction:column;font:700 calc(1.7*var(--u))/1.15 'IBM Plex Sans KR',sans-serif;color:#cfd3ff;letter-spacing:.06em;text-align:left}
+.tv[data-theme=classic] .theme-pick .l small{font:700 calc(1.3*var(--u)) 'IBM Plex Sans KR',sans-serif;color:#6f76c8;letter-spacing:.18em}
+.tv[data-theme=classic] .theme-pick .pills{gap:calc(1*var(--u));padding:0;background:none;box-shadow:none}
+.tv[data-theme=classic] .theme-pick button{gap:calc(.8*var(--u));height:calc(4.6*var(--u));padding:0 calc(1.4*var(--u));border-radius:calc(.7*var(--u));background:linear-gradient(#3b3d6e,#232452);box-shadow:inset 0 calc(.25*var(--u)) 0 #ffffff2a,0 calc(.45*var(--u)) 0 #07081f,0 calc(.6*var(--u)) calc(1*var(--u)) #0008;color:#aab0ff;font:700 calc(1.8*var(--u)) 'IBM Plex Sans KR',sans-serif;white-space:nowrap}
+.tv[data-theme=classic] .theme-pick button i{display:block;width:calc(1.1*var(--u));height:calc(1.1*var(--u));border-radius:50%;background:#1b2350;box-shadow:inset 0 calc(.15*var(--u)) calc(.2*var(--u)) #000}
+.tv[data-theme=classic] .theme-pick button[aria-pressed=true]{transform:translateY(calc(.3*var(--u)));background:linear-gradient(#2e3060,#1d1e48);box-shadow:inset 0 calc(.25*var(--u)) calc(.4*var(--u)) #0008,0 calc(.15*var(--u)) 0 #07081f;color:var(--yellow)}
+.tv[data-theme=classic] .theme-pick button[aria-pressed=true] i{width:calc(1.1*var(--u));height:calc(1.1*var(--u));background:var(--yellow);box-shadow:0 0 calc(1*var(--u)) var(--yellow)}
 /* During songs: a small 리모컨 QR sticker in the top-right status spot (mockup 13). It never moves;
    notices slide in to its left, and it dims a little while lyrics are on screen. */
-.tv[data-theme=classic] .qr-mini{position:fixed;top:calc(clamp(64px,6.5vh,72px) + 2.4vh);right:2.4vh;z-index:6;display:flex;flex-direction:column;align-items:center;gap:.4vh;width:var(--qr);padding:1.1vh;border-radius:1vh;background:#fff;box-shadow:0 .5vh 0 #0007;opacity:.72;transition:opacity .4s}
+.tv[data-theme=classic] .qr-mini{position:fixed;top:calc(clamp(64px,calc(6.5*var(--u)),72px) + calc(2.4*var(--u)));right:calc(2.4*var(--u));z-index:6;display:flex;flex-direction:column;align-items:center;gap:calc(.4*var(--u));width:var(--qr);padding:calc(1.1*var(--u));border-radius:calc(1*var(--u));background:#fff;box-shadow:0 calc(.5*var(--u)) 0 #0007;opacity:.72;transition:opacity .4s}
 .tv[data-theme=classic].intro .qr-mini,.tv[data-theme=classic]:not(:has(#performance:not([hidden]))) .qr-mini{opacity:1}
 .tv[data-theme=classic] .qr-mini img{width:100%;height:auto;aspect-ratio:1}
-.tv[data-theme=classic]:has(#qr-mini:not([hidden])) .osd{right:calc(2.4vh + var(--qr) + 1.4vh)}
+.tv[data-theme=classic]:has(#qr-mini:not([hidden])) .osd{right:calc(calc(2.4*var(--u)) + var(--qr) + calc(1.4*var(--u)))}
 /* The 예약곡 board waits under the score: it only comes up once the score has gone (SCORE_HOLD in queue.py). */
 .tv[data-theme=classic]:has(#score:not([hidden])) #up-next{visibility:hidden}
 /* With the strip faded out (mouse still), the lyrics settle a little lower into the space it leaves. */
 .tv[data-theme=classic] #performance{transition:translate .6s ease}
-.tv[data-theme=classic].still #performance{translate:0 6vh}
+.tv[data-theme=classic].still #performance{translate:0 calc(6*var(--u))}
+/* Portrait or very narrow windows: the unit also follows the width, and the machine strip stacks its keys under the progress bar. */
+@media (orientation:portrait){
+.tv[data-theme=classic]{--u:min(1vh,9px,1.5vw)}
+.tv[data-theme=classic] .tv-bottom{flex-direction:column;align-items:stretch;gap:calc(1.6*var(--u));padding:calc(1.6*var(--u)) calc(2*var(--u)) calc(2*var(--u))}
+.tv[data-theme=classic] .tv-controls{flex-wrap:wrap;justify-content:center;row-gap:calc(1.2*var(--u));padding-bottom:calc(8.4*var(--u))}
+.tv[data-theme=classic] .open-remote{bottom:calc(2*var(--u))}
+.tv[data-theme=classic] .specs{flex-wrap:wrap;justify-content:center}
+.tv[data-theme=classic] .title-card{padding-bottom:calc(22*var(--u))}
+.tv[data-theme=classic] .title-card h1{font-size:calc(9*var(--u))}
+.tv[data-theme=classic] .specs span{min-width:calc(10*var(--u))}
+.tv[data-theme=classic] .cb-right{white-space:nowrap}
+.tv[data-theme=classic] .intro-foot{bottom:auto;top:calc(clamp(64px,6.5vh,72px) + 2*var(--u))}
+}

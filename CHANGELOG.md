@@ -4,6 +4,15 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-07
+
+### Changed
+- In Classic, the score shows for 5 seconds instead of 3, on a fully opaque background.
+
+### Fixed
+- The Classic TV follows browser zoom and no longer grows oversized on tall windows; its keys no longer overlap the fullscreen and remote buttons.
+- The Classic TV fits portrait and narrow windows: the bottom strip stacks its keys, and the title card stays clear of it.
+
 ## [0.6.0] - 2026-10-07
 
 ### Added
@@ -93,7 +102,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/andyleenz/KTVibes/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/andyleenz/KTVibes/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/andyleenz/KTVibes/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/andyleenz/KTVibes/compare/v0.3.0...v0.4.0

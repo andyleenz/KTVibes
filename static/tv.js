@@ -244,7 +244,7 @@ function showScore(){
  $('score-label').textContent=label;$('score-msg').replaceChildren(el('b',highlight),` · ${en}`);$('score').hidden=false;
  (function roll(now){const k=Math.min(1,(now-start)/1200);$('score-value').textContent=Math.round(score*(1-(1-k)**3));if(k<1)requestAnimationFrame(roll);})(start);
 }
-function endScore(){if(!$('score').hidden&&!scoreTimer)scoreTimer=setTimeout(()=>{$('score').hidden=true;scoreTimer=null;},3000);}  // SCORE_HOLD in queue.py: Classic adds it to the breather, so the 예약곡 board follows
+function endScore(){if(!$('score').hidden&&!scoreTimer)scoreTimer=setTimeout(()=>{$('score').hidden=true;scoreTimer=null;},5000);}  // SCORE_HOLD in queue.py: Classic adds it to the breather, so the 예약곡 board follows
 {const colours=['#ffe033','#ff3ea5','#63dcff','#7dff9a','#fff'];for(let i=0;i<40;i++){const bit=el('i');bit.style.cssText=`left:${Math.random()*100}%;background:${colours[i%5]};animation-delay:${-Math.random()*3.2}s;animation-duration:${2.6+Math.random()*1.6}s`;$('score-confetti').append(bit);}}
 // Songbook dialling from the remote: digits show in the strip as they're typed.
 let dialTimer;
