@@ -2,14 +2,14 @@
 
 **Turn any YouTube song into karaoke at home.** Pick songs on your phone, sing on the TV. KTVibes downloads the song, strips the vocals with AI, finds synced lyrics, and shows them with a KTV-style wipe. It adds pronunciation guides for Chinese, Cantonese, Korean and Japanese.
 
-![Demo: searching and queuing a song from the phone, then raising the key, while the TV plays (music video blurred)](docs/demo.gif)
+![Demo: queuing songs from the phone, sending cheers and raising the key while the TV plays, then the up-next card and pinyin lyrics (music video blurred)](docs/demo.gif)
 
 ![TV: Joji's Sanctuary, lyrics filling word by word](docs/tv-hero.jpg)
 
 <p align="center">
-  <img src="docs/remote-queue.png" width="280" alt="Phone remote: queue and recent songs">
+  <img src="docs/remote-queue.png" width="280" alt="Phone remote: now playing, cheers and the queue">
   &nbsp;
-  <img src="docs/remote-controls.png" width="280" alt="Phone remote: music, vocals, speed and key controls">
+  <img src="docs/remote-controls.png" width="280" alt="Phone remote: settings sheet with guide vocals, music, key and speed">
 </p>
 
 ## Features
