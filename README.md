@@ -67,7 +67,7 @@ Plan for about 8 GB of disk: the install itself is 6.5 GB (mostly PyTorch with C
 ## Use
 
 1. Run `ktvibes`.
-2. On the TV computer, open `http://localhost:8765/tv` and click **Enable sound**. Click **Fullscreen** if you like.
+2. On the TV computer, open `http://localhost:8765` and click **Enable sound**. Click **Fullscreen** if you like.
 3. Scan the QR code with a phone, search for a song, and tap it to queue it.
 
 The first song starts as soon as it is ready. Later songs are prepared while earlier ones play, so queue a few ahead; without a GPU, a song takes a minute or so to prepare. Re-queuing a song is instant because everything is cached in `cache/`.
@@ -102,7 +102,7 @@ This pulls the latest version; the next `ktvibes` installs any new dependencies.
 | Variable | Default | |
 |---|---|---|
 | `KTVIBES_PORT` | `8765` | Server port |
-| `KTVIBES_REMOTE_URL` | detected | Address in the QR code. Set it if detection picks the wrong network, e.g. with a VPN: `http://<pc-ip>:8765/` |
+| `KTVIBES_REMOTE_URL` | detected | Address in the QR code. Set it if detection picks the wrong network, e.g. with a VPN: `http://<pc-ip>:8765` (the QR code adds `/remote`) |
 | `KTVIBES_CACHE` | `./cache` | Where songs are stored, about 30 MB each |
 | `KTVIBES_COOKIES_FROM_BROWSER` | unset | If songs fail with "Sign in to confirm you're not a bot", set this to a browser you're signed in to YouTube with (`chrome`, `firefox`, `edge`, `safari`…), and KTVibes uses its YouTube cookies |
 | `KTVIBES_VIDEO_HEIGHT` | `720` | Highest music video resolution to download, e.g. `1080` (about twice the size) |

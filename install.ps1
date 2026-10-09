@@ -33,4 +33,4 @@ if ($userPath -notlike "*$bin*") { [Environment]::SetEnvironmentVariable("Path",
 $missing = @("ffmpeg", "ffprobe", "node") | Where-Object { -not (Get-Command $_ -ErrorAction SilentlyContinue) }
 if ($missing) { Write-Warning "Not on PATH yet: $($missing -join ', '). Open a NEW terminal before running ktvibes." }
 if ($missing -contains "node") { Write-Warning "If Node.js is still missing in a new terminal, install the LTS version from https://nodejs.org" }
-Write-Host "`nInstalled. Open a new terminal, run: ktvibes   then open http://localhost:8765/tv"
+Write-Host "`nInstalled. Open a new terminal, run: ktvibes   then open http://localhost:8765"

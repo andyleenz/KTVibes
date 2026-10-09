@@ -29,5 +29,5 @@ cd "$DIR" && exec uv run --no-dev ktvibes "\$@"
 LAUNCHER
 chmod +x "$HOME/.local/bin/ktvibes"
 echo
-echo "Installed. Run: ktvibes   then open http://localhost:8765/tv on the TV computer."
+echo "Installed. Run: ktvibes   then open http://localhost:8765 on the TV computer."
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) echo "(Add ~/.local/bin to your PATH, or run $HOME/.local/bin/ktvibes)";; esac

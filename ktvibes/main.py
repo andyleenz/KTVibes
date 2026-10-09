@@ -53,17 +53,19 @@ async def revalidate_static(request, call_next):
     # Pages load plain JS/CSS without a build step; revalidate so edits show up on reload.
     # Media too: a song's tracks keep their URL when converted to a new format or prepared again.
     response = await call_next(request)
-    if request.url.path.startswith(("/static/", "/media/")) or request.url.path in ("/", "/tv"):
+    if request.url.path.startswith(("/static/", "/media/")) or request.url.path in ("/", "/tv", "/remote"):
         response.headers["Cache-Control"] = "no-cache"
     return response
 
+# The TV is the front page: someone on a laptop can open the remote from it, but not the other way round.
 @app.get("/")
-async def remote():
-    return FileResponse(ROOT / "static/remote.html")
-
 @app.get("/tv")
 async def tv():
     return FileResponse(ROOT / "static/tv.html")
+
+@app.get("/remote")
+async def remote():
+    return FileResponse(ROOT / "static/remote.html")
 
 @app.get("/api/state")
 async def get_state():
@@ -230,14 +232,15 @@ async def media(video_id: str, filename: str):
 
 def remote_url():
     if os.environ.get("KTVIBES_REMOTE_URL"):
-        return os.environ["KTVIBES_REMOTE_URL"].rstrip("/") + "/"
+        url = os.environ["KTVIBES_REMOTE_URL"].rstrip("/")
+        return url if url.endswith("/remote") else url + "/remote"
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.connect(("8.8.8.8", 80))
             host = sock.getsockname()[0]
     except OSError:
         host = "127.0.0.1"
-    return f"http://{host}:{PORT}/"
+    return f"http://{host}:{PORT}/remote"
 
 @app.get("/api/config")
 async def config():

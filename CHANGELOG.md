@@ -4,6 +4,9 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+### Changed
+- `http://localhost:8765` opens the TV, so someone on a laptop can start singing without a phone and open the remote from the TV's remote button. The phone remote moves to `/remote`; the QR code points there. `/tv` still works.
+
 ## [0.6.2] - 2026-10-10
 
 ### Fixed

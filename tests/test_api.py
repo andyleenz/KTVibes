@@ -138,7 +138,7 @@ class APITests(unittest.TestCase):
         self.assertIn('already', response.json()['detail'])
 
     def test_unicode_input_validation_and_static_pages(self):
-        for route in ('/', '/tv', '/static/tv.js', '/api/qr.svg'):
+        for route in ('/', '/tv', '/remote', '/static/tv.js', '/api/qr.svg'):
             self.assertEqual(self.client.get(route).status_code, 200)
         song = {'id': 'abcdefghijk', 'artist': '周杰倫', 'title': '晴天 / 좋은 날'}
         response = self.client.post('/api/queue', json=song)
@@ -199,7 +199,10 @@ class APITests(unittest.TestCase):
 
     def test_remote_url_uses_configured_port(self):
         with patch.object(self.main, 'PORT', 9999), patch.dict('os.environ', {'KTVIBES_REMOTE_URL': ''}):
-            self.assertTrue(self.main.remote_url().endswith(':9999/'))
+            self.assertTrue(self.main.remote_url().endswith(':9999/remote'))
+        for configured in ('http://pc:8765', 'http://pc:8765/', 'http://pc:8765/remote'):
+            with patch.dict('os.environ', {'KTVIBES_REMOTE_URL': configured}):
+                self.assertEqual(self.main.remote_url(), 'http://pc:8765/remote')
 
     def test_search_marks_prepared_songs(self):
         folder = Path(self.temp.name) / 'aaaaaaaaaaa'

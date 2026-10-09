@@ -478,11 +478,11 @@ $('open-remote').onclick=async()=>{
   if('documentPictureInPicture' in window){
    // Phone-sized; preferInitialWindowPlacement stops Chrome reusing the size the window was last dragged to.
    remoteWindow=await documentPictureInPicture.requestWindow({width:390,height:Math.min(844,screen.availHeight-80),preferInitialWindowPlacement:true});
-   const frame=remoteWindow.document.createElement('iframe');frame.src='/';frame.title='KTVibes remote';
+   const frame=remoteWindow.document.createElement('iframe');frame.src='/remote';frame.title='KTVibes remote';
    frame.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0';
    remoteWindow.document.body.style.cssText='margin:0;background:#111313';remoteWindow.document.body.append(frame);
    remoteWindow.addEventListener('pagehide',()=>{remoteWindow=null;});
-  }else remoteWindow=open('/','ktvibes-remote',`popup,width=390,height=${Math.min(844,screen.availHeight-80)},left=${screenX+outerWidth-430},top=${screenY+80}`);
+  }else remoteWindow=open('/remote','ktvibes-remote',`popup,width=390,height=${Math.min(844,screen.availHeight-80)},left=${screenX+outerWidth-430},top=${screenY+80}`);
  }catch(e){error(e.message);}
 };
 
