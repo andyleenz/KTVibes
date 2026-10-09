@@ -5,7 +5,10 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 ## [Unreleased]
 
 ### Fixed
-- Lyrics no longer drift later and later through a song that starts singing in its first half second (Love The Way You Lie (Part II) ended up nearly 15 seconds late). A section of only one or two lines no longer moves the lyrics after it. Songs re-time their lyrics the next time they play.
+- Lyrics no longer drift later and later through a song that starts singing in its first half second (Love The Way You Lie (Part II) ended up nearly 15 seconds late).
+- Lyrics follow music videos more reliably. Where a video cuts or lengthens a break, the sections after it are now moved together, so a short bridge right after the edit moves with them, and one misleading section can no longer pull the rest of the song off.
+- Lyrics find their place after a music-video intro longer than 30 seconds (Adele's Hello talks for over a minute first).
+- Songs re-time their lyrics the next time they play.
 
 ## [0.6.1] - 2026-10-07
 

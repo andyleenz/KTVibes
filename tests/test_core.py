@@ -617,6 +617,32 @@ class LyricsMatchTests(unittest.TestCase):
                       key=lambda line: line['t'])
         self.assertEqual(set(shift_sections(song, energy)), {0})
 
+    def test_a_long_video_intro_is_found(self):
+        import numpy as np
+        from ktvibes.lyrics import find_shift
+        # Adele's Hello: the music video talks for ~75 s before the song, past the usual 30 s search.
+        stamps = [5.82, 11.47, 17.81, 23.23, 30.1, 35.9, 41.2, 47.6, 53.3, 58.8, 64.5, 70.2]
+        energy = np.zeros(3000)
+        for t in stamps:
+            energy[round((t + 75) / .05):round((t + 75) / .05) + 40] = 1
+        self.assertAlmostEqual(find_shift([{'t': t, 'text': 'la'} for t in stamps], energy), 75, delta=.1)
+
+    def test_a_short_section_after_a_cut_moves_with_the_rest(self):
+        import numpy as np
+        from ktvibes.lyrics import shift_sections
+        # The video cuts 4 s from the break before a two-line bridge. Two lines alone are too little to move
+        # a section, but the lines after the bridge are off by the same 4 s, so all of them move together.
+        sung = [[5, 9.5, 15], [30, 34.5], [45, 49, 54.5, 58], [70, 75.5, 79]]
+        gaps = [18, 37, 61, 82]
+        energy = np.zeros(2000)
+        for t in (t for section in sung for t in section):
+            energy[round(t / .05):round(t / .05) + 30] = 1
+        song = []
+        for index, (section, gap) in enumerate(zip(sung, gaps)):
+            late = 4 if index else 0
+            song += [{'t': t + late, 'text': 'la'} for t in section] + [{'t': gap + late, 'text': ''}]
+        self.assertEqual(shift_sections(song, energy), [0, -4, -4, -4])
+
     def test_line_switches_after_last_word_and_before_first(self):
         from ktvibes.lyrics import line_starts
         lines = [{'t': 27.08, 'text': 'Go ahead and bark after dark', 'units': [['Go ', 26.8, 26.9], ['dark', 29.23, 29.33]]},
