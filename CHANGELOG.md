@@ -9,6 +9,7 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 - Lyrics follow music videos more reliably. Where a video cuts or lengthens a break, the sections after it are now moved together, so a short bridge right after the edit moves with them, and one misleading section can no longer pull the rest of the song off.
 - Lyrics find their place after a music-video intro longer than 30 seconds (Adele's Hello talks for over a minute first).
 - Songs re-time their lyrics the next time they play.
+- On a phone, a long song title in the queue or search results no longer widens the page and pushes the remove and reorder buttons out of reach.
 
 ## [0.6.1] - 2026-10-07
 

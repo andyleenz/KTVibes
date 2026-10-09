@@ -36,7 +36,7 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 @keyframes drop{from{opacity:0;transform:translateY(-6px)}}
 
 /* Results and recent songs */
-.results{display:grid;gap:8px}#results:not(:empty){margin-top:12px}
+.results{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}#results:not(:empty){margin-top:12px}
 .result{display:flex;align-items:center;gap:12px;width:100%;padding:8px;border:1px solid var(--line);border-radius:16px;background:var(--panel);text-align:left;transition:border-radius .3s var(--bouncy),transform .3s var(--bouncy)}
 .result:not(:disabled):active{border-radius:10px;transform:scale(.98)}
 .result img{flex:none;width:80px;height:45px;border-radius:8px;object-fit:cover;background:var(--panel2)}
@@ -109,8 +109,9 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .react:active{transform:scale(.85);border-radius:12px}
 .float{position:fixed;z-index:50;pointer-events:none;font-size:30px;will-change:transform,opacity}
 
-/* Queue: drag the grip, or long-press a row, to move a song. */
-.queue{position:relative;display:grid}
+/* Queue: drag the grip, or long-press a row, to move a song. The column can't grow past the screen,
+   so a long title ellipsizes instead of pushing × and the grip out of reach. */
+.queue{position:relative;display:grid;grid-template-columns:minmax(0,1fr)}
 .row{position:relative;display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);background:var(--bg);touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .row:first-child{border-top:0}
 .row .num{width:20px;flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
