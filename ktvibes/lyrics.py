@@ -231,27 +231,37 @@ def find_shift(lines: list[dict], energy, hop: float = 0.05, limit: float = 30.0
     if len(starts) < 10 or not len(energy):
         return 0.0
     score = onset_scorer(energy, hop)
-    # A long music-video intro can push the singing past `limit` (Adele's Hello starts singing at ~87 s,
-    # its LRC at 5.8 s): later shifts are searched as long as the first line stays inside the audio.
-    later = max(limit, len(energy) * hop - starts[0])
-    shifts = np.arange(-limit, later + hop / 2, hop)
-    # A shift that pushes many lines out of the audio is not a fit.
-    scores = np.array([score(starts, shift, 0.75) for shift in shifts])
-    best = nearest_peak(shifts, scores)
-    # Measured on cached songs: correct stamps score 0.26-0.55 as they are, while a
-    # music video 3.3 s late scored 0.01 as is and 0.33 shifted; noise stays below 0.25.
-    # Offsets under a second are left to per-line alignment.
-    if scores[best] < 0.25 or score(starts, 0.0, 0.75) > scores[best] / 2 or abs(shifts[best]) < 1:
+    in_place = score(starts, 0.0, 0.75)
+
+    def search(shifts):
+        # A shift that pushes many lines out of the audio is not a fit.
+        scores = np.array([score(starts, shift, 0.75) for shift in shifts])
+        best = nearest_peak(shifts, scores)
+        # Measured on cached songs: correct stamps score 0.26-0.55 as they are, while a
+        # music video 3.3 s late scored 0.01 as is and 0.33 shifted; noise stays below 0.25.
+        # Offsets under a second are left to per-line alignment.
+        if scores[best] < 0.25 or in_place > scores[best] / 2 or abs(shifts[best]) < 1:
+            return 0.0
+        return round(float(shifts[best]), 2)
+
+    if shift := search(np.arange(-limit, limit + hop / 2, hop)):
+        return shift
+    # A long music-video intro can push the singing past `limit` (Adele's Hello sings from ~81 s, its LRC
+    # from 5.8 s). Later shifts are searched only when the stamps fit badly as they are and nothing fits
+    # nearer, so a song that already fits can't latch onto a far repeat of its chorus.
+    later = len(energy) * hop - starts[0]
+    if in_place >= 0.25 or later <= limit:
         return 0.0
-    return round(float(shifts[best]), 2)
+    return search(np.arange(limit + hop, later + hop / 2, hop))
 
 def line_scores(lines: list[dict], energy, hop: float, reach: int):
-    """Onset score of each line at every shift of -reach..reach frames; -1 where the line leaves the audio."""
+    """Onset score of each line at every shift of -reach..reach frames; NaN where the line leaves the audio
+    (a real onset can score -1: sung just before, silent after)."""
     import numpy as np
     onset = onsets(energy, hop)
     at = np.round(np.array([line["t"] for line in lines]) / hop).astype(int)[:, None] + np.arange(-reach, reach + 1)
     inside = (at >= 0) & (at < len(onset))
-    return np.where(inside, onset[np.clip(at, 0, len(onset) - 1)], -1.0) if len(onset) else np.full(at.shape, -1.0)
+    return np.where(inside, onset[np.clip(at, 0, len(onset) - 1)], np.nan) if len(onset) else np.full(at.shape, np.nan)
 
 def shift_sections(lines: list[dict], energy, hop: float = 0.05, limit: float = 10.0, change: float = 5.0, per_second: float = 0.5) -> list[float]:
     """Move whole sections (lines between instrumental gaps) that the vocals sing earlier or later.
@@ -283,7 +293,7 @@ def shift_sections(lines: list[dict], energy, hop: float = 0.05, limit: float = 
     sung = [[line for line in section if line["text"]] for section in sections]
     def evidence(group):
         raw = line_scores(group, energy, hop, reach)
-        return np.where(raw <= -1, -1.0, (raw >= 0.5) + 0.1 * raw).sum(axis=0)
+        return np.where(np.isnan(raw), -1.0, (raw >= 0.5) + 0.1 * np.nan_to_num(raw)).sum(axis=0)
     scores = [evidence(group) for group in sung]
     distance = np.abs(offsets[:, None] - offsets[None, :]) * hop  # [previous shift, this shift]
     cost = np.where(distance > 0, change + per_second * distance, 0.0)
@@ -300,8 +310,12 @@ def shift_sections(lines: list[dict], energy, hop: float = 0.05, limit: float = 
     chosen = [int(best.argmax())]
     for step in reversed(back):
         chosen.append(int(step[chosen[-1]]))
-    # Offsets under a second are left to per-line alignment.
+    # Offsets under a second are left to per-line alignment. Dropping one can bring a section within a
+    # second of the one before; that section then keeps the previous shift, as the search always allows.
     moved = [round(float(offsets[k] * hop), 2) if abs(offsets[k] * hop) >= 1 else 0.0 for k in reversed(chosen)]
+    for index in range(1, len(moved)):
+        if sung[index][0]["t"] + moved[index] < sung[index - 1][-1]["t"] + moved[index - 1] + 1:
+            moved[index] = moved[index - 1]
     for section, shift in zip(sections, moved):
         shift_lines(section, shift)
     return moved

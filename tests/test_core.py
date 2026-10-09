@@ -627,6 +627,28 @@ class LyricsMatchTests(unittest.TestCase):
             energy[round((t + 75) / .05):round((t + 75) / .05) + 40] = 1
         self.assertAlmostEqual(find_shift([{'t': t, 'text': 'la'} for t in stamps], energy), 75, delta=.1)
 
+    def test_a_song_that_fits_is_not_moved_to_a_far_repeat(self):
+        import numpy as np
+        from ktvibes.lyrics import find_shift
+        # Stamps that fit as they are, if only a third of them clearly (soft singing), in audio where the
+        # pattern repeats in full 60 s later: three times as good a fit, but the far search for long intros
+        # only runs when the stamps fit badly as they are.
+        stamps = [5.82, 11.47, 17.81, 23.23, 30.1, 35.9, 41.2, 47.6, 53.3, 58.8, 64.5, 70.2]
+        energy = np.zeros(4000)
+        for index, t in enumerate(stamps):
+            for at in ((t, t + 60) if index % 3 == 0 else (t + 60,)):
+                energy[round(at / .05):round(at / .05) + 40] = 1
+        self.assertEqual(find_shift([{'t': t, 'text': 'la'} for t in stamps], energy), 0)
+
+    def test_an_onset_of_minus_one_is_still_inside_the_audio(self):
+        import numpy as np
+        from ktvibes.lyrics import line_scores
+        energy = np.zeros(400)
+        energy[:20] = 1  # sung for the first second, then silent: a line at 1 s scores -1
+        scores = line_scores([{'t': 1.0}, {'t': 30.0}], energy, .05, 0)
+        self.assertEqual(scores[0, 0], -1.0)
+        self.assertTrue(np.isnan(scores[1, 0]))  # past the end of the audio
+
     def test_a_short_section_after_a_cut_moves_with_the_rest(self):
         import numpy as np
         from ktvibes.lyrics import shift_sections
