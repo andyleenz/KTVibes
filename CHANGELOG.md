@@ -4,6 +4,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-10
+
 ### Fixed
 - Lyrics no longer drift later and later through a song that starts singing in its first half second (Love The Way You Lie (Part II) ended up nearly 15 seconds late).
 - Lyrics follow music videos more reliably. Where a video cuts or lengthens a break, the sections after it are now moved together, so a short bridge right after the edit moves with them, and one misleading section can no longer pull the rest of the song off.
@@ -109,7 +111,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/andyleenz/KTVibes/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/andyleenz/KTVibes/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/andyleenz/KTVibes/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/andyleenz/KTVibes/compare/v0.4.0...v0.5.0
