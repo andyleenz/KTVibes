@@ -4,6 +4,9 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+### Fixed
+- Lyrics no longer drift later and later through a song that starts singing in its first half second (Love The Way You Lie (Part II) ended up nearly 15 seconds late). A section of only one or two lines no longer moves the lyrics after it. Songs re-time their lyrics the next time they play.
+
 ## [0.6.1] - 2026-10-07
 
 ### Changed

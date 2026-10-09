@@ -604,6 +604,19 @@ class LyricsMatchTests(unittest.TestCase):
         for later in moved[3:]:
             self.assertAlmostEqual(later, -7, delta=.5)
 
+    def test_sections_stay_when_the_song_opens_on_its_first_word(self):
+        import numpy as np
+        from ktvibes.lyrics import shift_sections
+        # Love The Way You Lie (Part II): sung from 0.23 s, with no quiet half second before it to compare.
+        # That scored the opening as misplaced, moved it ~6 s, and the move carried into every later section.
+        stamps = [0.23, 5.86, 11.56, 17.1, 23.22, 29.38, 35.28, 40.5]
+        energy = np.zeros(1000)
+        for t in stamps:
+            energy[round(t / .05):round(t / .05) + 50] = 1
+        song = sorted([{'t': t, 'text': 'la'} for t in stamps] + [{'t': t, 'text': ''} for t in (8.71, 14.0, 20.0, 26.0)],
+                      key=lambda line: line['t'])
+        self.assertEqual(set(shift_sections(song, energy)), {0})
+
     def test_line_switches_after_last_word_and_before_first(self):
         from ktvibes.lyrics import line_starts
         lines = [{'t': 27.08, 'text': 'Go ahead and bark after dark', 'units': [['Go ', 26.8, 26.9], ['dark', 29.23, 29.33]]},

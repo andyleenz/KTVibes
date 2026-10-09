@@ -195,10 +195,14 @@ def onset_scorer(energy, hop: float = 0.05):
     after, before = int(1 / hop), int(0.5 / hop)
     def score(starts, shift, fit):
         frames = np.round((starts + shift) / hop).astype(int)
-        frames = frames[(frames >= before) & (frames + after <= len(active))]
+        frames = frames[(frames >= 0) & (frames + after <= len(active))]
         if not len(frames) or len(frames) < fit * len(starts):
             return -1.0
-        return float(np.mean((total[frames + after] - total[frames]) / after - (total[frames] - total[frames - before]) / before))
+        # A line sung in the first half second has less silence before it to compare with, not none:
+        # scoring it -1 made a song that opens on its first word look misplaced as stamped.
+        ahead = np.maximum(frames - before, 0)
+        quiet = (total[frames] - total[ahead]) / np.maximum(frames - ahead, 1)
+        return float(np.mean((total[frames + after] - total[frames]) / after - quiet))
     return score
 
 def nearest_peak(shifts, scores) -> int:
@@ -258,7 +262,9 @@ def shift_sections(lines: list[dict], energy, hop: float = 0.05, limit: float = 
         scores = np.array([score(starts, shift, 1) for shift in shifts])
         best = nearest_peak(shifts, scores)
         # Fix You's cut section scored 0.46 in place and 0.76 moved; sections already in place score within 0.05.
-        if scores[best] >= 0.5 and score(starts, 0.0, 1) <= scores[best] * 2 / 3 and abs(shifts[best]) >= 1:
+        # A line or two is too little to go on: a repeated hook ("I love the way you lie") or a two-line
+        # bridge also fits a few seconds off, and the error carries into every section after it.
+        if len(sung) >= 3 and scores[best] >= 0.5 and score(starts, 0.0, 1) <= scores[best] * 2 / 3 and abs(shifts[best]) >= 1:
             carried += round(float(shifts[best]), 2)
         moved.append(carried)
         shift_lines(section, carried)
