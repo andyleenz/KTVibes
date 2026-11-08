@@ -1,7 +1,9 @@
 .venv/
+.venv-ui/
 cache/
 __pycache__/
 .pytest_cache/
 *.pyc
 artifacts/
 /dist/
+/test-results/

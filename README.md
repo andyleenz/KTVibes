@@ -57,6 +57,8 @@ uv sync
 uv run ktvibes
 ```
 
+For Python and Remote browser test commands, see [Testing](docs/testing.md).
+
 ## Updates
 
 - **Windows:** Download and run the newer installer. It updates the application in the selected folder and keeps `cache/`.
