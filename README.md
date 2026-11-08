@@ -34,7 +34,13 @@ Download `KTVibes-Setup-x64.exe` from the [latest KTVibes release](https://githu
 
 Choose an install folder during setup. The application, its private runtimes, songs, lyrics, queue and models are stored there. Reinstalling preserves `cache/`; uninstall asks whether to remove it.
 
-### macOS and Linux
+### macOS
+
+Download `KTVibes-<version>-AppleSilicon.dmg` from the [latest KTVibes release](https://github.com/JeffShih-wiwynn/KTVibes/releases/latest), open it, and drag KTVibes to Applications. This build supports Apple silicon Macs only and is unsigned. On first launch, Control-click KTVibes and choose **Open** if macOS blocks it. The app downloads its private Python, Node.js, FFmpeg and Python packages when it starts; this first setup can take several minutes.
+
+The app is installed in Applications; its private runtime, songs, lyrics, queue and models stay in `~/Library/Application Support/KTVibes`. Replacing the app during an update preserves that folder. Removing KTVibes from Applications leaves it in place; remove it separately if you want to delete the cache.
+
+### Linux
 
 The installer requires Git, FFmpeg and Node.js 22 or later. It installs uv, clones this fork's `dev` branch into `~/KTVibes`, installs Python dependencies and adds a `ktvibes` command:
 
@@ -54,7 +60,8 @@ uv run ktvibes
 ## Updates
 
 - **Windows:** Download and run the newer installer. It updates the application in the selected folder and keeps `cache/`.
-- **macOS / Linux:** Stop KTVibes and run `ktvibes update`. Your songs, lyrics and queue remain in the cache.
+- **macOS:** Replace KTVibes in Applications with the newer app. Your songs, lyrics, queue and models remain in Application Support.
+- **Linux:** Stop KTVibes and run `ktvibes update`. Your songs, lyrics and queue remain in the cache.
 
 ## Upstream and license
 

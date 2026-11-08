@@ -1,0 +1,11 @@
+KTVibes downloads FFmpeg and FFprobe on first launch from Martin Riedl's FFmpeg build server:
+https://ffmpeg.martin-riedl.de/
+
+The Apple silicon release builds are compiled from FFmpeg and include third-party codec and
+library components. Build configuration, source links, and licensing information are published
+by the build maintainer:
+https://git.martin-riedl.de/ffmpeg/build-script
+https://ffmpeg.org/legal.html
+
+The FFmpeg executables are downloaded directly to the user's Application Support/KTVibes/tools
+directory and are not included in the KTVibes application bundle or disk image.

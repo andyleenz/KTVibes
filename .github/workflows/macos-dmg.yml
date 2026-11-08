@@ -1,0 +1,37 @@
+name: macOS Apple silicon DMG
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify runner architecture and scripts
+        run: |
+          test "$(uname -m)" = "arm64"
+          bash -n installer/macos/build-app.sh installer/macos/setup-and-run.sh
+
+      - name: Build app and disk image
+        run: installer/macos/build-app.sh
+
+      - name: Verify app bundle and disk image
+        run: |
+          plutil -lint dist/macos/KTVibes.app/Contents/Info.plist
+          hdiutil verify dist/macos/KTVibes-*-AppleSilicon.dmg
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KTVibes-macOS-AppleSilicon-DMG
+          path: dist/macos/KTVibes-*-AppleSilicon.dmg
+          if-no-files-found: error
+          retention-days: 14
