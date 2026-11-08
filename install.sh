@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # KTVibes installer for Linux and macOS:
-#   curl -LsSf https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.sh | bash
+#   curl -LsSf https://raw.githubusercontent.com/JeffShih-wiwynn/KTVibes/dev/install.sh | bash
 # Installs uv if needed, clones (or updates) KTVibes into ~/KTVibes, installs its Python
 # dependencies, and adds a `ktvibes` command to ~/.local/bin.
 set -euo pipefail
@@ -20,7 +20,13 @@ if ! command -v uv >/dev/null; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
   export PATH="${UV_INSTALL_DIR:-${XDG_BIN_HOME:-$HOME/.local/bin}}:$HOME/.local/bin:$PATH"
 fi
-if [[ -d "$DIR/.git" ]]; then git -C "$DIR" pull --ff-only; else git clone https://github.com/andyleenz/KTVibes.git "$DIR"; fi
+REPO="https://github.com/JeffShih-wiwynn/KTVibes.git"
+if [[ -d "$DIR/.git" ]]; then
+  git -C "$DIR" remote set-url origin "$REPO"
+  git -C "$DIR" pull --ff-only
+else
+  git clone --branch dev "$REPO" "$DIR"
+fi
 (cd "$DIR" && uv sync --no-dev)
 mkdir -p "$HOME/.local/bin"
 cat > "$HOME/.local/bin/ktvibes" <<LAUNCHER
