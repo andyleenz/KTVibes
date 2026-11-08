@@ -1,5 +1,12 @@
 # Tests
 
+## Installer builds
+
+The Windows installer and macOS Apple silicon DMG workflows build automatically
+on pushes to `main` and new `v*` tags. Both also support manual dispatch. Successful
+runs upload their installers as Actions artifacts, retained for 14 days. Publishing
+these files as GitHub Release assets remains a separate step.
+
 ## Python tests
 
 ```bash

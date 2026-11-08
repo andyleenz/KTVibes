@@ -3,6 +3,8 @@ name: macOS Apple silicon DMG
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
