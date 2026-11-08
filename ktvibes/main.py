@@ -735,6 +735,10 @@ def run():
     if sys.argv[1:] == ["update"]:
         return update()
     import uvicorn
+    if os.environ.get("KTVIBES_OPEN_BROWSER") == "1":
+        import threading
+        import webbrowser
+        threading.Timer(1.5, webbrowser.open, (f"http://127.0.0.1:{PORT}",)).start()
     if missing := worker.missing_tools():
         # Common right after installing: the terminal predates the install and has a stale PATH.
         print(f"WARNING: {', '.join(missing)} not found on PATH. Songs can't be prepared until it is installed.\n"

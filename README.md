@@ -54,6 +54,10 @@ irm https://raw.githubusercontent.com/andyleenz/KTVibes/main/install.ps1 | iex
 
 This installs Git, FFmpeg, Node.js and uv with `winget` if they are missing. Work-managed PCs may block scripts or `winget`; install on a personal machine.
 
+**Windows test installer**
+
+To build a downloadable, unsigned setup program from GitHub, open **Actions → Windows installer → Run workflow**. Download the `KTVibes-Windows-x64-Installer` artifact from the completed run. The installer lets you choose its folder and keeps `cache/` when updating; uninstall asks whether to remove the cache. The first setup downloads runtime dependencies and may take several minutes. Windows may show a SmartScreen warning because this test installer is unsigned.
+
 **Manual**
 
 ```bash
