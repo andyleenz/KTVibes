@@ -19,7 +19,9 @@ export async function api(path, options){
   const response=await fetch(path,options);let data;
   // A proxy or crash can answer with plain text; report the status rather than a JSON parse error.
   try{data=await response.json();}catch{throw new Error(`Server error (${response.status}). Please try again.`);}
-  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Please check the song details.');return data;
+  // retryAfter (seconds, from Retry-After) lets a caller wait out a busy or rate-limited service.
+  if(!response.ok)throw Object.assign(new Error(typeof data.detail==='string'?data.detail:'Please check the song details.'),{retryAfter:Number(response.headers.get('Retry-After'))||0});
+  return data;
 }
 export const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 export const thumbnail = (id, size='mqdefault') => `https://i.ytimg.com/vi/${id}/${size}.jpg`;
@@ -34,3 +36,5 @@ export function syncRanges(){for(const range of document.querySelectorAll('input
 document.addEventListener('input',e=>{if(e.target.type==='range')syncRanges();});
 // 신곡: songs prepared in the last week, newest first; the newest numbers when none are that recent.
 export function newSongs(songs,now=Date.now()/1000){const week=songs.filter(s=>now-s.prepared<7*86400).sort((a,b)=>b.prepared-a.prepared);return (week.length?week:[...songs].sort((a,b)=>b.number-a.number)).slice(0,10);}
+// Pronunciation guides: the glyph on the TV's badge and the Classic handset's key, and the badge's label.
+export const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],jyutping:['粵','Jyutping'],hangul:['가','한글'],kana:['あ','Japanese kana']};

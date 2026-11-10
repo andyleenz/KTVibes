@@ -45,8 +45,8 @@ body[data-theme=classic] :is(.sheet,.lyric-sheet-panel){border-radius:20px 20px 
 body[data-theme=classic] .dock{display:none}
 body[data-theme=classic] .wrap{padding:calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom))}
 body[data-theme=classic]:not([data-tab=handset]) #handset,
-body[data-theme=classic]:not([data-tab=book]) .wrap>:is(#book-head,#search-form,#results,#more,#results-end,#book-new,#recent-heading,#recent,#book-all,#book-request),
-body[data-theme=classic]:not([data-tab=queue]) .wrap>:is(#hero,#queue-heading,#queue){display:none}
+body[data-theme=classic]:not([data-tab=book]) .wrap :is(#book-head,#search-form,#results,#more,#results-end,#book-new,#recent-heading,#recent,#book-all,#book-request),
+body[data-theme=classic]:not([data-tab=queue]) .wrap :is(#hero,#queue-heading,#queue){display:none}
 body[data-theme=classic] #hero .reactions{display:none}
 /* The LCD window. */
 .lcd-window{margin:10px 0 14px;padding:12px 14px 10px;background:var(--lcd);border-radius:12px;box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e,inset 0 8px 18px #000a}
@@ -147,6 +147,15 @@ body[data-theme=classic][data-tab=book] #recent .result strong{font:700 15px 'IB
 body[data-theme=classic][data-tab=book] .result-icon{color:#c2185b}
 body[data-theme=classic][data-tab=book] .swipe .result{padding-right:70px}
 body[data-theme=classic][data-tab=book] .song-more{right:30px;color:#8a8270}
+/* 우선 (play next): the orange key from the 예약곡 table, beside the red + on results and before ⋯ on 최근. */
+body[data-theme=classic] .play-next{width:auto;height:30px;padding:0 8px;border:0;border-radius:8px;background:linear-gradient(#ffa133,#d9700b);box-shadow:inset 0 1px 0 #fff4,0 3px 0 #6e3502;color:#fff}
+body[data-theme=classic] .play-next:active{transform:translateY(2px);border-radius:8px;box-shadow:inset 0 1px 0 #fff4,0 1px 0 #6e3502}
+body[data-theme=classic] .play-next svg{display:none}
+body[data-theme=classic] .play-next::after{content:'우선';font:700 12px 'IBM Plex Sans KR',sans-serif}
+body[data-theme=classic][data-tab=book] #results .play-next{right:40px}
+body[data-theme=classic][data-tab=book] #results .pick .result{padding-right:88px}
+body[data-theme=classic][data-tab=book] #recent .play-next{right:66px}
+body[data-theme=classic][data-tab=book] #recent .swipe:has(.play-next) .result{padding-right:112px}
 body[data-theme=classic] #recent-heading h2{flex:1}
 body[data-theme=classic][data-tab=book] .tabs{background:#1b1f5a;border-top:0}
 body[data-theme=classic][data-tab=book] .tabs button:not([aria-current=page]){color:#aab0ff}

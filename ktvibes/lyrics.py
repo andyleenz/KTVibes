@@ -1,5 +1,7 @@
 """Unicode LRC support. Run: uv run python -m ktvibes.lyrics ARTIST TITLE SECONDS"""
 import asyncio
+import functools
+import itertools
 import json
 import re
 import sys
@@ -13,6 +15,14 @@ UNIT = re.compile(rf"[{CJK}]\s*|[^\s{CJK}]+\s*|\s+")
 
 def split_units(text: str) -> list[str]:
     return UNIT.findall(text)
+
+# A timed unit is [text, from, to], then one slot per pronunciation guide; kana also keeps its ruby group in slot 7.
+GUIDE_SLOTS = {"latin": 3, "jyutping": 5, "hangul": 4, "kana": 6}
+
+def put(unit: list, slot: int, *values):
+    """Write a guide's slots and leave the others alone, so guides can be added in any order."""
+    unit.extend([""] * (slot + len(values) - len(unit)))
+    unit[slot:slot + len(values)] = values
 
 def weight(unit: str) -> int:
     """Rough sung length: one per CJK character, one per vowel group in other words."""
@@ -60,12 +70,15 @@ def add_pinyin(lines: list[dict]) -> list[dict]:
         text = "".join(u[0] for u in units)
         readings = iter(lazy_pinyin(text, style=Style.TONE, errors=lambda s: [""] * len(s)))
         for unit in units:
-            unit[3:] = [" ".join(filter(None, (next(readings) for _ in unit[0])))]
+            put(unit, 3, " ".join(filter(None, (next(readings) for _ in unit[0]))))
     return lines
 
 KANA_CHARS = re.compile(r"[\u3040-\u30ff]")
 SMALL_KANA = set("ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ")
-_kakasi = None
+@functools.cache
+def kakasi():
+    import pykakasi  # slow to import, so only when a Japanese song turns up
+    return pykakasi.kakasi()
 
 def japanese(lines: list[dict]) -> bool:
     """Kana anywhere marks a Japanese song, so its kanji-only lines are read as Japanese too."""
@@ -74,14 +87,10 @@ def japanese(lines: list[dict]) -> bool:
 def romaji(units: list[str]) -> list[str]:
     """Hepburn reading per unit. A kanji word's reading goes on its first character; kana are read
     one by one, with small kana (きゃ kya) and っ (doubles the next consonant) joined to their neighbour."""
-    global _kakasi
-    if _kakasi is None:
-        import pykakasi
-        _kakasi = pykakasi.kakasi()
     text = "".join(units)
     owner = [i for i, unit in enumerate(units) for _ in unit]  # character position -> unit index
     out, position = [""] * len(units), 0
-    for segment in _kakasi.convert(text):
+    for segment in kakasi().convert(text):
         word, reading = segment["orig"], segment["hepburn"]
         if KANA_CHARS.search(word) and not HAN.search(word):
             chars = list(word)
@@ -89,7 +98,7 @@ def romaji(units: list[str]) -> list[str]:
                 if char in SMALL_KANA or char == "ー" or not KANA_CHARS.match(char):
                     continue
                 pair = char + (chars[k + 1] if k + 1 < len(chars) and chars[k + 1] in SMALL_KANA else "")
-                sound = "" if char in "っッ" else _kakasi.convert(pair)[0]["hepburn"]
+                sound = "" if char in "っッ" else kakasi().convert(pair)[0]["hepburn"]
                 if k and chars[k - 1] in "っッ" and sound:
                     sound = sound[0] + sound
                 if position + k < len(owner):
@@ -110,7 +119,45 @@ def add_romaji(lines: list[dict]) -> list[dict]:
             continue
         for unit, reading in zip(units, romaji([u[0] for u in units])):
             if not re.search(r"[A-Za-z]", unit[0]):
-                unit[3:] = [reading]
+                put(unit, 3, reading)
+    return lines
+
+HIRAGANA = str.maketrans({chr(c): chr(c - 0x60) for c in range(0x30A1, 0x30F7)})  # katakana -> hiragana, as kakasi reads it
+
+def kana(units: list[str]) -> list[tuple[str, int | None]]:
+    """(hiragana reading, ruby group) per unit. Each kanji run of a word is one group, read as a whole
+    (名前 なまえ can't be split per character) with the reading on its first unit; okurigana stay bare
+    (思い出 おもいで -> 思 おも, 出 で). A group is named by where it starts in the line."""
+    text = "".join(units)
+    owner = [i for i, unit in enumerate(units) for _ in unit]  # character position -> unit index
+    starts = list(itertools.accumulate(map(len, units), initial=0))  # where each unit begins in the line
+    out, position = [("", None)] * len(units), 0
+    for segment in kakasi().convert(text):
+        word, reading = segment["orig"], segment["hira"]
+        if HAN.search(word) and text.startswith(word, position):
+            runs = re.findall(r"[\u3040-\u30ff]+|[^\u3040-\u30ff]+", word)  # kanji runs and kana runs
+            match = re.fullmatch("".join("(.+?)" if HAN.search(r) else f"({re.escape(r.translate(HIRAGANA))})" for r in runs), reading)
+            at = position
+            # Okurigana the reading doesn't echo (a rare kakasi spelling) leave the word as one group.
+            for run, sound in zip(runs, match.groups()) if match else [(word, reading)]:
+                first, last = owner[at], owner[at + len(run) - 1]
+                # A group must start and end on unit edges; a CJK unit carries its trailing space.
+                if HAN.search(run) and starts[first] == at and text[at:starts[last] + len(units[last])].rstrip() == run:
+                    out[first:last + 1] = [(sound, at)] + [("", at)] * (last - first)
+                at += len(run)
+        position += len(word)
+    return out
+
+def add_kana(lines: list[dict]) -> list[dict]:
+    """Store hiragana for kanji as unit[6] and its ruby group as unit[7], for the "kana" guide (Japanese songs only)."""
+    if not japanese(lines):
+        return lines
+    for line in lines:
+        units = line.get("units")
+        if not units:
+            continue
+        for unit, (reading, group) in zip(units, kana([u[0] for u in units])):
+            put(unit, 6, reading, group)
     return lines
 
 # Characters that appear in written Cantonese but hardly ever in Mandarin lyrics.
@@ -130,9 +177,7 @@ def add_jyutping(lines: list[dict]) -> list[dict]:
         readings = iter(ToJyutping.get_jyutping_list("".join(u[0] for u in units)))
         for unit in units:
             sounds = [next(readings, (None, None))[1] for _ in unit[0]]
-            while len(unit) < 5:
-                unit.append("")
-            unit[5:] = [" ".join(filter(None, sounds))]
+            put(unit, 5, " ".join(filter(None, sounds)))
     return lines
 
 HANGUL = re.compile(r"[\uac00-\ud7a3]")
@@ -156,13 +201,14 @@ def romanize(syllables: str) -> list[str]:
 def add_korean_romanization(lines: list[dict]) -> list[dict]:
     """Romanize each Korean syllable from its sung pronunciation (눈물이 -> nun mu ri, 못하게 -> mo ta ge)."""
     global _g2p
-    if _g2p is None:
-        from g2pk2 import G2p
-        _g2p = G2p()
     for line in lines:
         units = line.get("units")
-        if not units or not HANGUL.search(line["text"]):
+        # Lines with no Hangul still to read are skipped, so a song without Korean never loads G2P (slow to start).
+        if not units or not any(HANGUL.search(u[0]) and not (len(u) > 3 and u[3]) for u in units):
             continue
+        if _g2p is None:
+            from g2pk2 import G2p
+            _g2p = G2p()
         written = HANGUL.findall(line["text"])
         spoken = HANGUL.findall(_g2p(line["text"]))
         # If sound changes altered the syllable count, fall back to the written form.
@@ -170,7 +216,7 @@ def add_korean_romanization(lines: list[dict]) -> list[dict]:
         for unit in units:
             syllables = HANGUL.findall(unit[0])
             if syllables and not (len(unit) > 3 and unit[3]):
-                unit[3:] = [" ".join(next(readings) for _ in syllables)]
+                put(unit, 3, " ".join(next(readings) for _ in syllables))
             elif syllables:
                 for _ in syllables:
                     next(readings)
@@ -459,6 +505,8 @@ async def record(record_id: int) -> dict | None:
     """One LRCLIB record by id, as listed by candidates() or search()."""
     async with lrclib() as client:
         response = await client.get(f"/api/get/{record_id}")
+    if response.status_code != 404:  # gone is an answer; a rate limit or outage is for the caller to report
+        response.raise_for_status()
     return response.json() if response.status_code == 200 else None
 
 async def candidates(artist: str, title: str, duration: float, hints: tuple[str, ...] = (), exhaustive: bool = False) -> list[dict]:
@@ -474,11 +522,11 @@ async def candidates(artist: str, title: str, duration: float, hints: tuple[str,
         if response.status_code == 200:
             found.append(response.json())
         searches = [{"artist_name": a, "track_name": t} for a in artists for t in titles] + [{"q": f"{a} {t}"} for a in artists for t in titles] + [{"track_name": t} for t in titles]
-        failure = None
+        failure, limited = None, False
         for params in searches:
             # A song can have several LRCLIB records: romanized, or another language's version.
-            # Keep looking until one in the song's own script turns up.
-            if not exhaustive and any(map(good, found)):
+            # Keep looking until one in the song's own script turns up, or LRCLIB asks us to slow down.
+            if limited or not exhaustive and any(map(good, found)):
                 break
             # LRCLIB intermittently returns 5xx; retry, then move on to the next variant.
             for attempt in range(3):
@@ -489,10 +537,13 @@ async def candidates(artist: str, title: str, duration: float, hints: tuple[str,
                     break
                 except (httpx.TransportError, httpx.HTTPStatusError) as error:
                     failure = error
-                    if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+                    status = error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
+                    limited = status == 429
+                    if status and status < 500:
                         break
                     await asyncio.sleep(1 + attempt)
-        if failure and not found:
+        # A lookup LRCLIB cut short is not an answer: what it found so far may lack the song's own version.
+        if failure and (limited or not found):
             raise failure
     unique = {c.get("id") or id(c): c for c in found if fits(c, duration)}
     if not want:

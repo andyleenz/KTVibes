@@ -56,7 +56,8 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         cached = json.loads((folder / "timed.json").read_text(encoding="utf-8"))
         # Energy-only timing (the aligner failed) is retried once per run, not on every play.
         if cached.get("key") == key and (cached.get("aligned", True) or (folder / "timed.json").stat().st_mtime >= STARTED):
-            return cached["lines"]
+            # Kana is quick to add and newer than the timing cache: songs timed before it get it here, without aligning again.
+            return lyrics.add_kana(cached["lines"])
     except (OSError, ValueError, KeyError):
         pass
     samples, rate = sf.read(samples_path, dtype="float32")
@@ -74,7 +75,7 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         log.exception("Forced alignment unavailable for %s", folder.name)
         aligned = False
     lyrics.time_units(lines, energy)
-    lines = lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines)))))
+    lines = lyrics.add_kana(lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines))))))
     temporary = folder / "timed.tmp"
     temporary.write_text(json.dumps({"key": key, "aligned": aligned, "lines": lines}, ensure_ascii=False), encoding="utf-8")
     temporary.replace(folder / "timed.json")
@@ -101,10 +102,7 @@ async def run(state, cache: Path):
         try:
             folder.mkdir(parents=True, exist_ok=True)
             meta_path = folder / "meta.json"
-            try:
-                meta = json.loads(meta_path.read_text())
-            except (OSError, ValueError):
-                meta = {}
+            meta = songbook.read(meta_path) or {}
             # The (larger, optional) video downloads while the audio is fetched and separated.
             video = None
             if not (folder / "video.mp4").is_file():

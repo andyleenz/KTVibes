@@ -64,6 +64,20 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await state.control({'action': 'guide', 'value': 'cycle'})
         self.assertEqual(state.guide, 'latin')
 
+    async def test_kana_guide_falls_back_for_a_song_without_kana(self):
+        state = State()
+        japanese = await state.add('abcdefghijk', 'Aimer', '残響散歌')
+        korean = await state.add('bbbbbbbbbbb', 'IU', '좋은 날')
+        japanese['lyrics'] = [{'t': 0, 'text': '残響', 'units': [['残', 0, 1, 'zan', '', '', 'ざんきょう', 0], ['響', 1, 2, 'kyou', '', '', '', 0]]}]
+        korean['lyrics'] = [{'t': 0, 'text': '좋은', 'units': [['좋', 0, 1, 'jo', ''], ['은', 1, 2, 'eun', '']]}]
+        for item in (japanese, korean):
+            item['status'], item['duration'] = 'ready', 100
+        state.guide = 'kana'
+        state.promote()
+        self.assertEqual((state.guide, state.guides()), ('kana', ['off', 'latin', 'kana']))
+        state.advance()
+        self.assertEqual((state.current['id'], state.guide), ('bbbbbbbbbbb', 'latin'))
+
     async def test_breather_only_between_songs(self):
         import time
         state = State()
@@ -419,6 +433,42 @@ class WorkerRunTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(asyncio.CancelledError):
                     await task
 
+    async def test_meta_is_read_as_utf8_whatever_the_locale(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from ktvibes import worker
+        read_text = Path.read_text
+        def windows(self, encoding=None, errors=None):
+            return read_text(self, encoding=encoding or 'cp1252', errors=errors)  # Windows reads text as its ANSI code page by default
+        hints = []
+        async def fetch(artist, title, duration, extra):
+            hints.extend(extra)
+            return {'raw': '', 'lines': []}
+        state = State()
+        with tempfile.TemporaryDirectory() as temp, \
+             patch.object(Path, 'read_text', windows), \
+             patch.object(worker, 'fetch_video', lambda *args: None), \
+             patch.object(worker.stems, 'ready', lambda folder: True), \
+             patch.object(worker.sf, 'info', lambda path: SimpleNamespace(duration=100)), \
+             patch.object(worker.lyrics, 'fetch', fetch):
+            folder = Path(temp) / 'aaaaaaaaaaa'
+            folder.mkdir()
+            worker.save_meta(folder, {'source_title': '周杰倫 Jay Chou【晴天】', 'stem_gain': 2.0})
+            task = asyncio.create_task(worker.run(state, Path(temp)))
+            try:
+                item = await state.add('aaaaaaaaaaa', '周杰倫', '晴天')
+                for _ in range(60):
+                    if item['status'] == 'ready':
+                        break
+                    await asyncio.sleep(0.05)
+                self.assertEqual(item['status'], 'ready')
+                self.assertEqual(hints, ['周杰倫 Jay Chou【晴天】'])
+                self.assertEqual(item['gain'], 2.0)
+            finally:
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+
 
 class WorkerTests(unittest.TestCase):
     def test_old_stems_migrate_to_opus_with_gain(self):
@@ -477,6 +527,40 @@ class WorkerTests(unittest.TestCase):
                     worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
                 self.assertEqual(align.call_count, 2)
 
+    def test_songs_timed_before_kana_get_it_without_aligning_again(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import numpy as np
+        import soundfile as sf
+        from ktvibes import worker
+        raw = '[00:00.10]東京の空'
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            sf.write(folder / 'vocals.wav', np.zeros((8000, 2), dtype='float32'), 8000)
+            with patch.object(worker.align, 'align') as align:
+                worker.timed_lyrics(folder, raw, folder / 'vocals.wav', parse_lrc(raw))
+                timed = json.loads((folder / 'timed.json').read_text(encoding='utf-8'))
+                for line in timed['lines']:  # as an older version saved it
+                    line['units'] = [unit[:6] for unit in line['units']]
+                (folder / 'timed.json').write_text(json.dumps(timed, ensure_ascii=False), encoding='utf-8')
+                again = worker.timed_lyrics(folder, raw, folder / 'vocals.wav', parse_lrc(raw))
+                self.assertEqual(align.call_count, 1)
+        self.assertEqual([unit[6] for unit in again[0]['units']], ['とうきょう', '', '', 'そら'])
+
+    def test_timed_lyrics_add_kana_for_japanese(self):
+        from unittest.mock import patch
+        import numpy as np
+        import soundfile as sf
+        from ktvibes import worker
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            sf.write(folder / 'vocals.wav', np.zeros((8000, 2), dtype='float32'), 8000)
+            with patch.object(worker.align, 'align'):
+                lines = worker.timed_lyrics(folder, '[00:00.10]名前を', folder / 'vocals.wav', parse_lrc('[00:00.10]名前を'))
+        self.assertEqual([(u[0], u[3], u[6], u[7]) for u in lines[0]['units']], [('名', 'namae', 'なまえ', 0), ('前', '', '', 0), ('を', 'wo', '', None)])
+
 if __name__ == '__main__':
     unittest.main()
 
@@ -495,6 +579,24 @@ class LyricsMatchTests(unittest.TestCase):
         lines = [{'t': 0, 'text': '世界', 'units': [['世', 0, 1], ['界', 1, 2]]}, {'t': 2, 'text': 'ありがとう', 'units': [[c, 2, 3] for c in 'ありがとう']}]
         lines = lyrics.add_pinyin(lyrics.add_romaji(lines))
         self.assertEqual(lines[0]['units'][0][3], 'sekai')  # a kanji-only line in a Japanese song is still Japanese
+
+    def test_japanese_gets_kana_over_each_kanji_run(self):
+        from ktvibes import guides, lyrics
+        texts = ['思い出が 消えても', '僕の名前を 時々 ', 'Loveの言葉', 'ありがとう']
+        lines = [{'t': i, 'text': t, 'units': [[u, i, i + 1] for u in lyrics.split_units(t)]} for i, t in enumerate(texts)]
+        # The worker's order: kana comes after the guides that rewrite unit[3:] onwards.
+        lyrics.add_kana(lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines))))))
+        read = lambda line: [(u[0], u[6], u[7]) for u in line['units'] if u[6] or u[7] is not None]
+        # Okurigana stay bare: 思い出 is おも over 思 and で over 出; 消え is き over 消.
+        self.assertEqual(read(lines[0]), [('思', 'おも', 0), ('出', 'で', 2), ('消', 'き', 5)])
+        # A compound is one group, its reading on the first unit; a trailing space stays with its unit.
+        self.assertEqual(read(lines[1]), [('僕', 'ぼく', 0), ('名', 'なまえ', 2), ('前', '', 2), ('時', 'ときどき', 6), ('々 ', '', 6)])
+        self.assertEqual(read(lines[2]), [('言', 'ことば', 5), ('葉', '', 5)])
+        self.assertEqual(lines[2]['units'][0][3:], ['', '러브', '', '', None])  # the guides before it keep their slots
+        self.assertEqual(read(lines[3]), [])
+        # A Chinese song gets no kana slots, so the remote offers no kana guide for it.
+        chinese = lyrics.add_kana([{'t': 0, 'text': '我愛你', 'units': [[c, 0, 1, 'x'] for c in '我愛你']}])
+        self.assertEqual(chinese[0]['units'][0], ['我', 0, 1, 'x'])
 
     def test_original_script_beats_romanized_record(self):
         from ktvibes import lyrics
@@ -528,6 +630,37 @@ class LyricsMatchTests(unittest.TestCase):
         with patch('httpx.AsyncClient', Client):
             result = asyncio.run(lyrics.fetch('周杰倫', '一路向北', 301.2))
         self.assertEqual(result['lines'], [{'t': 20.0, 'text': '後視鏡裏的世界'}])
+
+    def test_rate_limited_lookup_stops_and_reports(self):
+        # LRCLIB's 429 must reach the remote as a wait, not be retried on every search variant
+        # or mistaken for a record that no longer exists.
+        from unittest.mock import patch
+        import httpx
+        from ktvibes import lyrics
+        calls = []
+        class Client:
+            def __init__(self, *a, **k): pass
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): pass
+            async def get(self, path, params=None):
+                calls.append(path)
+                if path == '/api/get' and exact:
+                    return httpx.Response(200, json=exact, request=httpx.Request('GET', 'https://lrclib.net' + path))
+                status = 404 if path in ('/api/get', '/api/get/9') else 429
+                return httpx.Response(status, json={}, request=httpx.Request('GET', 'https://lrclib.net' + path))
+        exact = None
+        with patch('httpx.AsyncClient', Client):
+            with self.assertRaises(httpx.HTTPStatusError):
+                asyncio.run(lyrics.candidates('아이유(IU)', '좋은 날', 233, exhaustive=True))
+            self.assertEqual(calls, ['/api/get', '/api/search'])
+            # A romanized record found before the limit is not the whole answer either: the song is retried later.
+            exact = {'id': 1, 'trackName': '좋은 날', 'duration': 233, 'syncedLyrics': '[00:10.00]joeun nal'}
+            with self.assertRaises(httpx.HTTPStatusError):
+                asyncio.run(lyrics.fetch('아이유(IU)', '좋은 날', 233))
+            self.assertIsNone(asyncio.run(lyrics.record(9)))
+            with self.assertRaises(httpx.HTTPStatusError) as limited:
+                asyncio.run(lyrics.record(7))
+        self.assertEqual(limited.exception.response.status_code, 429)
 
     def test_variants_split_bilingual_names(self):
         from ktvibes.lyrics import variants
@@ -718,6 +851,23 @@ class LyricsMatchTests(unittest.TestCase):
         units = [['눈', 0, 1], ['물', 1, 2], ['이 ', 2, 3], ['좋', 3, 4], ['은', 4, 5]]
         add_korean_romanization([{'t': 0, 'text': '눈물이 좋은', 'units': units}])
         self.assertEqual([u[3] for u in units], ['nun', 'mu', 'ri', 'jo', 'eun'])
+
+    def test_korean_g2p_loads_only_for_korean_lyrics(self):
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock, patch
+        from ktvibes import lyrics
+        G2p = Mock(return_value=lambda text: text)
+        with patch.object(lyrics, '_g2p', None), patch.dict(sys.modules, {'g2pk2': SimpleNamespace(G2p=G2p)}):
+            lyrics.add_korean_romanization([{'t': 0, 'text': '愛してる', 'units': [['愛', 0, 1]]}, {'t': 1, 'text': 'I love you', 'units': [['I ', 1, 2]]}])
+            G2p.assert_not_called()  # loading it takes seconds
+            # Hangul with a reading already (romaji in a Japanese song) needs none either.
+            lyrics.add_korean_romanization([{'t': 0, 'text': '사랑', 'units': [['사', 0, 1, 'sa'], ['랑', 1, 2, 'rang']]}])
+            G2p.assert_not_called()
+            units = [['사', 0, 1], ['랑', 1, 2]]
+            lyrics.add_korean_romanization([{'t': 0, 'text': '사랑', 'units': units}])
+            G2p.assert_called_once()
+            self.assertEqual([u[3] for u in units], ['sa', 'rang'])
 
     def test_aligner_letters_cover_all_scripts(self):
         from ktvibes.align import spoken_letters
