@@ -1,5 +1,7 @@
 #define AppName "KTVibes"
-#define AppVersion "0.6.2"
+#ifndef AppVersion
+#error AppVersion must be provided by the build workflow from pyproject.toml
+#endif
 #define AppPublisher "Andrew Lee"
 
 [Setup]

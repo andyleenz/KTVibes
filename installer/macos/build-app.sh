@@ -50,6 +50,11 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Sign the complete bundle so Gatekeeper can validate its executable and sealed resources.
+# Ad-hoc signing does not identify a Developer ID or notarize the app.
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
+
 DMG="$OUTPUT/KTVibes-$VERSION-AppleSilicon.dmg"
 STAGE="$OUTPUT/.dmg-stage"
 rm -rf "$STAGE"

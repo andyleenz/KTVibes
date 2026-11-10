@@ -18,6 +18,18 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 /* Header */
 .top{display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px}
 .brand{font-size:24px;font-weight:700;letter-spacing:-1px}.brand span{color:var(--lime)}
+.update-wrap{position:relative;display:inline-flex;align-items:center}
+.connection.has-update::before{display:none}
+.update-button{width:20px;height:22px;display:grid;place-items:center;border:0;border-radius:50%;padding:0;background:transparent;color:var(--lime);cursor:pointer}
+.update-button:hover{color:#edffad}
+.update-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;animation:update-icon-breathe 2.4s ease-in-out infinite}
+@keyframes update-icon-breathe{0%,100%{opacity:.58;filter:drop-shadow(0 0 0 #d7fc7000)}50%{opacity:1;filter:drop-shadow(0 0 4px #d7fc70aa)}}
+.update-popover{position:absolute;z-index:20;right:0;top:calc(100% + 10px);width:220px;padding:14px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 12px 32px #0009;opacity:0;visibility:hidden;transform:translateY(-8px) scale(.97);transform-origin:top right;transition:opacity .2s ease,transform .24s cubic-bezier(.2,.8,.2,1),visibility .24s}
+.update-popover.open{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+.update-popover strong{grid-column:1/-1;font-size:14px}.update-popover span{color:var(--muted);font-size:13px}
+.update-popover a{width:38px;height:34px;display:grid;place-items:center;border-radius:10px;background:var(--panel2);color:var(--lime)}
+.update-popover a:hover{background:#d7fc7022}.update-popover a svg{width:20px;height:20px;fill:currentColor}
+@media(prefers-reduced-motion:reduce){.update-button svg{animation:none;opacity:1;filter:none}.update-popover{transition:none}}
 .connection{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:7px}
 .connection::before{content:'';width:8px;height:8px;border-radius:50%;background:#bd8172}
 .connection.online::before{background:var(--lime);animation:ping 2.4s infinite}.connection.online.warn::before{background:var(--amber);animation:none}

@@ -28,6 +28,8 @@ jobs:
       - name: Verify app bundle and disk image
         run: |
           plutil -lint dist/macos/KTVibes.app/Contents/Info.plist
+          codesign --verify --deep --strict --verbose=2 dist/macos/KTVibes.app
+          codesign -dv --verbose=4 dist/macos/KTVibes.app 2>&1 | grep -q 'Signature=adhoc'
           hdiutil verify dist/macos/KTVibes-*-AppleSilicon.dmg
 
       - name: Upload DMG artifact

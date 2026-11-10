@@ -6,11 +6,12 @@ function reloadIfUpdated(next){if(!next)return false;if(build===undefined)build=
 // onEvent gets any other server message, such as a cheer for the TV.
 export function connect(role, onState, onError, onOpen, onEvent) {
   let socket;
+  const connectionLabel=()=>$('connection-label')||$('connection');
   function open(){
     socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws?role=${role}`);
-    socket.onopen=()=>{$('connection').textContent='Connected';$('connection').classList.add('online');$('connection').classList.remove('lost');onOpen?.();};
+    socket.onopen=()=>{connectionLabel().textContent='Connected';$('connection').classList.add('online');$('connection').classList.remove('lost');onOpen?.();};
     socket.onmessage=e=>{const data=JSON.parse(e.data);if(data.type==='state'){if(reloadIfUpdated(data.build))return;onState(data);}else if(data.type==='error')onError(data.message);else onEvent?.(data);};
-    socket.onclose=e=>{$('connection').textContent='Disconnected';$('connection').classList.remove('online');$('connection').classList.add('lost');if(e.code!==4001)setTimeout(open,1500);};
+    socket.onclose=e=>{connectionLabel().textContent='Disconnected';$('connection').classList.remove('online','has-update');$('connection').classList.add('lost');const updateButton=$('update-button'),updatePopover=$('update-popover');if(updateButton)updateButton.hidden=true;if(updatePopover)updatePopover.hidden=true;if(e.code!==4001)setTimeout(open,1500);};
   }
   open();
   return message=>{if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(message));else onError('Reconnecting. Please try again.');};

@@ -34,7 +34,10 @@ jobs:
         run: |
           $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $compiler)) { throw "Inno Setup compiler not found: $compiler" }
-          & $compiler 'installer/windows/KTVibes.iss'
+          $match = [regex]::Match((Get-Content 'pyproject.toml' -Raw), '(?m)^version\s*=\s*"([0-9]+(?:\.[0-9]+){1,3})"\s*$')
+          if (-not $match.Success) { throw 'Project version not found in pyproject.toml.' }
+          $version = $match.Groups[1].Value
+          & $compiler "/DAppVersion=$version" 'installer/windows/KTVibes.iss'
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
 
       - name: Upload installer artifact

@@ -36,7 +36,7 @@ Choose an install folder during setup. The application, its private runtimes, so
 
 ### macOS
 
-Download `KTVibes-<version>-AppleSilicon.dmg` from the [latest KTVibes release](https://github.com/JeffShih-wiwynn/KTVibes/releases/latest), open it, and drag KTVibes to Applications. This build supports Apple silicon Macs only and is unsigned. On first launch, Control-click KTVibes and choose **Open** if macOS blocks it. The app downloads its private Python, Node.js, FFmpeg and Python packages when it starts; this first setup can take several minutes.
+Download `KTVibes-<version>-AppleSilicon.dmg` from the [latest KTVibes release](https://github.com/JeffShih-wiwynn/KTVibes/releases/latest), open it, and drag KTVibes to Applications. This build supports Apple silicon Macs only and uses ad-hoc signing; it has no Developer ID signature or notarization, so macOS may still require you to approve it in Privacy & Security. The app downloads its private Python, Node.js, FFmpeg and Python packages when it starts; this first setup can take several minutes.
 
 The app is installed in Applications; its private runtime, songs, lyrics, queue and models stay in `~/Library/Application Support/KTVibes`. Replacing the app during an update preserves that folder. Removing KTVibes from Applications leaves it in place; remove it separately if you want to delete the cache.
 
@@ -61,6 +61,7 @@ For Python and Remote browser test commands, see [Testing](docs/testing.md).
 
 ## Updates
 
+- When a newer stable release is available, the Remote shows an update icon. Open it to see the version and the GitHub Release page; downloading and installing remain manual.
 - **Windows:** Download and run the newer installer. It updates the application in the selected folder and keeps `cache/`.
 - **macOS:** Replace KTVibes in Applications with the newer app. Your songs, lyrics, queue and models remain in Application Support.
 - **Linux:** Stop KTVibes and run `ktvibes update`. Your songs, lyrics and queue remain in the cache.

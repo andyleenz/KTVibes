@@ -6,6 +6,8 @@ import os
 import shutil
 import time
 import uuid
+import re
+import tomllib
 from pathlib import Path
 import socket
 import math
@@ -27,6 +29,51 @@ _plain_errors: dict[tuple[str, str], float] = {}
 _plain_selection_seq: dict[str, int] = {}
 PLAIN_MISSING_TTL = lyrics.PLAIN_MISSING_TTL
 PLAIN_ERROR_COOLDOWN = 30
+GITHUB_RELEASE_API = "https://api.github.com/repos/JeffShih-wiwynn/KTVibes/releases/latest"
+UPDATE_CHECK_INTERVAL = 24 * 60 * 60
+UPDATE_CHECK_TIMEOUT = 8
+update_info: dict | None = None
+update_check_complete = False
+
+def project_version() -> str:
+    with (ROOT / "pyproject.toml").open("rb") as project_file:
+        return tomllib.load(project_file)["project"]["version"]
+
+def version_key(value: str) -> tuple[int, ...] | None:
+    match = re.fullmatch(r"v?(\d+(?:\.\d+){1,3})", value.strip())
+    return tuple(int(part) for part in match.group(1).split(".")) if match else None
+
+def newer_release(current: str, release: dict) -> dict | None:
+    if not isinstance(release, dict) or release.get("draft") or release.get("prerelease"):
+        return None
+    latest = str(release.get("tag_name", ""))
+    url = str(release.get("html_url", ""))
+    current_key, latest_key = version_key(current), version_key(latest)
+    expected_url = f"https://github.com/JeffShih-wiwynn/KTVibes/releases/tag/{latest}"
+    if current_key and latest_key and latest_key > current_key and url == expected_url:
+        return {"version": latest, "url": url}
+    return None
+
+async def check_latest_release() -> None:
+    """Refresh the update notice without delaying KTVibes startup."""
+    global update_info, update_check_complete
+    import httpx
+
+    current = project_version()
+    while True:
+        retry_after = UPDATE_CHECK_INTERVAL
+        try:
+            async with httpx.AsyncClient(timeout=UPDATE_CHECK_TIMEOUT, follow_redirects=True) as client:
+                response = await client.get(GITHUB_RELEASE_API, headers={"Accept": "application/vnd.github+json", "User-Agent": "KTVibes"})
+                response.raise_for_status()
+                release = response.json()
+            update_info = newer_release(current, release)
+            update_check_complete = True
+        except (httpx.HTTPError, ValueError, TypeError, KeyError):
+            update_info = None
+            update_check_complete = True
+            retry_after = 60 * 60
+        await asyncio.sleep(retry_after)
 
 def _plain_identity(artist: str, title: str) -> list[str]:
     return [lyrics.plain_identity(artist), lyrics.plain_identity(title)]
@@ -89,12 +136,15 @@ async def lifespan(app):
     await asyncio.to_thread(songbook.backfill, CACHE, stems.prepared)  # caches from before the songbook
     state.restore(CACHE / "queue.json", seed=lambda: {id: meta["prepared"] for id, meta in prepared_songs().items()})
     task = asyncio.create_task(worker.run(state, CACHE))
+    update_task = asyncio.create_task(check_latest_release())
     try:
         yield
     finally:
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
+        for background_task in (task, update_task):
+            background_task.cancel()
+        for background_task in (task, update_task):
+            with suppress(asyncio.CancelledError):
+                await background_task
 
 def build() -> str:
     """Fingerprint of the files the pages load. A TV left open across an update reloads itself
@@ -670,7 +720,7 @@ def remote_url():
 
 @app.get("/api/config")
 async def config():
-    return {"remote_url": remote_url()}
+    return {"remote_url": remote_url(), "update": update_info, "update_check_complete": update_check_complete}
 
 @app.get("/api/qr.svg")
 async def qr():
