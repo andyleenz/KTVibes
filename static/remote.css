@@ -48,7 +48,13 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .result-icon.failed{color:var(--red)}
 @keyframes pop{from{transform:scale(.3) rotate(-30deg);opacity:0}}
 /* New results rise in one after another. */
-.result.enter{animation:rise .5s var(--spring-soft) both;animation-delay:calc(var(--i) * 45ms)}
+.result.enter,.result.enter~.play-next{animation:rise .5s var(--spring-soft) both;animation-delay:calc(var(--i) * 45ms)}
+/* Play next: a key beside the add mark (and before Recent's ⋯) queues the song at the front. */
+.pick{position:relative}.pick .result{padding-right:52px}
+.play-next{position:absolute;top:0;bottom:0;right:8px;z-index:2;display:grid;place-items:center;width:36px;height:36px;margin:auto 0;border:1px solid var(--line);border-radius:18px;color:var(--lime);transition:opacity .2s,background .2s,border-radius .3s var(--bouncy)}
+.play-next svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.play-next:hover{background:#d7fc7018}.play-next:not(:disabled):active{border-radius:10px}
+.swipe .play-next{right:48px}.swipe:has(.play-next) .result{padding-right:90px}
 @keyframes rise{from{opacity:0;transform:translateY(16px) scale(.97)}}
 /* Placeholder rows while YouTube answers. */
 .skeleton{display:flex;gap:12px;align-items:center;padding:8px;border-radius:16px;background:var(--panel);border:1px solid var(--line)}
@@ -146,7 +152,7 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .swipe:has(.swipe-delete:focus-visible) .result{transform:translateX(-96px)}
 .song-more{position:absolute;top:0;bottom:0;right:8px;z-index:2;width:36px;height:36px;margin:auto 0;border-radius:18px;color:var(--muted);font-size:20px;line-height:1;transition:opacity .2s}
 .song-more:hover{color:var(--ink);background:#ffffff14}
-.swipe.open .song-more,.swipe.dragging .song-more{opacity:0;pointer-events:none}
+.swipe:is(.open,.dragging) :is(.song-more,.play-next){opacity:0;pointer-events:none}
 .song-menu{position:absolute;top:calc(50% + 20px);right:8px;z-index:6;display:flex;flex-direction:column;min-width:190px;padding:6px;background:var(--panel2);border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 40px #000a;transform-origin:100% 0;animation:menu-in .25s var(--spring)}
 .song-menu button{padding:12px 14px;border-radius:10px;text-align:left;font-size:14px}
 .song-menu button:hover{background:#ffffff12}.song-menu .danger{color:var(--red)}
@@ -244,6 +250,20 @@ body.sheet-open .toast.on{transform:translate(-50%,0)}
 @keyframes sheet-in{from{transform:translateY(100%)}}@keyframes sheet-out{to{transform:translateY(100%)}}
 @keyframes fade-in{from{opacity:0}}@keyframes fade-out{to{opacity:0}}
 
+/* Wide screens (a tablet or laptop): search and Recent on the left, now playing and the queue on the right.
+   The column wrappers vanish from layout on phones. Classic keeps its one-column handset. */
+.browse-column,.play-column,.recent-column{display:contents}
+@media(min-width:960px){
+ body:not([data-theme=classic]) .wrap{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"top top" "browse play" "recent play";column-gap:32px;row-gap:12px;max-width:1320px;padding:0 28px;align-content:start}
+ body:not([data-theme=classic]) .top{grid-area:top}
+ body:not([data-theme=classic]) :is(.browse-column,.play-column,.recent-column){display:flex;flex-direction:column;min-width:0}
+ body:not([data-theme=classic]) .browse-column{grid-area:browse}
+ body:not([data-theme=classic]) .play-column{grid-area:play;align-self:start}
+ body:not([data-theme=classic]) .recent-column{grid-area:recent}
+ body:not([data-theme=classic]) .searchbar{position:relative;top:auto;box-shadow:none}  /* sticky would only hold within its own column */
+ body:not([data-theme=classic]) .hero{margin-top:0}
+ body:not([data-theme=classic]) #queue-heading{margin-top:20px}
+}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 /* Classic theme: room time. */
 .room-add{display:flex;gap:8px}

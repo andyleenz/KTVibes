@@ -4,8 +4,27 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwynn), brought over from [his fork](https://github.com/JeffShih-wiwynn/KTVibes) and adapted here. Entries marked *(Jeff Shih)* are his; thank you, Jeff.
+
+### Added
+- Japanese songs get a kana pronunciation guide: furigana over the kanji, one reading per word, filling in as it is sung, in both themes. Long lines are never split in the middle of a word. *(Jeff Shih; readings now sit over the kanji only, leaving okurigana bare.)*
+- Search and Recent rows have a Play next button (우선 in Classic) that puts a song at the front of the queue, or moves it up if it is already waiting. Classic's 우선예약 by number now also moves up a song that is already reserved. *(Jeff Shih)*
+- On a tablet or laptop (960px and wider) the remote uses two columns: search and Recent on the left, Now singing and the queue on the right. *(Jeff Shih)*
+- Desktop apps, attached to each release from the next one. Each sets itself up on first start and opens the TV page.
+  - A Windows installer and an Apple Silicon Mac app. *(Jeff Shih)*
+  - A Linux AppImage, following the design of his Mac app.
+- `KTVIBES_OPEN_BROWSER=1` opens the TV page in the default browser when KTVibes starts. *(Jeff Shih)*
+- The tests run on every push and pull request. *(Jeff Shih)*
+- [CONTRIBUTING.md](CONTRIBUTING.md): how to send a change.
+
 ### Changed
+- When LRCLIB is busy or limiting requests, the lyrics picker says how long to wait and its Search button counts down, instead of reporting a failed lookup or a missing version. The automatic lookup stops asking as soon as LRCLIB says to slow down. *(Jeff Shih)*
+- Classic's 가이드 key shows which pronunciation guide is on. *(Jeff Shih)*
+- Songs without Korean lyrics no longer load the Korean pronunciation model, so they prepare faster. *(Jeff Shih)*
 - `http://localhost:8765` opens the TV, so someone on a laptop can start singing without a phone and open the remote from the TV's remote button. The phone remote moves to `/remote`; the QR code points there. `/tv` still works.
+
+### Fixed
+- On Windows, song details with Chinese, Japanese or Korean text are read correctly, so such songs keep their lyrics choice and volume level between plays. *(Jeff Shih)*
 
 ## [0.6.2] - 2026-10-10
 

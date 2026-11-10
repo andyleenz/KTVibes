@@ -1,0 +1,38 @@
+name: Attach to release
+
+# Called by each installer workflow on a pushed v* tag: attaches that workflow's build to the
+# GitHub Release for the tag. The caller grants contents: write to this job only.
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: Name of the Actions artifact the build job uploaded
+        required: true
+        type: string
+      file:
+        description: File inside that artifact to attach
+        required: true
+        type: string
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+      FILE: ${{ inputs.file }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact }}
+
+      # The installer workflows all run on the same tag and any of them may create the release
+      # first; if our create loses that race, the release exists and the upload still works.
+      - name: Attach the file to the release
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes \
+            || gh release view "$TAG" >/dev/null
+          gh release upload "$TAG" "$FILE" --clobber

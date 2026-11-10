@@ -7,15 +7,17 @@ import re
 import time
 import uuid
 from . import songbook
+from .lyrics import GUIDE_SLOTS, cantonese
 
 DISPLAY = {"video_mode": ("show", "blur", "hide"), "lyric_mode": ("two", "scroll", "off"), "theme": ("default", "classic")}
 def following(options, current):
     """The option after `current`, wrapping round: what a "cycle" control switches to."""
     return options[(options.index(current) + 1) % len(options)]
 
-GUIDES = ("off", "latin", "jyutping", "hangul")
+GUIDES = ("off", *GUIDE_SLOTS)
 REACTIONS = ("👏", "🔥", "🎉", "💚")  # cheers a remote can float up on the TV
 HISTORY = 200  # remembered plays, for the remote's "Recent" list
+QUEUE_LIMIT = 100  # songs waiting at once
 UNDO_SECONDS = 15  # how long a removal can be taken back
 SAVE_EVERY = 10  # seconds between queue.json writes for position reports alone
 BREATHER = 4  # seconds between one song ending and the next starting
@@ -40,7 +42,7 @@ class State:
         self.offset = 0.0
         self.vocal = 0.1
         self.music = 1.0  # instrumental (backing track) volume
-        self.guide = "latin"  # off | latin | hangul, shown above the lyrics
+        self.guide = "latin"  # one of GUIDES, shown above the lyrics
         self.lyric_scale = 1.5
         self.video_mode = "show"  # show | blur | hide: blur suits lyric videos, whose own lyrics clash
         self.lyric_mode = "two"  # two (classic two-line KTV) | scroll | off
@@ -67,7 +69,7 @@ class State:
         units = [u for line in (self.current or {}).get("lyrics", []) for u in line.get("units") or []]
         if not self.current:
             return list(GUIDES)
-        return ["off"] + [mode for index, mode in ((3, "latin"), (5, "jyutping"), (4, "hangul")) if any(len(u) > index and u[index] for u in units)]
+        return ["off"] + [mode for mode, slot in GUIDE_SLOTS.items() if any(len(u) > slot and u[slot] for u in units)]
 
     def time_up(self):
         return self.room_ends is not None and time.time() >= self.room_ends
@@ -174,8 +176,8 @@ class State:
                     self.played = dict(sorted(self.played.items(), key=lambda p: p[1])[-HISTORY:])
                 self.offset = candidate.get("offset", 0)
                 # Cantopop reads in jyutping, Mandarin in pinyin: follow the song when on either.
-                if self.guide in ("latin", "jyutping"):
-                    from .lyrics import cantonese
+                # Kana is only for Japanese; the next song in another language goes back to romanization.
+                if self.guide in ("latin", "jyutping") or self.guide == "kana" and "kana" not in self.guides():
                     self.guide = "jyutping" if cantonese(candidate.get("lyrics") or []) and "jyutping" in self.guides() else "latin"
 
     @staticmethod
@@ -210,14 +212,30 @@ class State:
     def queued(self, video_id):
         return any(i and i["id"] == video_id and i["status"] != "error" for i in (self.current, *self.upcoming))
 
-    async def add(self, video_id, artist, title):
+    async def add(self, video_id, artist, title, front=False, **details):
+        """Queue a song at the end, or at the front to sing it next. `details` (a songbook number) go out with it."""
         if self.queued(video_id):
             raise ValueError("That song is already in the queue")
-        item = self.entry(video_id, artist, title)
-        self.upcoming.append(item)
+        if len(self.upcoming) >= QUEUE_LIMIT:
+            raise ValueError("Queue is full")
+        item = {**self.entry(video_id, artist, title), **details}
+        self.upcoming.insert(0 if front else len(self.upcoming), item)
         self.wake.set()
         await self.broadcast()
         return item
+
+    async def add_next(self, video_id, artist, title, **details):
+        """우선예약: sing a song next. One already waiting moves to the front rather than being queued twice;
+        the song on stage is refused, as add() refuses it."""
+        waiting = next((i for i in self.upcoming if i["id"] == video_id and i["status"] != "error"), None)
+        if waiting is None:
+            return await self.add(video_id, artist, title, front=True, **details)
+        waiting.update(details)
+        self.upcoming.remove(waiting)
+        self.upcoming.insert(0, waiting)
+        self.promote()  # a ready song moved ahead of one still downloading can start on an empty stage
+        await self.broadcast()
+        return waiting
 
     async def control(self, message, sender=None):
         action = message.get("action")
@@ -244,15 +262,8 @@ class State:
             found = self.path and songbook.find(self.path.parent, wanted)
             if not found:
                 raise ValueError(f"No song {wanted}")
-            if len(self.upcoming) >= 100:
-                raise ValueError("Queue is full")
             video_id, meta = found
-            item = await self.add(video_id, meta["artist"], meta["title"])
-            item["number"] = wanted
-            if message.get("next"):  # 우선예약: sing it next
-                self.upcoming.remove(item)
-                self.upcoming.insert(0, item)
-                await self.broadcast()
+            await (self.add_next if message.get("next") else self.add)(video_id, meta["artist"], meta["title"], number=wanted)
             if self.player is not None:
                 await self.send(self.player, {"type": "reserved", "number": wanted})
             return

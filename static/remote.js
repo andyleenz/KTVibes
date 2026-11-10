@@ -287,30 +287,40 @@ async function loadRecent(){
   const songs=await api('/api/recent'),shape=songs.map(song=>song.id).join();
   if(shape===recentShape)return;
   recentShape=shape;$('recent').replaceChildren();
-  songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent'),row=>swipeable(row,song)));
+  songs.forEach(song=>showResult({...song,channel:song.artist,parsed:{artist:song.artist,title:song.title}},$('recent'),(row,next)=>swipeable(row,song,next)));
   if(!songs.length)$('recent').append(emptyNote('♪','아직 부른 노래가 없어요','Nothing sung yet.'));
  }catch{}
 }
 // Search in pages of 10; "More results" appends the next page.
 let search={query:'',page:0,seen:new Set()},searchRun=0;
-const enqueue=song=>api('/api/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title})});
+const post=(path,song)=>api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title})});
 // Result button states: add, added, failed.
 const ICONS={add:'<path d="M12 5v14M5 12h14"/>',added:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',failed:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'};
 function icon(node,name){node.className=`result-icon ${name}`;node.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;}
-// One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs).
-function showResult(song,list=$('results'),wrap=row=>row,index=-1){
- const b=el('button',undefined,index<0?'result':'result enter');if(index>=0)b.style.setProperty('--i',index);
+// Play next: a song going in at the top of the list.
+const NEXT_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5v6l5-3zM13 7.5h7M4 14h16M4 19h16"/></svg>';
+const pick=(row,next)=>{const box=el('div',undefined,'pick');box.append(row,next);return box;};
+// One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs);
+// its play-next key puts it at the front instead (moving it up if it is already waiting).
+function showResult(song,list=$('results'),wrap=pick,index=-1){
+ const b=el('button',undefined,index<0?'result':'result enter');
  const image=el('img');image.src=song.thumbnail;image.alt='';const info=el('div');const title=el('strong',song.title);if(song.cached)title.append(el('span','READY','tag'));const note=el('small',undefined,'result-note classic-only');info.append(title,el('small',`${song.channel} · ${clock(song.duration)}`),note);const status=el('span');icon(status,'add');b.append(image,info,status);
  // Classic swaps the channel line for what happened to the add.
  const mark=(name,...text)=>{b.classList.remove('added','failed');b.classList.add(name);note.replaceChildren(...text);};
- b.onclick=async()=>{
+ const add=async(button,path,said,message)=>{
+  button.disabled=true;
+  try{await post(path,{id:song.id,...song.parsed});icon(status,'added');mark('added',...said);haptic([10,40,10]);flyToQueue(image);toast(message);}
+  catch(error){icon(status,'failed');mark('failed',"Couldn't add. Try again");toast(error.message,undefined,'err');}finally{button.disabled=false;}
+ };
+ b.onclick=()=>{
   // A swipe ends in a click; an open row closes on tap instead of queueing.
   if(b.dataset.dragged){delete b.dataset.dragged;return;}if(b.parentElement?.classList.contains('open')){closeSwipe();return;}
-  b.disabled=true;
-  try{await enqueue({id:song.id,...song.parsed});icon(status,'added');mark('added',el('em','예약됨'),' · added');haptic([10,40,10]);flyToQueue(image);toast(`Added ${song.parsed.title}`);}
-  catch(error){icon(status,'failed');mark('failed',"Couldn't add. Try again");toast(error.message,undefined,'err');}finally{b.disabled=false;}
+  add(b,'/api/queue',[el('em','예약됨'),' · added'],`Added ${song.parsed.title}`);
  };
- list.append(wrap(b));
+ const next=el('button',undefined,'play-next');next.innerHTML=NEXT_ICON;next.title='Play next';next.setAttribute('aria-label',`Play ${song.parsed.title} next`);
+ next.onclick=()=>add(next,'/api/queue/next',[el('em','우선예약'),' · plays next'],`${song.parsed.title} plays next`);
+ const box=wrap(b,next);if(index>=0)box.style.setProperty('--i',index);  // the key rises in with its row
+ list.append(box);
 }
 // The thumbnail arcs into whichever queue count is on screen: the outer box moves across evenly,
 // the inner one up or down with an overshooting ease, which together trace a curve.
@@ -333,14 +343,21 @@ document.addEventListener('pointerdown',e=>{if(openSwipe&&!openSwipe.contains(e.
 // Lyrics picker: every LRCLIB version that fits the song (languages, editions), with its first lines.
 async function pickLyrics(song){
  const sheet=el('div',undefined,'lyric-sheet'),panel=el('div',undefined,'lyric-sheet-panel'),list=el('div',undefined,'lyric-options'),close=el('button','Close');
- const shut=()=>{sheet.classList.add('out');sheet.addEventListener('animationend',()=>sheet.remove(),{once:true});};
+ let hold;  // counts down a wait LRCLIB asked for
+ const shut=()=>{clearInterval(hold);sheet.classList.add('out');sheet.addEventListener('animationend',()=>sheet.remove(),{once:true});};
  close.onclick=shut;sheet.onclick=e=>{if(e.target===sheet)shut();};
  const head=el('div',undefined,'lyric-sheet-head'),name=el('strong');name.append(el('small','가사 선택 · LYRICS','classic-only'),'Lyrics · ',el('span',song.title));head.append(name,close);close.setAttribute('aria-label','Close');
  // Search LRCLIB by hand when the automatic lookup found nothing or the wrong song.
  const form=el('form',undefined,'lyric-search'),input=el('input'),go=el('button','Search');
  input.type='search';input.value=`${song.artist} ${song.title}`;input.placeholder='Artist and song title';input.setAttribute('aria-label','Search lyrics');go.type='submit';
- form.append(input,go);form.onsubmit=e=>{e.preventDefault();input.blur();show(input.value.trim());};
+ form.append(input,go);form.onsubmit=e=>{e.preventDefault();if(go.disabled)return;input.blur();show(input.value.trim());};
  panel.append(head,form,list);sheet.append(panel);document.body.append(sheet);
+ // Rate-limited or busy: Search counts the wait down and stays off until it is over, rather than being refused again.
+ function holdOff(seconds){
+  clearInterval(hold);let left=Math.ceil(seconds);
+  const tick=()=>{go.disabled=left>0;go.textContent=left>0?`Wait ${left}s`:'Search';if(left--<=0)clearInterval(hold);};
+  tick();hold=setInterval(tick,1000);
+ }
  let latest=0;  // a slow earlier lookup must not replace newer results
  async function show(query){
   const mine=++latest;
@@ -369,7 +386,7 @@ async function pickLyrics(song){
     if(query||first||o.current)list.append(b);else extra.push(b);
    }
    if(extra.length){const all=el('button',undefined,'lyric-all');all.append(el('span',`${options.length}개 모두 보기 · `,'classic-only'),`Show all ${options.length} versions`);all.onclick=()=>{all.replaceWith(...extra);};list.append(all);}
-  }catch(error){if(mine===latest)list.replaceChildren(el('p',error.message,'error'));}
+  }catch(error){if(mine!==latest)return;list.replaceChildren(el('p',error.message,'error'));if(error.retryAfter)holdOff(error.retryAfter);}
  }
  show('');
 }
@@ -389,10 +406,10 @@ function songMenu(wrap,song,del){
  remove.onclick=()=>{closeMenu();del.click();};
  menu.append(label,refetch,remove);wrap.append(menu);openMenu=menu;refetch.focus();
 }
-function swipeable(row,song){
+function swipeable(row,song,next){
  const wrap=el('div',undefined,'swipe'),del=el('button','Delete','swipe-delete'),more=el('button','⋯','song-more');del.setAttribute('aria-label',`Delete ${song.title} from this device`);
  more.setAttribute('aria-label',`More actions for ${song.title}`);more.setAttribute('aria-haspopup','menu');more.onclick=()=>songMenu(wrap,song,del);
- wrap.append(row,del,more);
+ wrap.append(row,del,...(next?[next]:[]),more);
  let start=null,dx=0,dragging=false;
  row.addEventListener('pointerdown',e=>{delete row.dataset.dragged;if(e.pointerType==='mouse'&&e.button)return;start={x:e.clientX,y:e.clientY,base:wrap.classList.contains('open')?-REVEAL:0};dx=start.base;dragging=false;});
  row.addEventListener('pointermove',e=>{
@@ -428,7 +445,7 @@ async function loadPage(){
   const results=(await api(`/api/search?q=${encodeURIComponent(search.query)}&page=${search.page}`)).filter(s=>!search.seen.has(s.id));
   if(run!==searchRun)return;
   if(first)$('results').replaceChildren();
-  results.forEach((s,i)=>{search.seen.add(s.id);showResult(s,$('results'),row=>row,i);});
+  results.forEach((s,i)=>{search.seen.add(s.id);showResult(s,$('results'),undefined,i);});
   $('more').hidden=results.length===0||search.page>=9;$('results').dataset.state=search.seen.size?'':'none';
   $('results-end').hidden=!$('more').hidden||!search.seen.size;
   if(!search.seen.size)$('results').append(emptyNote('없음','검색 결과가 없어요','No songs found. Try the title in its original language, or just the artist.'));

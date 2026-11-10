@@ -113,6 +113,9 @@ body.intro .title-card :is(h1,p),body.intro .title-card::after{opacity:1;transfo
 .tv-controls label input{margin:0}
 
 [data-guide=jyutping] #lyrics rt:has(.jyutping:not(:empty)){display:revert}[data-guide=jyutping] #lyrics rt .jyutping{display:inline}[data-guide=jyutping] #lyrics .lyric{line-height:1.8}
+[data-guide=kana] #lyrics rt:has(.kana:not(:empty)){display:revert}[data-guide=kana] #lyrics rt .kana{display:inline}[data-guide=kana] #lyrics .lyric{line-height:1.8}
+/* A kanji word's kana spans its units rather than sitting inside one, so the reading wipes by itself (tv.js sets its --p). */
+#lyrics ruby.kana-group{ruby-align:center}#lyrics .lyric.active .kana-group rt{--p:0}#lyrics .lyric.active .kana-group rt>span{background:linear-gradient(90deg,var(--lime) calc(var(--p)*100%),#fff calc(var(--p)*100%));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
 /* Room display settings. Blur suits lyric videos, whose own lyrics clash with ours; the slight zoom hides blurred edges. */
 .tv[data-video=blur] #backdrop{filter:blur(28px) brightness(.7);scale:1.12}
 .tv[data-lyrics=off] #lyrics,.tv[data-lyrics=off] #no-lyrics{visibility:hidden}
@@ -124,7 +127,7 @@ body.intro .title-card :is(h1,p),body.intro .title-card::after{opacity:1;transfo
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="0"]{grid-row:1;justify-self:start;text-align:left;transform-origin:left center}
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="1"]{grid-row:2;justify-self:end;text-align:right;transform-origin:right center}
 .tv[data-lyrics=two] #lyrics .lyric.past{color:var(--lime);opacity:1} /* a sung line stays lit until the next line takes its slot */
-.tv[data-lyrics=two]:is([data-guide=latin],[data-guide=jyutping],[data-guide=hangul]) #lyrics .lyric::after{content:"";display:inline-block;width:0;height:1.56em;vertical-align:text-bottom} /* a line with no guide is as tall as one with, so the lines don't jump */
+.tv[data-lyrics=two]:is([data-guide=latin],[data-guide=jyutping],[data-guide=hangul],[data-guide=kana]) #lyrics .lyric::after{content:"";display:inline-block;width:0;height:1.56em;vertical-align:text-bottom} /* a line with no guide is as tall as one with, so the lines don't jump */
 .tv[data-lyrics=two] #lyrics .lyric[data-fit=squeeze]{max-width:none;scale:var(--squeeze) 1}
 .tv[data-lyrics=two] #lyrics .lyric[data-fit=wrap]{white-space:normal;text-wrap:balance}
 .tv[data-lyrics=two] #lyrics.measuring .lyric{display:block;position:absolute;left:0;visibility:hidden;animation:none}

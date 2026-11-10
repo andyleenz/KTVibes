@@ -1,4 +1,4 @@
-import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs,GUIDE_BADGES} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0,shownPair='',fitKey='';
@@ -94,7 +94,7 @@ function render(next){
  if(!state.playing){music.pause();voice.pause();video.pause();}
 }
 // Lyrics for the song on stage; a remote can swap in another version mid-song (lyrics_rev).
-let lyricsRev=0,songLyrics=[],splitDone=false,slots=[],counting=null,still=false;  // counting: the line showing count-in dots; still: place the next lines without animating (after a resize)
+let lyricsRev=0,songLyrics=[],splitDone=false,slots=[],wipes=[],counting=null,still=false;  // counting: the line showing count-in dots; still: place the next lines without animating (after a resize)
 const showVideo=()=>!!state?.current?.video&&state.video_mode!=='hide';
 // Place the lyrics from scratch (new song or lyrics, layout, size, guide or window change).
 function relayout(){shownPair='';lyricsPositioned=false;splitDone=false;if(lyrics!==songLyrics){activeLine=-1;placeLyrics(songLyrics);}}
@@ -173,7 +173,7 @@ function splitLong(){
  const container=$('lyrics'),parts=[],index=[],room=lyricRoom()+1;let split=false;
  container.classList.add('measuring');
  [...container.children].forEach((line,i)=>{
-  const source=lyrics[i],units=source.units,spans=line.children;
+  const source=lyrics[i],units=source.units,spans=line.querySelectorAll('.unit');  // a kana group's units sit inside its ruby
   index.push(parts.length);
   if(!source.text){split=true;return;}  // an empty "♪" line only marks a break, which the screen clearing shows
   if(!units||units.length<2||line.scrollWidth<=room||spans.length!==units.length){parts.push(source);return;}
@@ -181,13 +181,14 @@ function splitLong(){
   const width=(a,b)=>right[b-1]-left[a];
   const cut=(a,b)=>{
    if(b-a<2||width(a,b)<=room)return [[a,b]];
-   let best=a+1,score=Infinity;
+   let best=null,score=Infinity;
    for(let k=a+1;k<b;k++){
+    if(units[k][7]!=null&&units[k][7]===units[k-1][7])continue;  // never inside a kanji word's ruby
     const w1=width(a,k),w2=width(k,b),text=units[k-1][0];
     const value=Math.abs(w1-w2)/width(a,b)-(/[,，、;；:：!！?？。]\s*$/.test(text)?0.3:0)-(/\s$/.test(text)?0.1:0)+(w1>room||w2>room?1:0);
     if(value<score){score=value;best=k;}
    }
-   return [...cut(a,best),...cut(best,b)];
+   return best?[...cut(a,best),...cut(best,b)]:[[a,b]];
   };
   const ranges=cut(0,units.length);if(ranges.length>1)split=true;
   ranges.forEach(([a,b],n)=>{const part=units.slice(a,b);part[part.length-1]=[part.at(-1)[0].trimEnd(),...part.at(-1).slice(1)];parts.push({...source,units:part,text:part.map(unit=>unit[0]).join('').trim(),...n?{t:part[0][1],start:part[0][1],continues:true}:{}});});
@@ -205,7 +206,7 @@ function showLyrics(item){
 // Classic theme: the noraebang top strip and the room's clock, which counts down between broadcasts.
 const classic=()=>document.body.dataset.theme==='classic';
 function showClassicBar(s){$('cb-number').textContent=s.current?.number??'';$('cb-title').textContent=s.current?`${s.current.title} - ${s.current.artist}`:s.time_up?'이용해 주셔서 감사합니다':'노래를 선택해 주세요 · Pick a song';$('cb-title').classList.toggle('idle',!s.current);$('cb-reserved').textContent=String(s.upcoming.length).padStart(2,'0');}
-const SPEC_GUIDE={off:'끔',latin:'로마자 Aa',jyutping:'粵拼',hangul:'한글 가'};
+const SPEC_GUIDE={off:'끔',latin:'로마자 Aa',jyutping:'粵拼',hangul:'한글 가',kana:'가나 あ'};
 function showSpecs(s){$('spec-key').textContent=!s.key?'원키':`${s.key>0?'♯':'♭'}${Math.abs(s.key)}`;$('spec-tempo').textContent=`${Math.round((s.speed??1)*100)}%`;$('spec-guide').textContent=SPEC_GUIDE[s.guide]??'—';}
 // Between songs Classic shows the reservation table: the next song (already on stage) first, then the queue.
 const lcdSpan=(text,ghost)=>{const span=el('span',text,'lcd');span.dataset.ghost=ghost;return span;};
@@ -255,8 +256,25 @@ function dial(digits){
 function reserved(){$('cb-dial').hidden=true;showAttractDial('');}
 function placeLyrics(list){
  lyrics=list;firstLine=lyrics.findIndex(line=>line.text);$('lyrics').replaceChildren();
- slots=[];let slot=0;lyrics.forEach((line,i)=>{if(breakAfter(i-1))slot=0;slots[i]=slot;slot^=1;});
- lyrics.forEach((line,i)=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';p.dataset.slot=slots[i];for(const [text,,,latin,hangul,jyutping] of line.units||[]){const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
+ slots=[];wipes=[];let slot=0;lyrics.forEach((line,i)=>{if(breakAfter(i-1))slot=0;slots[i]=slot;slot^=1;});
+ const readings=(latin,hangul,jyutping,kana)=>{const rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'),el('span',kana||'','kana'));return rt;};
+ lyrics.forEach((line,i)=>{
+  const p=el('p',line.units?undefined:line.text||'♪','lyric'),units=line.units||[],rts=[];p.dir='auto';p.dataset.slot=slots[i];
+  for(let n=0;n<units.length;n++){
+   const [text,from,,latin,hangul,jyutping,kana,group]=units[n];
+   // A kanji word's kana (unit[7] names its group) is one ruby over all its units, and wipes over the whole word.
+   if(group!=null){
+    let end=n;while(units[end+1]?.[7]===group)end++;
+    const ruby=el('ruby',undefined,'kana-group'),rt=readings(latin,hangul,jyutping,kana),last=units[end][0],word=last.trimEnd();
+    ruby.append(...units.slice(n,end).map(unit=>el('span',unit[0],'unit')),el('span',word,'unit'),rt);
+    rts.push([rt,from,units[end][2]]);p.append(ruby,last.slice(word.length));n=end;continue;
+   }
+   const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');
+   if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word);ruby.append(readings(latin,hangul,jyutping));span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}
+  }
+  wipes[i]={spans:[...p.querySelectorAll('.unit')],rts};  // what frame() fills, found once here rather than every frame
+  $('lyrics').append(p);
+ });$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
 }
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
 // Speed changes tempo only (the browser keeps pitch); the key shift is applied by the worklet.
@@ -368,8 +386,10 @@ function frame(now){
    counting=dotted;
    // KTV wipe: each character/word fills left to right over its sung interval.
    for(const n of echoing?[leadLine,index]:[index]){
-    const units=lines[n]?.units,spans=$('lyrics').children[n]?.children;
-    if(units&&spans)units.forEach(([,from,to],i)=>spans[i]?.style.setProperty('--p',Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)))));
+    const units=lines[n]?.units,wipe=wipes[n],fill=(from,to)=>Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)));
+    if(!units||!wipe)continue;
+    units.forEach(([,from,to],i)=>wipe.spans[i]?.style.setProperty('--p',fill(from,to)));
+    for(const [rt,from,to] of wipe.rts)rt.style.setProperty('--p',fill(from,to));
    }
    $('elapsed').textContent=clock(music.currentTime);$('progress').parentElement.style.setProperty('--p',Math.min(1,music.currentTime/(state.current.duration||1)));
    if(classic()&&state.current.music_end&&!music.paused&&music.currentTime>=state.current.music_end)finish();
@@ -384,7 +404,6 @@ document.querySelector('.track').onclick=e=>{
  const box=e.currentTarget.getBoundingClientRect();
  send({action:'seek',position:(e.clientX-box.left)/box.width*state.current.duration});
 };
-const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],jyutping:['粵','Jyutping'],hangul:['가','한글']};
 let badgeTimer;
 function showGuideBadge(mode){const [icon,label]=GUIDE_BADGES[mode];showBadge(icon,'Pronunciation',label);}
 // Any adjustment from a remote flashes on screen, so the room sees what changed.

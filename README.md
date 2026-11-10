@@ -21,7 +21,7 @@
   - Chinese: pinyin, and Hangul.
   - Cantonese: jyutping. Songs written in Cantonese switch to it automatically.
   - Korean: romanization of the sung pronunciation.
-  - Japanese: romaji.
+  - Japanese: romaji, or kana (furigana over the kanji).
   - English: Hangul.
 - **Key and speed.** Shift the key ±6 semitones without changing tempo, or slow a song down without changing pitch.
 - **Classic theme.** A Korean noraebang look, chosen in the remote's Settings or on the TV's Enable sound screen. The TV gets a top strip with the song's number and a room clock, lyrics alternating left and right, a score after each song sung to the end, and a 예약곡 board between songs. The remote becomes a handset: a keypad that reserves songs by number, a 노래책 songbook of everything downloaded, the 예약 list, and 설정.
@@ -64,6 +64,16 @@ uv run ktvibes
 
 Plan for about 8 GB of disk: the install itself is 6.5 GB (mostly PyTorch with CUDA), and the first song downloads the separation model (80 MB) and the alignment model (1.2 GB). On a clean Ubuntu 24.04 machine the installer took under 5 minutes.
 
+**Desktop apps**
+
+If you would rather not use a terminal, download the app for your computer from the [latest release](https://github.com/andyleenz/KTVibes/releases/latest). The Windows installer and the Mac app were contributed by Jeff Shih. Releases include the apps from the next one on; until the latest release lists them, use the scripts above.
+
+- **64-bit Windows:** download `KTVibes-Setup-x64.exe` and run it. It installs for your user only, with no admin rights, to `%LOCALAPPDATA%\Programs\KTVibes`. Setup downloads its own Python, Node.js, FFmpeg and the packages, which takes several minutes and about the same disk as the script install. Songs are cached in the `cache` folder inside that directory. Open KTVibes from the Start menu; it starts the server and opens the TV page. The installer is not signed, so Windows SmartScreen may say it protected your PC. Choose **More info**, then **Run anyway**.
+- **Apple Silicon Mac (macOS 13+):** download `KTVibes-AppleSilicon.dmg`, open it, and drag KTVibes to Applications. The first launch downloads the runtime and packages and then opens the TV page. The app is not signed or notarized, so macOS blocks it at first. Control-click the app and choose **Open**. On macOS 15 and later, instead open **System Settings > Privacy & Security** and choose **Open Anyway**. Songs and the runtime live in `~/Library/Application Support/KTVibes`. Quit the app to stop the server.
+- **Linux (x86_64):** download `KTVibes-x86_64.AppImage`, make it executable with `chmod +x KTVibes-x86_64.AppImage`, and run it. The first start downloads the packages (several GB). A terminal window shows progress; close it or press Ctrl+C to stop KTVibes. It uses the ffmpeg and Node.js 22+ already on your computer, and downloads its own copies of any that are missing. Songs and the app's files live in `~/.local/share/KTVibes`.
+
+Allow incoming connections if your firewall asks, so phones can reach the remote.
+
 ## Use
 
 1. Run `ktvibes`.
@@ -97,6 +107,12 @@ ktvibes update
 
 This pulls the latest version; the next `ktvibes` installs any new dependencies. See [CHANGELOG.md](CHANGELOG.md) for what changed. Manual installs: `git pull`, then `uv run ktvibes`. Your cached songs and queue are kept. Songs cached as FLAC by older versions are converted to the smaller format the next time they are queued.
 
+**Windows installer:** run the newer `KTVibes-Setup-x64.exe` over the existing install. It keeps your songs and updates the packages. `ktvibes update` does not apply to it.
+
+**Apple Silicon app:** download the newer DMG and drag KTVibes to Applications, replacing the old one. The next launch updates the packages and keeps your songs.
+
+**Linux AppImage:** download the newer AppImage and replace the old file. The next start updates the packages and keeps your songs.
+
 ## Configuration
 
 | Variable | Default | |
@@ -106,13 +122,14 @@ This pulls the latest version; the next `ktvibes` installs any new dependencies.
 | `KTVIBES_CACHE` | `./cache` | Where songs are stored, about 30 MB each |
 | `KTVIBES_COOKIES_FROM_BROWSER` | unset | If songs fail with "Sign in to confirm you're not a bot", set this to a browser you're signed in to YouTube with (`chrome`, `firefox`, `edge`, `safari`…), and KTVibes uses its YouTube cookies |
 | `KTVIBES_VIDEO_HEIGHT` | `720` | Highest music video resolution to download, e.g. `1080` (about twice the size) |
+| `KTVIBES_OPEN_BROWSER` | unset | Set to `1` to open the TV page in the default browser when KTVibes starts. The desktop apps do this |
 
 Run a single server process: the queue and the GPU models live in memory.
 
 ## Roadmap
 
 - Thai word splitting, for a word-by-word wipe.
-- Better kanji readings for Japanese romaji.
+- Better kanji readings for Japanese (some single kanji are misread).
 - Docker image.
 
 ## Notes
@@ -142,6 +159,8 @@ LRCLIB ──────────▶ line-timed lyrics ──MMS aligner─�
 Full details, measurements and known quirks: [docs/how-it-works.md](docs/how-it-works.md).
 
 ## Development
+
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 uv run python -m unittest discover -s tests -v

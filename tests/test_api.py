@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 AVAILABLE = all(importlib.util.find_spec(name) for name in ('fastapi', 'httpx', 'soundfile', 'qrcode'))
 
@@ -137,6 +137,95 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertIn('already', response.json()['detail'])
 
+    def test_play_next_puts_a_song_first_without_duplicating_it(self):
+        first, second = ({'id': video_id, 'artist': 'IU', 'title': title} for video_id, title in (('aaaaaaaaaaa', 'One'), ('bbbbbbbbbbb', 'Two')))
+        self.client.post('/api/queue', json=first)
+        waiting = self.client.post('/api/queue', json=second).json()
+        moved = self.client.post('/api/queue/next', json=second)
+        self.assertEqual((moved.status_code, moved.json()['key']), (200, waiting['key']))
+        self.assertEqual([i['id'] for i in self.main.state.upcoming], ['bbbbbbbbbbb', 'aaaaaaaaaaa'])
+        added = self.client.post('/api/queue/next', json={**first, 'id': 'ccccccccccc'}).json()
+        self.assertEqual([i['key'] for i in self.main.state.upcoming][0], added['key'])
+        self.assertEqual(self.client.post('/api/queue/next', json={**first, 'id': '../secret'}).status_code, 422)
+        self.assertEqual(self.client.post('/api/queue/next', json={**first, 'title': ' '}).status_code, 422)
+
+    def test_play_next_refuses_the_song_on_stage_and_a_full_queue(self):
+        from ktvibes.queue import State, QUEUE_LIMIT
+        self.main.state.current = State.entry('aaaaaaaaaaa', 'IU', 'On stage')
+        response = self.client.post('/api/queue/next', json={'id': 'aaaaaaaaaaa', 'artist': 'IU', 'title': 'On stage'})
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('already', response.json()['detail'])
+        self.main.state.upcoming = [State.entry(f'{n:011d}', 'A', str(n)) for n in range(QUEUE_LIMIT)]
+        for path in ('/api/queue', '/api/queue/next'):
+            response = self.client.post(path, json={'id': 'bbbbbbbbbbb', 'artist': 'IU', 'title': 'New'})
+            self.assertEqual((response.status_code, response.json()['detail']), (409, 'Queue is full'))
+        # Moving a song that is already waiting doesn't grow the queue, so a full queue allows it.
+        last = self.main.state.upcoming[-1]
+        response = self.client.post('/api/queue/next', json={'id': last['id'], 'artist': 'A', 'title': last['title']})
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(self.main.state.upcoming[0], last)
+
+    def lyrics_song(self):
+        import json
+        folder = Path(self.temp.name) / 'aaaaaaaaaaa'
+        folder.mkdir()
+        (folder / 'meta.json').write_text(json.dumps({'artist': 'Aimer', 'title': 'Ref:rain', 'duration': 250}), encoding='utf-8')
+
+    @staticmethod
+    def lrclib_error(status, headers=None):
+        from types import SimpleNamespace
+        error = RuntimeError(f'LRCLIB answered {status}')
+        error.response = SimpleNamespace(status_code=status, headers=headers or {})
+        async def fail(*args, **kwargs):
+            raise error
+        return fail
+
+    def test_lrclib_rate_limits_pass_through_with_retry_after(self):
+        self.lyrics_song()
+        cases = [(429, {'Retry-After': '3'}, '3', 'LRCLIB is limiting lyric lookups. Please wait 3 seconds, then try again.'),
+                 (429, {}, '5', None), (429, {'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT'}, '5', None),
+                 (429, {'Retry-After': '3600'}, '60', None), (503, {}, '1', 'LRCLIB is busy. Please wait 1 second, then try again.')]
+        for status, headers, wait, message in cases:
+            with patch.object(self.main.lyrics, 'candidates', self.lrclib_error(status, headers)):
+                response = self.client.get('/api/songs/aaaaaaaaaaa/lyrics')
+            self.assertEqual((response.status_code, response.headers['retry-after']), (status, wait))
+            if message:
+                self.assertEqual(response.json()['detail'], message)
+        with patch.object(self.main.lyrics, 'search', self.lrclib_error(429, {'Retry-After': '2'})):
+            self.assertEqual(self.client.get('/api/songs/aaaaaaaaaaa/lyrics', params={'q': 'aimer'}).status_code, 429)
+        with patch.object(self.main.lyrics, 'record', self.lrclib_error(503)):
+            response = self.client.post('/api/songs/aaaaaaaaaaa/lyrics', json={'id': 7})
+            self.assertEqual((response.status_code, response.headers['retry-after']), (503, '1'))
+        # Any other failure is still a plain 502, with no wait to honour.
+        with patch.object(self.main.lyrics, 'candidates', self.lrclib_error(500)):
+            response = self.client.get('/api/songs/aaaaaaaaaaa/lyrics')
+        self.assertEqual(response.status_code, 502)
+        self.assertNotIn('retry-after', response.headers)
+
+    def test_run_opens_the_browser_only_when_asked(self):
+        import threading
+        import uvicorn
+        for value, opens in (('1', True), ('', False), ('0', False)):
+            started = []
+            with patch.dict('os.environ', {'KTVIBES_OPEN_BROWSER': value}), patch('sys.argv', ['ktvibes']), \
+                 patch.object(uvicorn, 'run'), patch.object(self.main.worker, 'missing_tools', return_value=[]), \
+                 patch.object(threading, 'Thread', lambda target, daemon: started.append(target) or Mock()):
+                self.main.run()
+            self.assertEqual(started, [self.main.open_browser] if opens else [])
+
+    def test_browser_opens_once_the_server_listens(self):
+        # A large cache can take a while to load; the page must not open on a refused connection.
+        attempts = iter([OSError, OSError, Mock()])
+        def connect(address, timeout):
+            result = next(attempts)
+            if result is OSError:
+                raise OSError('refused')
+            return result
+        with patch.object(self.main.socket, 'create_connection', connect), patch('time.sleep') as sleep, patch('webbrowser.open') as opened:
+            self.main.open_browser()
+        self.assertEqual(sleep.call_count, 2)
+        opened.assert_called_once_with(f'http://127.0.0.1:{self.main.PORT}')
+
     def test_unicode_input_validation_and_static_pages(self):
         for route in ('/', '/tv', '/remote', '/static/tv.js', '/api/qr.svg'):
             self.assertEqual(self.client.get(route).status_code, 200)
@@ -215,8 +304,75 @@ class APITests(unittest.TestCase):
             found = self.client.get('/api/search', params={'q': 'joji'}).json()
         self.assertEqual([r['cached'] for r in found], [True, False])
 
+    def test_remote_offers_every_guide_mode(self):
+        from ktvibes.queue import GUIDES
+        page = self.client.get('/remote').text
+        for mode in GUIDES:
+            self.assertIn(f'data-value="{mode}"', page)
+
     def test_search_pages(self):
         with patch.object(self.main.youtube, 'search', return_value=[]) as search:
             self.assertEqual(self.client.get('/api/search', params={'q': '晴天', 'page': 2}).status_code, 200)
             search.assert_called_once_with('晴天', 2)
             self.assertEqual(self.client.get('/api/search', params={'q': 'x', 'page': 10}).status_code, 422)
+
+
+class PlayNextTests(unittest.IsolatedAsyncioTestCase):
+    """State.add_next, behind the remote's play-next key and Classic's 우선예약 (kept here, beside its endpoint)."""
+    async def test_add_next_adds_at_the_front_or_moves_the_waiting_copy(self):
+        from ktvibes.queue import State
+        state = State()
+        one = await state.add('aaaaaaaaaaa', 'A', 'One')
+        two = await state.add('bbbbbbbbbbb', 'B', 'Two')
+        self.assertIs(await state.add_next('bbbbbbbbbbb', 'B', 'Two'), two)
+        self.assertEqual(state.upcoming, [two, one])
+        self.assertIs(await state.add_next('bbbbbbbbbbb', 'B', 'Two'), two)  # already next: nothing changes
+        self.assertEqual(state.upcoming, [two, one])
+        three = await state.add_next('ccccccccccc', 'C', 'Three')
+        self.assertEqual(state.upcoming, [three, two, one])
+        with self.assertRaisesRegex(ValueError, 'already in the queue'):
+            await state.add('aaaaaaaaaaa', 'A', 'One')  # plain add still refuses a duplicate
+
+    async def test_a_ready_song_moved_next_starts_on_an_empty_stage(self):
+        from ktvibes.queue import State
+        state = State()
+        slow = await state.add('aaaaaaaaaaa', 'A', 'Still downloading')
+        ready = await state.add('bbbbbbbbbbb', 'B', 'Ready')
+        ready['status'], ready['duration'] = 'ready', 100
+        state.promote()
+        self.assertIsNone(state.current)  # the stage waits for the first song in line
+        await state.add_next('bbbbbbbbbbb', 'B', 'Ready')
+        self.assertIs(state.current, ready)
+        self.assertEqual(state.upcoming, [slow])
+
+    async def test_add_next_refuses_the_song_on_stage_and_requeues_a_failed_one(self):
+        from ktvibes.queue import State
+        state = State()
+        song = await state.add('aaaaaaaaaaa', 'A', 'One')
+        song['status'] = 'ready'
+        state.promote()
+        self.assertIs(state.current, song)
+        with self.assertRaisesRegex(ValueError, 'already in the queue'):
+            await state.add_next('aaaaaaaaaaa', 'A', 'One')
+        failed = await state.add('bbbbbbbbbbb', 'B', 'Two')
+        failed['status'] = 'error'
+        fresh = await state.add_next('bbbbbbbbbbb', 'B', 'Two')
+        self.assertIsNot(fresh, failed)
+        self.assertEqual(state.upcoming, [fresh, failed])
+
+    async def test_reserve_next_moves_a_song_already_reserved(self):
+        import json
+        with tempfile.TemporaryDirectory() as temp:
+            cache = Path(temp)
+            for video_id, number in [('aaaaaaaaaaa', 10001), ('bbbbbbbbbbb', 10002)]:
+                (cache / video_id).mkdir()
+                (cache / video_id / 'meta.json').write_text(json.dumps({'artist': 'IU', 'title': video_id, 'number': number}), encoding='utf-8')
+            from ktvibes.queue import State
+            state = State()
+            state.path = cache / 'queue.json'
+            await state.control({'action': 'reserve', 'number': 10001})
+            await state.control({'action': 'reserve', 'number': 10002})
+            await state.control({'action': 'reserve', 'number': 10002, 'next': True})  # 우선예약 on a reserved number
+            self.assertEqual([(i['id'], i['number']) for i in state.upcoming], [('bbbbbbbbbbb', 10002), ('aaaaaaaaaaa', 10001)])
+            with self.assertRaisesRegex(ValueError, 'already in the queue'):
+                await state.control({'action': 'reserve', 'number': 10001})
