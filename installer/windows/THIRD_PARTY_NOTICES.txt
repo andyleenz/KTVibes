@@ -1,0 +1,18 @@
+KTVibes Windows installer downloads and installs third-party tools at setup time.
+
+FFmpeg
+The installer downloads an LGPL build of FFmpeg from BtbN/FFmpeg-Builds. Its license files and build/source URL are kept under tools\ffmpeg. FFmpeg licensing information is available at:
+https://ffmpeg.org/legal.html
+https://github.com/BtbN/FFmpeg-Builds
+
+Node.js
+Node.js is downloaded from the official Node.js distribution site. Its license file is retained under tools\node:
+https://nodejs.org/
+
+uv
+uv is downloaded from the Astral uv GitHub releases. License information is available at:
+https://github.com/astral-sh/uv
+
+Installer
+The Windows installer (Inno Setup script, setup helper and launcher) was contributed to KTVibes by Jeff Shih
+(https://github.com/JeffShih-wiwynn/KTVibes) under the MIT License of this project.

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=KTVibes
+GenericName=Karaoke
+Comment=Home karaoke with a phone remote
+Exec=ktvibes
+Icon=ktvibes
+# AppRun opens its own terminal for setup progress, so the launcher does not need one.
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=karaoke;singing;lyrics;

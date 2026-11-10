@@ -1,0 +1,80 @@
+name: Linux x86_64 AppImage
+
+# Pushes to main and manual runs keep the AppImage as an Actions artifact (14 days).
+# A pushed v* tag also attaches it to the GitHub Release for that tag.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    # Only what goes into the build (tag pushes ignore this filter and always build).
+    paths:
+      - "ktvibes/**"
+      - "static/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "docs/icon-512.png"
+      - "installer/linux/**"
+      - ".github/workflows/linux-appimage.yml"
+      - ".github/workflows/attach-release.yml"
+  pull_request:
+    paths:
+      - "installer/linux/**"
+      - ".github/workflows/linux-appimage.yml"
+      - ".github/workflows/attach-release.yml"
+
+# A newer push to the same branch or PR replaces the run in progress; a release build always finishes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify runner architecture, scripts and tag
+        run: |
+          test "$(uname -m)" = "x86_64"
+          shellcheck installer/linux/build-appimage.sh installer/linux/AppRun
+          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -n 1)"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match pyproject.toml version $version." >&2
+            exit 1
+          fi
+
+      - name: Build AppImage
+        run: installer/linux/build-appimage.sh
+
+      # Unpacking needs no FUSE and checks the image is readable and complete.
+      - name: Verify AppImage
+        run: |
+          cd "$(mktemp -d)"
+          "$GITHUB_WORKSPACE/dist/linux/KTVibes-x86_64.AppImage" --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun
+          test -f squashfs-root/project/uv.lock
+          test -f squashfs-root/project/static/tv.html
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: KTVibes-Linux-x86_64-AppImage
+          path: dist/linux/KTVibes-x86_64.AppImage
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    # Only on a pushed v* tag. The only job with write access.
+    if: github.ref_type == 'tag'
+    needs: build
+    permissions:
+      contents: write
+    uses: ./.github/workflows/attach-release.yml
+    with:
+      artifact: KTVibes-Linux-x86_64-AppImage
+      file: KTVibes-x86_64.AppImage

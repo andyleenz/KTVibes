@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# KTVibes AppImage entry point. First start fetches whatever this machine lacks (uv, Node.js 22+,
+# FFmpeg) into the data directory, installs the Python packages with uv, then runs the server.
+# Sourcing this file only defines the functions (used to test the downloads on their own).
+set -euo pipefail
+
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# Relaunch the AppImage file itself when we are its mount; APPIMAGE may be inherited from another one.
+if [[ -n ${APPIMAGE:-} && ${APPDIR:-} == "$HERE" ]]; then SELF="$APPIMAGE"; else SELF="$HERE/AppRun"; fi
+DATA="${KTVIBES_APP_SUPPORT:-${XDG_DATA_HOME:-$HOME/.local/share}/KTVibes}"
+TOOLS="$DATA/tools"
+LOG="$DATA/ktvibes.log"
+PORT="${KTVIBES_PORT:-8765}"
+URL="http://127.0.0.1:$PORT"
+
+# Pinned so setup is reproducible. Hashes are copied from each project's published checksums
+# (uv's .sha256 files, nodejs.org SHASUMS256.txt, BtbN checksums.sha256); bump them together.
+UV_VERSION=0.13.7
+UV_SHA256=c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83
+NODE_VERSION=22.23.4
+NODE_SHA256=b8492284c76a54baf58d61668dd0e41ee0fc98adabf9503d30f05d08f55b4406
+# FFmpeg 9.0.2, static GPL build. BtbN keeps month-end autobuilds for about two years.
+FFMPEG_RELEASE=autobuild-2026-10-31-12-59
+FFMPEG_NAME=ffmpeg-n9.0.2-39-g7adfbe40dc-linux64-gpl-9.0
+FFMPEG_SHA256=73e29a56974ae5a651133a04584c7483b21afe941e17dc91d79814a758b608d3
+
+server='' failed=0 notify=0
+[[ -t 1 ]] || notify=1  # no terminal to read: also show key messages as desktop notifications
+progress=(--progress-bar)
+log() { printf '%s\n' "$*"; }
+tell() {
+    log "$*"
+    if ((notify)); then notify-send -a KTVibes -i "$HERE/ktvibes.png" KTVibes "$*" 2>/dev/null || true; fi
+}
+fail() { tell "$*"; failed=1; exit 1; }
+
+download() {  # url sha256 file
+    log "Downloading ${1##*/}…"
+    curl -fL --retry 3 --connect-timeout 20 "${progress[@]}" -o "$3" "$1"
+    echo "$2  $3" | sha256sum -c --quiet - || { rm -f "$3"; fail "Checksum mismatch for ${1##*/}; try again later."; }
+}
+
+unpack() {  # archive dir [tar args]: extract beside dir and rename, so an interrupted run starts over
+    local archive=$1 dir=$2
+    shift 2
+    rm -rf "$dir.part" && mkdir -p "$dir.part"
+    tar -xf "$archive" -C "$dir.part" "$@"
+    rm -f "$archive" && mv "$dir.part" "$dir"
+}
+
+# Each use_* keeps a suitable system copy and otherwise installs a private, pinned one.
+use_uv() {
+    command -v uv >/dev/null && return
+    local dir="$TOOLS/uv-$UV_VERSION"
+    if [[ ! -x $dir/uv ]]; then
+        rm -rf "$TOOLS"/uv-*
+        download "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-unknown-linux-gnu.tar.gz" \
+            "$UV_SHA256" "$TOOLS/.download"
+        unpack "$TOOLS/.download" "$dir" --strip-components=1
+    fi
+    PATH="$dir:$PATH"
+}
+
+use_node() {
+    if command -v node >/dev/null && (($(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0) >= 22)); then
+        return
+    fi
+    local dir="$TOOLS/node-$NODE_VERSION"
+    if [[ ! -x $dir/bin/node ]]; then
+        rm -rf "$TOOLS"/node-*
+        download "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
+            "$NODE_SHA256" "$TOOLS/.download"
+        unpack "$TOOLS/.download" "$dir" --strip-components=1
+    fi
+    PATH="$dir/bin:$PATH"
+}
+
+use_ffmpeg() {
+    command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null && return
+    local dir="$TOOLS/$FFMPEG_NAME"
+    if [[ ! -x $dir/bin/ffprobe ]]; then
+        command -v xz >/dev/null || fail "FFmpeg is missing. Install ffmpeg (or xz, to let KTVibes fetch it) with your package manager."
+        rm -rf "$TOOLS"/ffmpeg-*
+        download "https://github.com/BtbN/FFmpeg-Builds/releases/download/$FFMPEG_RELEASE/$FFMPEG_NAME.tar.xz" \
+            "$FFMPEG_SHA256" "$TOOLS/.download"
+        unpack "$TOOLS/.download" "$dir" --strip-components=1 --wildcards '*/bin/ffmpeg' '*/bin/ffprobe' '*/LICENSE.txt'
+    fi
+    PATH="$dir/bin:$PATH"
+}
+
+# Double-clicked in a file manager there is no terminal, so the long first setup would be invisible.
+# Reopen in one so progress shows and Ctrl+C or closing the window stops KTVibes.
+open_terminal() {
+    local forward=() opt=() v term
+    for v in ${!KTVIBES_@}; do forward+=("$v=${!v}"); done  # some terminals start with a clean environment
+    for term in xdg-terminal-exec x-terminal-emulator gnome-terminal ptyxis konsole xfce4-terminal kitty alacritty foot xterm; do
+        command -v "$term" >/dev/null || continue
+        case $term in
+            xdg-terminal-exec | kitty | foot) opt=() ;;
+            gnome-terminal | ptyxis) opt=(--) ;;
+            xfce4-terminal) opt=(-x) ;;
+            *) opt=(-e) ;;
+        esac
+        exec "$term" "${opt[@]}" env "${forward[@]}" KTVIBES_IN_TERMINAL=1 "$SELF"
+    done
+}
+
+stop() {  # TERM lets uvicorn shut down cleanly; KILL if it hangs
+    [[ -n $server ]] && kill -TERM "$server" 2>/dev/null || return 0
+    for _ in {1..50}; do kill -0 "$server" 2>/dev/null || return 0; sleep 0.2; done
+    kill -KILL "$server" 2>/dev/null || true
+}
+
+finish() {
+    local code=$?
+    stop
+    ((code && code < 128)) || return 0  # signals mean the user stopped it
+    ((failed)) || tell "KTVibes stopped with an error (exit $code)."
+    # A terminal we opened closes with this script; keep the error on screen until it is read.
+    if [[ -n ${KTVIBES_IN_TERMINAL:-} ]]; then read -rp "Press Enter to close this window." || true; fi
+}
+
+main() {
+    [[ $(uname -m) == x86_64 ]] ||
+        fail "This KTVibes app is for 64-bit Intel and AMD PCs (x86_64), not $(uname -m). See https://github.com/andyleenz/KTVibes to install from source."
+
+    # A second launch just opens the running one.
+    if [[ $(curl -sf --noproxy '*' --max-time 3 "$URL/api/state" 2>/dev/null || true) == *'"revision"'* ]]; then
+        tell "KTVibes is already running at $URL"
+        [[ ${KTVIBES_OPEN_BROWSER:-1} == 0 ]] || xdg-open "$URL" >/dev/null 2>&1 || true
+        exit 0
+    fi
+    [[ -t 1 || -n ${KTVIBES_IN_TERMINAL:-} || -z ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] || open_terminal
+
+    mkdir -p "$TOOLS"
+    if ((notify)); then  # still no terminal: keep a log
+        exec >"$LOG" 2>&1
+        progress=(-sS)
+        tell "Starting KTVibes. The first start downloads several GB and can take a while. Log: $LOG"
+    fi
+    trap finish EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
+
+    use_uv
+    use_node
+    use_ffmpeg
+
+    log "Preparing KTVibes files…"
+    rm -rf "$DATA/project"
+    cp -R "$HERE/project" "$DATA/project"
+    export UV_PROJECT_ENVIRONMENT="$DATA/venv" KTVIBES_PORT="$PORT"
+    export KTVIBES_CACHE="${KTVIBES_CACHE:-$DATA/cache}" KTVIBES_OPEN_BROWSER="${KTVIBES_OPEN_BROWSER:-1}"
+    unset VIRTUAL_ENV
+    if [[ -x $DATA/venv/bin/ktvibes ]]; then log "Checking KTVibes packages…"
+    else log "Installing KTVibes packages. PyTorch alone is several GB, so the first start takes a while…"; fi
+    uv sync --project "$DATA/project" --locked --no-dev
+
+    log "Starting the KTVibes server…"
+    cd "$DATA"
+    "$DATA/venv/bin/ktvibes" &
+    server=$!
+    for ((i = 0; ; i++)); do
+        curl -sf --noproxy '*' --max-time 2 -o /dev/null "$URL/api/state" && break
+        kill -0 "$server" 2>/dev/null ||
+            fail "KTVibes stopped while starting. If port $PORT is in use, set KTVIBES_PORT to another port."
+        ((i < 600)) || fail "KTVibes did not answer on port $PORT within 5 minutes."
+        sleep 0.5
+    done
+    tell "KTVibes is running. Open $URL on the TV computer; phones join by scanning its QR code."
+    ((notify)) || log "Press Ctrl+C or close this window to stop KTVibes."
+    wait "$server" || fail "KTVibes stopped unexpectedly (exit $?)."
+    server=''
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main; fi
