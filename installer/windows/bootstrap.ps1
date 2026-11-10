@@ -70,6 +70,7 @@ function Expand-ToolArchive([string]$Archive, [string]$Destination, [string]$Exp
 
 try {
     Start-Transcript -Path $SetupLog -Force | Out-Null
+    . (Join-Path $PSScriptRoot 'python-runtime.ps1')
     Write-Host 'Preparing KTVibes runtime in:' $InstallDir
     Set-InstallStatus 'Preparing the KTVibes runtime...'
     New-Item -ItemType Directory -Force $UvDir, $PythonDir, $NodeDir, $FfmpegDir, $CacheDir, $UvCacheDir, $TempDir | Out-Null
@@ -77,6 +78,8 @@ try {
     $env:UV_UNMANAGED_INSTALL = $UvDir
     $env:UV_PYTHON_INSTALL_DIR = $PythonDir
     $env:UV_CACHE_DIR = $UvCacheDir
+    $env:UV_PYTHON_INSTALL_BIN = '0'
+    $env:UV_PROJECT_ENVIRONMENT = Join-Path $InstallDir '.venv'
     $env:UV_NO_MODIFY_PATH = '1'
     $env:UV_HTTP_TIMEOUT = '90'
     $env:UV_HTTP_CONNECT_TIMEOUT = '15'
@@ -120,25 +123,12 @@ try {
     $uv = Join-Path $UvDir 'uv.exe'
     Push-Location $InstallDir
     try {
-        Set-InstallStatus 'Installing the private Python runtime...'
-        Write-Host 'Downloading the private Python 3.12 runtime...'
-        & $uv python install 3.12
-        $pythonExitCode = $LASTEXITCODE
-        $pythonInstall = Get-ChildItem -LiteralPath $PythonDir -Filter 'python.exe' -File -Recurse -ErrorAction SilentlyContinue |
-            Where-Object { $_.Directory.Name -match '^cpython-3\.12\.' } |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-        if (-not $pythonInstall) { throw 'Could not install the private Python 3.12 runtime.' }
-        $pythonExecutable = $pythonInstall.FullName
-        & $pythonExecutable --version
-        if ($LASTEXITCODE -ne 0) { throw 'The installed private Python 3.12 runtime could not be started.' }
-        if ($pythonExitCode -ne 0) {
-            Write-Host 'uv could not create its Python minor-version junction; using the installed Python executable directly.'
-        }
-        Set-InstallStatus 'Installing KTVibes and Python packages (PyTorch may take several minutes)...'
-        Write-Host 'Installing KTVibes and Python packages. PyTorch downloads can take several minutes...'
-        & $uv sync --locked --no-dev --python $pythonExecutable
-        if ($LASTEXITCODE -ne 0) { throw 'Could not install KTVibes dependencies.' }
+        Write-Host "Private Python directory: $PythonDir"
+        Write-Host "Virtual environment: $env:UV_PROJECT_ENVIRONMENT"
+        $version = Invoke-LoggedUv $uv @('--version')
+        if ($version.ExitCode -ne 0) { throw 'Could not start the private uv package manager.' }
+        Set-InstallStatus 'Checking Python and installing KTVibes packages (PyTorch may take several minutes)...'
+        Sync-PrivatePythonEnvironment $uv $InstallDir $PythonDir
     }
     finally { Pop-Location }
     Set-InstallStatus 'Cleaning up temporary installation files...'
@@ -149,8 +139,9 @@ try {
     Set-InstallStatus 'Installation complete.'
 }
 catch {
-    try { Stop-Transcript | Out-Null } catch { }
     Write-Host "KTVibes setup failed: $($_.Exception.Message)"
+    Write-Host $_.ScriptStackTrace
+    try { Stop-Transcript | Out-Null } catch { }
     $SetupExitCode = 1
 }
 Set-Content -LiteralPath $ResultFile -Value $SetupExitCode -Encoding ASCII

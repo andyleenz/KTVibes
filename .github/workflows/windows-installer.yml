@@ -26,8 +26,16 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'installer/windows/bootstrap.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
-          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          Get-ChildItem 'installer/windows/*.ps1' | ForEach-Object {
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          }
+
+      - uses: astral-sh/setup-uv@v10.3.2
+
+      - name: Verify Python environment upgrades
+        shell: powershell
+        run: '& ./installer/windows/test-python-runtime.ps1'
 
       - name: Compile installer
         shell: pwsh

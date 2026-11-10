@@ -7,6 +7,15 @@ on pushes to `main` and new `v*` tags. Both also support manual dispatch. Succes
 runs upload their installers as Actions artifacts, retained for 14 days. Publishing
 these files as GitHub Release assets remains a separate step.
 
+The Windows build also exercises Python setup with a minimal dependency-free
+project in a custom folder containing spaces. It checks repeated installation,
+repair of a dangling Python junction, rebuilding an unusable virtual environment,
+and restoration of the previous environment when dependency synchronization fails.
+It also migrates an old junction-based environment and removes the junction to
+verify that both the interpreter and application startup work without it.
+These checks use Windows PowerShell 5.1. They do not reproduce every Windows
+security policy or run the full graphical installer and PyTorch downloads.
+
 ## Python tests
 
 ```bash

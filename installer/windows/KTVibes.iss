@@ -35,6 +35,7 @@ Source: "..\..\pyproject.toml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\uv.lock"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "bootstrap.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
+Source: "python-runtime.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 Source: "KTVibes.cmd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "KTVibes.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "THIRD_PARTY_NOTICES.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
