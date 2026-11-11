@@ -720,7 +720,7 @@ def remote_url():
 
 @app.get("/api/config")
 async def config():
-    return {"remote_url": remote_url(), "update": update_info, "update_check_complete": update_check_complete}
+    return {"remote_url": remote_url(), "version": project_version(), "update": update_info, "update_check_complete": update_check_complete}
 
 @app.get("/api/qr.svg")
 async def qr():

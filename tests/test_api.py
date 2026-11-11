@@ -33,6 +33,11 @@ class APITests(unittest.TestCase):
             item.stop()
         self.temp.cleanup()
 
+    def test_config_includes_current_project_version(self):
+        response = self.client.get('/api/config')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['version'], self.main.project_version())
+
     def test_update_pulls_only_a_clean_checkout(self):
         import subprocess
         root = Path(self.temp.name)

@@ -115,7 +115,7 @@ class Remote:
         self.requests.append((method, path, body))
         data = {}
         if path == "/api/config":
-            data = {"remote_url": "http://127.0.0.1/remote", "update": self.update, "update_check_complete": True}
+            data = {"remote_url": "http://127.0.0.1/remote", "version": "0.7.1", "update": self.update, "update_check_complete": True}
         elif path == "/api/recent":
             data = self.recent
         elif path in ("/api/suggest", "/api/songbook"):
@@ -174,7 +174,7 @@ def remote(page, remote_url):
     page.route("https://i.ytimg.com/**", lambda route: route.fulfill(status=200, content_type="image/svg+xml", body='<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"/>'))
     page.route_web_socket("**/ws?role=remote", fixture.websocket)
     page.goto(remote_url)
-    expect(page.locator("#connection-label")).to_have_text("Device ready")
+    expect(page.locator("#connection-label")).to_have_text("Ready")
     expect(page.locator("#queue .queue-swipe")).to_have_count(3)
     yield fixture
     assert not fixture.errors, fixture.errors

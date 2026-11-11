@@ -6,38 +6,48 @@ const haptic=pattern=>{try{navigator.vibrate?.(pattern);}catch{}};
 function showImage(img,src){if(img.getAttribute('src')!==src){if(src)img.src=src;else img.removeAttribute('src');}img.hidden=!src;}
 let updatePollTimer;
 let availableUpdate=null;
+let currentVersion='';
 function renderUpdateNotice(){
  const ready=!!(state?.player_connected&&state?.player_audio),show=!!(availableUpdate&&ready);
- updateButton.hidden=!show;$('connection').classList.toggle('has-update',show);
- if(!show&& !updatePopover.hidden){updatePopover.classList.remove('open');updatePopover.hidden=true;updatePopover.setAttribute('aria-hidden','true');updateButton.setAttribute('aria-expanded','false');}
+ $('connection').classList.toggle('has-update',show);
+ $('current-version').textContent=currentVersion?`v${currentVersion.replace(/^v/,'')}`:'Version unavailable';
+ $('version-heading').textContent=show?'Update available':'Current version';
+ $('version-arrow').hidden=!show;$('update-link').hidden=!show;
+ if(show){$('update-link').textContent=availableUpdate.version.startsWith('v')?availableUpdate.version:`v${availableUpdate.version}`;$('update-link').href=availableUpdate.url;}
 }
 async function refreshUpdateNotice(){
  try{
-  const {update,update_check_complete}=await api('/api/config');
+  const {version,update,update_check_complete}=await api('/api/config');
+  currentVersion=typeof version==='string'&&/^v?\d+(?:\.\d+){1,3}$/.test(version)?version:'';
   const valid=update&&/^v?\d+(?:\.\d+){1,3}$/.test(update.version||'')&&update.url?.startsWith('https://github.com/JeffShih-wiwynn/KTVibes/releases/tag/');
   availableUpdate=valid?update:null;
-  if(valid){
-  $('update-version').textContent=update.version.startsWith('v')?update.version:`v${update.version}`;
-  $('update-link').href=update.url;
-  }
   renderUpdateNotice();
   clearTimeout(updatePollTimer);updatePollTimer=setTimeout(refreshUpdateNotice,update_check_complete?6*60*60*1000:5000);
  }catch{clearTimeout(updatePollTimer);updatePollTimer=setTimeout(refreshUpdateNotice,60_000);}
 }
-const updateButton=$('update-button'),updatePopover=$('update-popover');
+const connectionButton=$('connection'),updatePopover=$('update-popover');
 let updateCloseTimer;
 function openUpdatePopover(){
+ if(!connectionButton.classList.contains('online'))return;
  clearTimeout(updateCloseTimer);updatePopover.hidden=false;updatePopover.setAttribute('aria-hidden','false');
- requestAnimationFrame(()=>updatePopover.classList.add('open'));updateButton.setAttribute('aria-expanded','true');
+ requestAnimationFrame(()=>updatePopover.classList.add('open'));connectionButton.setAttribute('aria-expanded','true');
 }
 function closeUpdatePopover(){
  if(updatePopover.hidden)return;
- updatePopover.classList.remove('open');updatePopover.setAttribute('aria-hidden','true');updateButton.setAttribute('aria-expanded','false');
+ updatePopover.classList.remove('open');updatePopover.setAttribute('aria-hidden','true');connectionButton.setAttribute('aria-expanded','false');
  clearTimeout(updateCloseTimer);updateCloseTimer=setTimeout(()=>{if(!updatePopover.classList.contains('open'))updatePopover.hidden=true;},260);
 }
-updateButton.onclick=()=>updatePopover.hidden?openUpdatePopover():closeUpdatePopover();
-document.addEventListener('pointerdown',event=>{if(!event.target.closest('.update-wrap'))closeUpdatePopover();});
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!updatePopover.hidden){closeUpdatePopover();updateButton.focus();}});
+connectionButton.onclick=event=>{if(event.detail===0){openUpdatePopover();return;}if(matchMedia('(hover: none), (pointer: coarse)').matches)updatePopover.hidden?openUpdatePopover():closeUpdatePopover();};
+const connectionWrap=document.querySelector('.connection-wrap');
+connectionWrap.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')openUpdatePopover();});
+connectionWrap.addEventListener('pointerleave',event=>{if(event.pointerType==='mouse'&&!connectionWrap.contains(document.activeElement))closeUpdatePopover();});
+let keyboardFocus=false;
+document.addEventListener('keydown',event=>{if(event.key==='Tab')keyboardFocus=true;});
+document.addEventListener('pointerdown',()=>{keyboardFocus=false;});
+connectionWrap.addEventListener('focusin',()=>{if(keyboardFocus)openUpdatePopover();});
+connectionWrap.addEventListener('focusout',event=>{if(!connectionWrap.contains(event.relatedTarget))closeUpdatePopover();});
+document.addEventListener('pointerdown',event=>{if(!event.target.closest('.connection-wrap'))closeUpdatePopover();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!updatePopover.hidden){closeUpdatePopover();keyboardFocus=false;connectionButton.focus();}});
 refreshUpdateNotice();
 // One toast for every message; an action (Undo) keeps it up a little longer.
 let toastTimer;
@@ -53,7 +63,7 @@ const send=connect('remote',render,message=>toast(message,undefined,'err'));
 function render(next){
  const before=state;state=next;state.received=Date.now()/1000;if(seekPending&&state.seek_id!==seekPending.seekId)seekPending=null;openLyricsDialog?.onState(before,state);
  // The header pill reports the TV, since that decides whether anything can play.
- $('connection-label').textContent=!state.player_connected?'Open /tv on a device':state.player_audio?'Device ready':'Tap Enable sound on the device';$('connection').classList.toggle('warn',!state.player_audio);$('connection').classList.toggle('off',!state.player_connected);renderUpdateNotice();
+ $('connection-label').textContent=!state.player_connected?'Player offline':state.player_audio?'Ready':'Sound disabled';$('connection').classList.toggle('warn',!state.player_audio);$('connection').classList.toggle('off',!state.player_connected);renderUpdateNotice();
  document.body.dataset.theme=state.theme||'default';showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);syncResultCards();
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
  if(ready!==readyKeys){readyKeys=ready;loadRecent();classicUi?.loadBook();}

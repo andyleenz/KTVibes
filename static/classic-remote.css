@@ -372,19 +372,19 @@ body[data-theme=classic] .toast::after{content:'';position:absolute;left:0;botto
 body[data-theme=classic] .toast.err::after{background:#e2424c}
 body[data-theme=classic] .toast.on::after{animation:toast-time var(--toast-ms,2600ms) linear forwards}
 @keyframes toast-time{to{transform:scaleX(0)}}
-/* The header pill (mockup P12): a recessed lamp and its text, one look per connection state. */
-body[data-theme=classic] .connection{display:block;position:relative;min-width:0;height:30px;padding:0 12px 0 25px;border-radius:15px;background:#101015;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #2c2d38;font:700 11.5px/30px 'IBM Plex Sans KR',sans-serif;color:#aab0ff;overflow:hidden;text-overflow:ellipsis}
-body[data-theme=classic] .connection::before{position:absolute;left:10px;top:11px;background:#7f9cff;box-shadow:0 0 6px #7f9cff;animation:lcd-blink .6s steps(1) infinite}
+/* Keep the device state legible in the Classic theme too. */
+body[data-theme=classic] .connection{min-width:0;min-height:30px;padding:7px 11px;border-radius:15px;background:#101015;border-color:#343647;box-shadow:inset 0 2px 4px #000a;font:700 11.5px/1.2 'IBM Plex Sans KR',sans-serif;color:#aab0ff}
+body[data-theme=classic] .connection::before{display:none}
+body[data-theme=classic] .connection-indicator{width:9px;height:9px}
+body[data-theme=classic] .connection-indicator i{background:#7f9cff;box-shadow:0 0 6px #7f9cff;animation:lcd-blink .6s steps(1) infinite}
 body[data-theme=classic] .connection.online{color:#cfd3ff}
-body[data-theme=classic] .connection.online::before{background:#7dff9a;box-shadow:0 0 6px #7dff9a;animation:none}
-body[data-theme=classic] .connection.online:not(.warn)::after{content:' · 연결됨'}
-body[data-theme=classic] .connection.online.warn{color:#ffd59a;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #6e3502}
-body[data-theme=classic] .connection.online.warn::before{background:#ffb86b;box-shadow:0 0 6px #ffb86b;animation:lcd-blink 1s steps(1) infinite}
-body[data-theme=classic] .connection.online.off{color:#ff9a9a;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #5e0d14}
-body[data-theme=classic] .connection.online.off::before{background:#e2424c;box-shadow:0 0 6px #e2424c;animation:none}
-body[data-theme=classic] .connection.lost{color:#8c8ea3;box-shadow:inset 0 2px 4px #000a,0 0 0 1px #3a3b46}
-body[data-theme=classic] .connection.lost::before{background:none;box-shadow:inset 0 0 0 1.5px #8c8ea3;animation:none}
-body[data-theme=classic] .connection.lost::after{content:' · 연결 끊김'}
+body[data-theme=classic] .connection.online .connection-indicator i{background:#7dff9a;box-shadow:0 0 6px #7dff9a;animation:none}
+body[data-theme=classic] .connection.online.warn{color:#ffd59a;border-color:#6e3502}
+body[data-theme=classic] .connection.online.warn .connection-indicator i{background:#ffb86b;box-shadow:0 0 6px #ffb86b;animation:lcd-blink 1s steps(1) infinite}
+body[data-theme=classic] .connection.online.off{color:#ff9a9a;border-color:#5e0d14}
+body[data-theme=classic] .connection.online.off .connection-indicator i{background:#e2424c;box-shadow:0 0 6px #e2424c;animation:none}
+body[data-theme=classic] .connection.lost{color:#8c8ea3;border-color:#3a3b46}
+body[data-theme=classic] .connection.lost .connection-indicator i{background:transparent;box-shadow:inset 0 0 0 1.5px #8c8ea3;animation:none}
 /* The handset with nothing playing, and offline. */
 body[data-theme=classic] .rk:disabled{filter:saturate(.35)}
 #lcd-status.idle{color:#7f9cff}

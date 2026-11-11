@@ -18,21 +18,23 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 /* Header */
 .top{display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px}
 .brand{font-size:24px;font-weight:700;letter-spacing:-1px}.brand span{color:var(--lime)}
-.update-wrap{position:relative;display:inline-flex;align-items:center}
-.connection.has-update::before{display:none}
-.update-button{width:20px;height:22px;display:grid;place-items:center;border:0;border-radius:50%;padding:0;background:transparent;color:var(--lime);cursor:pointer}
-.update-button:hover{color:#edffad}
-.update-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;animation:update-icon-breathe 2.4s ease-in-out infinite}
+.connection-wrap{position:relative;display:inline-flex;align-items:center}
+.connection{appearance:none;display:inline-flex;align-items:center;gap:9px;padding:8px 12px;border:1px solid #4a503a;border-radius:999px;background:#171a17;color:var(--muted);font:500 12px/1 'DM Sans','Noto Sans CJK SC','Noto Sans CJK KR',sans-serif;white-space:nowrap;cursor:default;transition:border-color .2s,background-color .2s}
+.connection:hover,.connection:active{border-color:#4a503a;background:#171a17;transform:none}
+.connection-indicator{width:9px;height:9px;position:relative;display:grid;place-items:center;flex:none}
+.connection-indicator i{width:8px;height:8px;border-radius:50%;background:#bd8172}
+.connection-indicator svg{display:none;width:17px;height:17px;fill:none;stroke:var(--lime);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.connection.online .connection-indicator i{background:var(--lime);animation:ping 2.4s infinite}
+.connection.online.warn .connection-indicator i{background:var(--amber);animation:none}
+.connection.has-update .connection-indicator i{display:none}
+.connection.has-update .connection-indicator{width:17px;height:17px}
+.connection.has-update .connection-indicator svg{display:block;animation:update-icon-breathe 3.6s ease-in-out infinite}
 @keyframes update-icon-breathe{0%,100%{opacity:.58;filter:drop-shadow(0 0 0 #d7fc7000)}50%{opacity:1;filter:drop-shadow(0 0 4px #d7fc70aa)}}
-.update-popover{position:absolute;z-index:20;right:0;top:calc(100% + 10px);width:220px;padding:14px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 12px 32px #0009;opacity:0;visibility:hidden;transform:translateY(-8px) scale(.97);transform-origin:top right;transition:opacity .2s ease,transform .24s cubic-bezier(.2,.8,.2,1),visibility .24s}
+.update-popover{position:absolute;z-index:20;right:0;top:calc(100% + 9px);min-width:190px;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 12px 32px #0009;opacity:0;visibility:hidden;transform:translateY(-7px) scale(.97);transform-origin:top right;transition:opacity .2s ease,transform .24s cubic-bezier(.2,.8,.2,1),visibility .24s}
 .update-popover.open{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
-.update-popover strong{grid-column:1/-1;font-size:14px}.update-popover span{color:var(--muted);font-size:13px}
-.update-popover a{width:38px;height:34px;display:grid;place-items:center;border-radius:10px;background:var(--panel2);color:var(--lime)}
-.update-popover a:hover{background:#d7fc7022}.update-popover a svg{width:20px;height:20px;fill:currentColor}
-@media(prefers-reduced-motion:reduce){.update-button svg{animation:none;opacity:1;filter:none}.update-popover{transition:none}}
-.connection{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:7px}
-.connection::before{content:'';width:8px;height:8px;border-radius:50%;background:#bd8172}
-.connection.online::before{background:var(--lime);animation:ping 2.4s infinite}.connection.online.warn::before{background:var(--amber);animation:none}
+.update-popover strong{display:block;margin-bottom:8px;font-size:13px}.version-row{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.version-row #version-arrow{color:var(--muted)}.version-row a{color:var(--lime);font-weight:700;transition:color .18s ease}.version-row a:hover{color:#efffb8}
+@media(prefers-reduced-motion:reduce){.connection-indicator svg,.connection.has-update .connection-indicator svg{animation:none;opacity:1;filter:none}.update-popover{transition:none}}
 @keyframes ping{0%{box-shadow:0 0 0 0 #d7fc7088}70%{box-shadow:0 0 0 8px #d7fc7000}}
 
 /* Search: stays in reach while scrolling; the ring hides content passing behind it. */

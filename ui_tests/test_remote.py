@@ -51,7 +51,7 @@ def test_sliders_require_thumb_drag(remote, page, control, action):
     x = box["x"] + 2 + ratio * (box["width"] - 4)
     drag(page, (x, y), (x + 55, y))
     expect(slider).not_to_have_value(original)
-    page.wait_for_function("document.querySelector('#connection-label').textContent === 'Device ready'")
+    page.wait_for_function("document.querySelector('#connection-label').textContent === 'Ready'")
     remote.wait_command(action, value=float(slider.input_value()))
     updates = [m for m in remote.commands if m["action"] == action]
     assert updates and updates[-1]["value"] == pytest.approx(float(slider.input_value()))
@@ -271,35 +271,79 @@ def test_mobile_recent_vertical_scroll_does_not_queue_or_reveal(remote, page):
 
 
 def test_update_notice_opens_release_popover(remote, page):
-    remote.update = {"version": "v0.6.2", "url": "https://github.com/JeffShih-wiwynn/KTVibes/releases/tag/v0.6.2"}
+    remote.update = {"version": "v0.7.2", "url": "https://github.com/JeffShih-wiwynn/KTVibes/releases/tag/v0.7.2"}
     page.reload()
-    button = page.locator("#update-button")
+    button = page.locator("#connection")
     expect(button).to_be_visible()
     expect(page.locator("#connection")).to_have_class(re.compile("has-update"))
-    expect(page.locator("#connection-label")).to_have_text("Device ready")
-    assert button.evaluate("e => getComputedStyle(e).backgroundColor") == "rgba(0, 0, 0, 0)"
-    assert button.evaluate("e => getComputedStyle(e).borderWidth") == "0px"
+    expect(page.locator("#connection-label")).to_have_text("Ready")
+    assert button.evaluate("e => getComputedStyle(e).borderRadius") == "999px"
+    assert button.evaluate("e => getComputedStyle(e).cursor") == "default"
+    assert button.evaluate("e => getComputedStyle(e).transform") == "none"
     page.emulate_media(reduced_motion="no-preference")
-    assert button.evaluate("e => getComputedStyle(e).animationName") == "none"
     assert button.locator("svg").evaluate("e => getComputedStyle(e).animationName") == "update-icon-breathe"
+    assert button.locator("svg").evaluate("e => getComputedStyle(e).animationDuration") == "3.6s"
+    assert button.locator("svg").evaluate("e => Math.abs(e.getBoundingClientRect().width-e.parentElement.getBoundingClientRect().width) < 0.1")
     page.emulate_media(reduced_motion="reduce")
     assert button.locator("svg").evaluate("e => getComputedStyle(e).animationName") == "none"
-    button.click()
+    if page.viewport_size["width"] <= 600:
+        button.click()
+    else:
+        button.hover()
     expect(page.locator("#update-popover")).to_be_visible()
-    expect(page.locator("#update-version")).to_have_text("v0.6.2")
+    expect(page.locator("#current-version")).to_have_text("v0.7.1")
+    expect(page.locator("#version-arrow")).to_have_text("→")
+    expect(page.locator("#update-link")).to_have_text("v0.7.2")
     expect(page.locator("#update-link")).to_have_attribute("href", remote.update["url"])
     page.keyboard.press("Escape")
     expect(page.locator("#update-popover")).to_be_hidden()
+    if page.viewport_size["width"] > 600:
+        page.keyboard.press("Shift+Tab")
+        page.keyboard.press("Tab")
+        expect(button).to_be_focused()
+        expect(page.locator("#update-popover")).to_be_visible()
 
 
-def test_update_notice_stays_hidden_without_new_release(remote, page):
-    expect(page.locator("#update-button")).to_be_hidden()
+def test_current_version_popover_without_update(remote, page):
+    expect(page.locator("#connection")).to_be_visible()
     expect(page.locator("#connection")).not_to_have_class(re.compile("has-update"))
+    if page.viewport_size["width"] <= 600:
+        page.locator("#connection").click()
+    else:
+        page.locator("#connection").hover()
+    expect(page.locator("#update-popover")).to_be_visible()
+    expect(page.locator("#version-heading")).to_have_text("Current version")
+    expect(page.locator("#current-version")).to_have_text("v0.7.1")
+    expect(page.locator("#version-arrow")).to_be_hidden()
+    expect(page.locator("#update-link")).to_be_hidden()
 
 
 def test_update_notice_requires_ready_device(remote, page):
-    remote.update = {"version": "v0.6.2", "url": "https://github.com/JeffShih-wiwynn/KTVibes/releases/tag/v0.6.2"}
+    remote.update = {"version": "v0.7.2", "url": "https://github.com/JeffShih-wiwynn/KTVibes/releases/tag/v0.7.2"}
     remote.state["player_audio"] = False
     page.reload()
-    expect(page.locator("#connection-label")).to_have_text("Tap Enable sound on the device")
-    expect(page.locator("#update-button")).to_be_hidden()
+    expect(page.locator("#connection-label")).to_have_text("Sound disabled")
+    expect(page.locator("#connection")).not_to_have_class(re.compile("has-update"))
+
+
+def test_version_popover_cannot_reopen_while_disconnected(remote, page):
+    remote.update = {"version": "v0.7.2", "url": "https://github.com/JeffShih-wiwynn/KTVibes/releases/tag/v0.7.2"}
+    page.reload()
+    button = page.locator("#connection")
+    if page.viewport_size["width"] <= 600:
+        button.click()
+    else:
+        button.hover()
+    expect(page.locator("#update-popover")).to_be_visible()
+
+    remote.socket.close(code=4001, reason="test disconnect")
+    expect(page.locator("#connection-label")).to_have_text("Disconnected")
+    expect(page.locator("#update-popover")).to_be_hidden()
+    if page.viewport_size["width"] <= 600:
+        button.click()
+    else:
+        page.mouse.move(0, 0)
+        button.hover()
+        page.keyboard.press("Tab")
+        page.keyboard.press("Tab")
+    expect(page.locator("#update-popover")).to_be_hidden()
