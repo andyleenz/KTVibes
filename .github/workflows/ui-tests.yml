@@ -22,7 +22,7 @@ jobs:
       - name: Install browser test dependencies
         run: |
           uv sync --locked --only-group ui
-          uv run --no-sync playwright install --with-deps chromium
+          uv run --no-sync playwright install chromium
       - name: Run desktop and mobile Remote tests
         run: uv run --no-sync pytest ui_tests --browser chromium --tracing retain-on-failure --screenshot only-on-failure
       - name: Upload failure diagnostics
