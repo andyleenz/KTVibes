@@ -4,8 +4,8 @@ from ktvibes.updates import newer_release, project_version, version_key
 
 
 class UpdateCheckTests(unittest.TestCase):
-    def test_current_version_is_0_7_1(self):
-        self.assertEqual(project_version(), "0.7.1")
+    def test_current_version_is_0_7_0(self):
+        self.assertEqual(project_version(), "0.7.0")
 
     def test_numeric_versions_accept_release_tag_prefix(self):
         self.assertEqual(version_key("v0.6.2"), (0, 6, 2))

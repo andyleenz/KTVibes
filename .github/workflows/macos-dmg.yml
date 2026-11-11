@@ -20,7 +20,10 @@ jobs:
       - name: Verify runner architecture and scripts
         run: |
           test "$(uname -m)" = "arm64"
-          bash -n installer/macos/build-app.sh installer/macos/setup-and-run.sh
+          bash -n installer/macos/*.sh
+
+      - name: Verify launcher shutdown
+        run: bash installer/macos/test-server-process.sh
 
       - name: Build app and disk image
         run: installer/macos/build-app.sh

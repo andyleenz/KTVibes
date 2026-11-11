@@ -2,145 +2,199 @@ import AppKit
 import Foundation
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var window: NSWindow!
-    private var statusLabel: NSTextField!
-    private var outputView: NSTextView!
-    private var actionButton: NSButton!
-    private var process: Process?
-    private var outputHandle: FileHandle?
+    private var statusItem: NSStatusItem!
+    private let server = ServerProcess()
+    private var stopping = false
+    private var readyOutput = ""
+    private var openingLogs = false
+    private var logsURL: URL { Self.applicationSupportURL.appendingPathComponent("logs/ktvibes.log") }
+    private var currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+    private var releaseURL = URL(string: "https://github.com/JeffShih-wiwynn/KTVibes/releases/latest")!
+    private var updateVersion: String?
+    private var versionItem: NSMenuItem!
+    private var updateTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        buildWindow()
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.setActivationPolicy(.accessory)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.button?.image = Self.makeStatusImage()
+        statusItem.button?.toolTip = "KTVibes"
+        let menu = NSMenu()
+        versionItem = NSMenuItem(title: "", action: #selector(openRelease), keyEquivalent: "")
+        versionItem.target = self
+        menu.addItem(versionItem)
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Open Player", action: #selector(openPlayer), keyEquivalent: "")
+        menu.addItem(withTitle: "Show Logs", action: #selector(showLogs), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q")
+        menu.items.forEach { $0.target = self }
+        statusItem.menu = menu
+        renderVersionItem()
         startKTVibes()
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in self?.refreshReleaseInfo() }
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        process?.terminate()
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !stopping else { return .terminateCancel }
+        setStopping(true)
+        server.stop { NSApp.reply(toApplicationShouldTerminate: true) }
+        return .terminateLater
     }
 
-    private func buildWindow() {
-        window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 620, height: 390),
-            styleMask: [.titled, .closable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "KTVibes"
-        window.center()
-
-        let root = NSStackView()
-        root.orientation = .vertical
-        root.alignment = .leading
-        root.spacing = 14
-        root.translatesAutoresizingMaskIntoConstraints = false
-
-        let title = NSTextField(labelWithString: "KTVibes for Apple silicon")
-        title.font = .systemFont(ofSize: 22, weight: .semibold)
-        statusLabel = NSTextField(wrappingLabelWithString: "Preparing KTVibes. First setup downloads its runtime and packages.")
-        statusLabel.font = .systemFont(ofSize: 13)
-
-        let scroll = NSScrollView()
-        scroll.hasVerticalScroller = true
-        scroll.borderType = .bezelBorder
-        outputView = NSTextView()
-        outputView.isEditable = false
-        outputView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-        scroll.documentView = outputView
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.heightAnchor.constraint(equalToConstant: 190).isActive = true
-
-        actionButton = NSButton(title: "Start KTVibes", target: self, action: #selector(startKTVibes))
-        actionButton.bezelStyle = .rounded
-        actionButton.isEnabled = false
-
-        root.addArrangedSubview(title)
-        root.addArrangedSubview(statusLabel)
-        root.addArrangedSubview(scroll)
-        root.addArrangedSubview(actionButton)
-        window.contentView = NSView()
-        window.contentView?.addSubview(root)
-        NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 22),
-            root.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -22),
-            root.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 22),
-            root.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor, constant: -22),
-            scroll.widthAnchor.constraint(equalTo: root.widthAnchor)
-        ])
-        window.makeKeyAndOrderFront(nil)
-    }
-
-    @objc private func startKTVibes() {
-        guard process == nil else { return }
-        guard let script = Bundle.main.resourceURL?.appendingPathComponent("setup-and-run.sh") else {
-            statusLabel.stringValue = "The setup script is missing from this app. Reinstall KTVibes."
-            return
-        }
-        actionButton.isEnabled = false
-        statusLabel.stringValue = "Setting up KTVibes and starting the local server…"
-
-        let child = Process()
-        child.executableURL = URL(fileURLWithPath: "/bin/bash")
-        child.arguments = [script.path]
-        child.environment = ProcessInfo.processInfo.environment.merging([
+    private func startKTVibes() {
+        guard let resources = Bundle.main.resourceURL, let executable = Bundle.main.executableURL else { return }
+        let script = resources.appendingPathComponent("setup-and-run.sh")
+        let environment = ProcessInfo.processInfo.environment.merging([
             "KTVIBES_APP_SUPPORT": Self.applicationSupportURL.path,
-            "KTVIBES_APP_RESOURCES": Bundle.main.resourceURL!.path
+            "KTVIBES_APP_RESOURCES": resources.path
         ]) { _, new in new }
-
-        let pipe = Pipe()
-        child.standardOutput = pipe
-        child.standardError = pipe
-        outputHandle = pipe.fileHandleForReading
-        outputHandle?.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            let text = String(decoding: data, as: UTF8.self)
-            DispatchQueue.main.async { self?.appendOutput(text) }
+        server.onOutput = { [weak self] text in
+            guard let self else { return }
+            self.readyOutput += text
+            if self.readyOutput.contains("KTVIBES_SERVER_READY") {
+                self.readyOutput = ""
+                if !self.stopping { self.openPlayer() }
+            }
+            self.readyOutput = String(self.readyOutput.suffix(64))
         }
-        child.terminationHandler = { [weak self] finished in
+        server.onExit = { [weak self] in
+            self?.statusItem.button?.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: "KTVibes stopped")
+        }
+        do { try server.start(executable: executable, script: script, environment: environment, logURL: logsURL) }
+        catch { NSLog("Could not start KTVibes: %@", error.localizedDescription) }
+    }
+
+    @objc private func openPlayer() {
+        NSWorkspace.shared.open(URL(string: "http://localhost:8765")!)
+    }
+
+    @objc private func openRelease() { NSWorkspace.shared.open(releaseURL) }
+
+    private func refreshReleaseInfo() {
+        guard !stopping else { return }
+        let request = URLRequest(url: URL(string: "http://127.0.0.1:8765/api/config")!, timeoutInterval: 3)
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+            guard let data, let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let self else { return }
             DispatchQueue.main.async {
-                guard let self else { return }
-                self.outputHandle?.readabilityHandler = nil
-                self.process = nil
-                self.actionButton.isEnabled = true
-                self.statusLabel.stringValue = finished.terminationStatus == 0
-                    ? "KTVibes stopped. Select Start KTVibes to run it again."
-                    : "Setup or startup failed. See the log above, then select Start KTVibes to retry."
+                if let version = payload["version"] as? String { self.currentVersion = version }
+                if let update = payload["update"] as? [String: String],
+                   let version = update["version"], let url = update["url"], let release = URL(string: url) {
+                    self.updateVersion = version
+                    self.releaseURL = release
+                } else {
+                    self.updateVersion = nil
+                    self.releaseURL = URL(string: "https://github.com/JeffShih-wiwynn/KTVibes/releases/latest")!
+                }
+                self.renderVersionItem()
+                if payload["update_check_complete"] as? Bool == true {
+                    self.updateTimer?.invalidate()
+                    self.updateTimer = nil
+                }
+            }
+        }.resume()
+    }
+
+    private func renderVersionItem() {
+        let latest = updateVersion?.replacingOccurrences(of: "^v", with: "", options: .regularExpression)
+        versionItem.title = latest.map { "Version \(currentVersion) → \($0)    ↗" } ?? "Version \(currentVersion)    ↗"
+        versionItem.image = updateVersion == nil ? nil : NSImage(systemSymbolName: "arrow.down.to.line", accessibilityDescription: "Update available")
+        versionItem.image?.isTemplate = true
+    }
+
+    @objc private func showLogs() {
+        guard !openingLogs else { return }
+        openingLogs = true
+        let shellCommand = "tail -n 200 -F '\(logsURL.path.replacingOccurrences(of: "'", with: "'\\''"))'"
+        let escaped = shellCommand.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let appleScript = """
+        tell application "Terminal"
+            activate
+            set targetTab to missing value
+            repeat with candidateWindow in windows
+                repeat with candidateTab in tabs of candidateWindow
+                    if custom title of candidateTab is "KTVibes Logs" then set targetTab to candidateTab
+                end repeat
+            end repeat
+            if targetTab is missing value then
+                set targetTab to do script "\(escaped)"
+                set custom title of targetTab to "KTVibes Logs"
+            else
+                set index of (window of targetTab) to 1
+            end if
+        end tell
+        """
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", appleScript]
+        let errorPipe = Pipe()
+        task.standardError = errorPipe
+        task.terminationHandler = { [weak self] finished in
+            let data = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            DispatchQueue.main.async {
+                self?.openingLogs = false
+                if finished.terminationStatus != 0 { self?.showLogError(String(decoding: data, as: UTF8.self)) }
             }
         }
-        do {
-            try child.run()
-            process = child
-        } catch {
-            statusLabel.stringValue = "Could not start KTVibes: \(error.localizedDescription)"
-            actionButton.isEnabled = true
-        }
+        do { try task.run() }
+        catch { openingLogs = false; showLogError(error.localizedDescription) }
     }
 
-    private func appendOutput(_ text: String) {
-        outputView.textStorage?.append(NSAttributedString(string: text))
-        outputView.scrollToEndOfDocument(nil)
-        if text.contains("KTVIBES_SERVER_READY") {
-            statusLabel.stringValue = "KTVibes is running. Your browser is opening to the local TV screen."
-            NSWorkspace.shared.open(URL(string: "http://localhost:8765")!)
-        }
+    @objc private func quit() { NSApp.terminate(nil) }
+
+    private func setStopping(_ value: Bool) {
+        stopping = value
+        statusItem.menu?.autoenablesItems = false
+        statusItem.menu?.items.forEach { $0.isEnabled = !value }
+    }
+
+    private func showLogError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Could not show KTVibes logs"
+        alert.informativeText = "Check that Terminal is available, then try again.\n\(message)"
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 
     private static var applicationSupportURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("KTVibes", isDirectory: true)
     }
+
+    private static func makeStatusImage() -> NSImage {
+        let size = NSSize(width: 21, height: 20)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        let font = NSFont.systemFont(ofSize: 15, weight: .semibold)
+        let text = NSAttributedString(string: "KT", attributes: [
+            .font: font,
+            .kern: -0.7,
+            .foregroundColor: NSColor.black
+        ])
+        let bounds = text.boundingRect(
+            with: NSSize(width: size.width, height: size.height),
+            options: [.usesLineFragmentOrigin, .usesFontLeading]
+        )
+        let origin = NSPoint(
+            x: (size.width - bounds.width) / 2 - bounds.minX,
+            y: (size.height - bounds.height) / 2 - bounds.minY
+        )
+        text.draw(at: origin)
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
+    }
 }
 
 @main
 enum KTVibesLauncher {
     static func main() {
+        runServerHelperIfRequested()
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
-        app.setActivationPolicy(.regular)
         app.run()
     }
 }

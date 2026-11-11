@@ -17,10 +17,10 @@ mkdir -p "$CONTENTS/MacOS" "$RESOURCES/project"
 swiftc -O -parse-as-library -target arm64-apple-macos13.0 \
     -module-cache-path "$OUTPUT/ModuleCache" \
     "$ROOT/installer/macos/App.swift" \
+    "$ROOT/installer/macos/ServerProcess.swift" \
     -o "$CONTENTS/MacOS/KTVibes"
 rm -rf "$OUTPUT/ModuleCache"
 install -m 755 "$ROOT/installer/macos/setup-and-run.sh" "$RESOURCES/setup-and-run.sh"
-
 rsync -a --delete \
     --exclude='.DS_Store' --exclude='__pycache__' --exclude='*.pyc' --exclude='.venv' --exclude='cache' \
     "$ROOT/ktvibes/" "$RESOURCES/project/ktvibes/"
@@ -45,6 +45,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>CFBundleVersion</key><string>$VERSION</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
 </dict>
 </plist>

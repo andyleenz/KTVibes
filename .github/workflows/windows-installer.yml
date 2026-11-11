@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - dev
     tags:
       - "v*"
 
@@ -31,11 +32,32 @@ jobs:
             if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
           }
 
+      - name: Validate Windows PowerShell 5.1 launcher syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'installer/windows/tray.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+
       - uses: astral-sh/setup-uv@v10.3.2
 
       - name: Verify Python environment upgrades
         shell: powershell
         run: '& ./installer/windows/test-python-runtime.ps1'
+
+      - name: Compile GUI launcher
+        shell: pwsh
+        working-directory: installer/windows
+        run: |
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          & $compiler /nologo /target:winexe /reference:System.Windows.Forms.dll /win32icon:KTVibes.ico /out:KTVibes.exe launcher.cs
+          if ($LASTEXITCODE -ne 0) { throw 'GUI launcher compilation failed.' }
+          $bytes = [IO.File]::ReadAllBytes((Resolve-Path 'KTVibes.exe'))
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
+          if ([BitConverter]::ToUInt16($bytes, $peOffset + 24 + 68) -ne 2) {
+            throw 'The launcher must use the Windows GUI subsystem to avoid a console window.'
+          }
 
       - name: Compile installer
         shell: pwsh

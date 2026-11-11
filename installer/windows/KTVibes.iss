@@ -37,15 +37,19 @@ Source: "..\..\LICENSE"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "bootstrap.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 Source: "python-runtime.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 Source: "KTVibes.cmd"; DestDir: "{app}"; Flags: ignoreversion
+Source: "KTVibes.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "tray.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
+Source: "show-logs.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
+Source: "stop-running.ps1"; Flags: dontcopy
 Source: "KTVibes.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "THIRD_PARTY_NOTICES.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\KTVibes"; Filename: "{app}\KTVibes.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\KTVibes.ico"
-Name: "{autodesktop}\KTVibes"; Filename: "{app}\KTVibes.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\KTVibes.ico"; Tasks: desktopicon
+Name: "{autoprograms}\KTVibes"; Filename: "{app}\KTVibes.exe"; WorkingDir: "{app}"; IconFilename: "{app}\KTVibes.ico"
+Name: "{autodesktop}\KTVibes"; Filename: "{app}\KTVibes.exe"; WorkingDir: "{app}"; IconFilename: "{app}\KTVibes.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\KTVibes.cmd"; Description: "Launch KTVibes"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\KTVibes.exe"; Description: "Launch KTVibes"; Flags: postinstall nowait skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\.venv"
@@ -58,6 +62,22 @@ Type: files; Name: "{app}\setup.log"
 var
   DeleteCacheOnUninstall: Boolean;
   ComponentProgressPage: TOutputMarqueeProgressWizardPage;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  PowerShellPath: String;
+  Parameters: String;
+begin
+  Result := '';
+  ExtractTemporaryFile('stop-running.ps1');
+  PowerShellPath := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  Parameters := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\stop-running.ps1') + '" -InstallDir "' + ExpandConstant('{app}') + '"';
+  if not Exec(PowerShellPath, Parameters, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Result := 'Could not stop the existing KTVibes process. Close KTVibes and run the installer again.'
+  else if ResultCode <> 0 then
+    Result := 'Could not stop the existing KTVibes process. Close KTVibes and run the installer again.';
+end;
 
 procedure InitializeWizard;
 begin
