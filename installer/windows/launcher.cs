@@ -16,7 +16,8 @@ internal static class Launcher
                 FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
                     @"WindowsPowerShell\v1.0\powershell.exe"),
                 Arguments = "-NoProfile -STA -ExecutionPolicy Bypass -File \"" +
-                    Path.Combine(appDir, @"installer\tray.ps1") + "\"",
+                    Path.Combine(appDir, @"installer\tray.ps1") + "\"" +
+                    (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--background" ? " -BackgroundLaunch" : ""),
                 WorkingDirectory = appDir,
                 UseShellExecute = false,
                 CreateNoWindow = true

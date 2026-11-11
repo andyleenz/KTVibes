@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
@@ -13,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var updateVersion: String?
     private var versionItem: NSMenuItem!
     private var updateTimer: Timer?
+    private var loginItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -26,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "Open Player", action: #selector(openPlayer), keyEquivalent: "")
         menu.addItem(withTitle: "Show Logs", action: #selector(showLogs), keyEquivalent: "")
+        menu.addItem(.separator())
+        loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        menu.addItem(loginItem)
+        refreshLoginItemState()
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q")
         menu.items.forEach { $0.target = self }
@@ -54,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.readyOutput += text
             if self.readyOutput.contains("KTVIBES_SERVER_READY") {
                 self.readyOutput = ""
-                if !self.stopping { self.openPlayer() }
+                // The menu bar app starts the server in the background. Users open the player explicitly.
             }
             self.readyOutput = String(self.readyOutput.suffix(64))
         }
@@ -70,6 +76,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openRelease() { NSWorkspace.shared.open(releaseURL) }
+
+    @objc private func toggleLaunchAtLogin() {
+        let service = SMAppService.mainApp
+        do {
+            if service.status == .enabled {
+                try service.unregister()
+            } else {
+                try service.register()
+            }
+        } catch {
+            SMAppService.openSystemSettingsLoginItems()
+        }
+        refreshLoginItemState()
+    }
+
+    private func refreshLoginItemState() {
+        loginItem?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+    }
 
     private func refreshReleaseInfo() {
         guard !stopping else { return }

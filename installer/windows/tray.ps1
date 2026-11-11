@@ -1,4 +1,5 @@
-﻿Add-Type -AssemblyName System.Windows.Forms
+﻿param([switch]$BackgroundLaunch)
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing -TypeDefinition @'
 using System.Drawing;
@@ -66,6 +67,11 @@ function Stop-KTVibes {
     $script:server = $null
 }
 
+$startupKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\Windows\CurrentVersion\Run')
+$launchAtLogin = $startupKey -and $startupKey.GetValue('KTVibes')
+if ($startupKey) { $startupKey.Dispose() }
+if ($BackgroundLaunch) { $env:KTVIBES_OPEN_BROWSER = '0' }
+
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $versionItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $menu.Renderer = New-Object KTVibesMenuRenderer
@@ -82,6 +88,24 @@ $logsItem.add_Click({
     $arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $viewer + '" -LogPath "' + $logPath + '"'
     Start-Process -FilePath $powershell -ArgumentList $arguments -WindowStyle Normal
 })
+[void]$menu.Items.Add('-')
+$loginItem = New-Object System.Windows.Forms.ToolStripMenuItem('Launch at Login')
+$loginItem.CheckOnClick = $true
+$loginItem.Checked = [bool]$launchAtLogin
+$loginItem.add_Click({
+    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\Microsoft\Windows\CurrentVersion\Run')
+    try {
+        if ($loginItem.Checked) {
+            $key.SetValue('KTVibes', '"' + (Join-Path $appDir 'KTVibes.exe') + '" --background', [Microsoft.Win32.RegistryValueKind]::String)
+        } else {
+            $key.DeleteValue('KTVibes', $false)
+        }
+    } catch {
+        $loginItem.Checked = -not $loginItem.Checked
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'KTVibes') | Out-Null
+    } finally { $key.Dispose() }
+})
+[void]$menu.Items.Add($loginItem)
 [void]$menu.Items.Add('-')
 $quitItem = $menu.Items.Add('Quit')
 $quitItem.add_Click({ Stop-KTVibes; $notify.Visible = $false; $context.ExitThread() })
