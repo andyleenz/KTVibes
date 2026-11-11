@@ -7,6 +7,7 @@ from .queue import State
 from .library import SongLibrary
 from .lyric_service import LyricsService
 from .updates import ReleaseUpdates, project_version
+from .identities import IdentityStore
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -19,11 +20,13 @@ class Runtime:
     library: SongLibrary = field(init=False)
     lyrics: LyricsService = field(init=False)
     updates: ReleaseUpdates = field(init=False)
+    identities: IdentityStore = field(init=False)
 
     def __post_init__(self):
         self.library = SongLibrary(self.cache)
         self.lyrics = LyricsService(self.state, self.library)
         self.updates = ReleaseUpdates(self.root)
+        self.identities = IdentityStore(self.cache / 'identities.json')
 
     def project_version(self):
         return project_version(self.root)

@@ -97,7 +97,7 @@ class State:
         if saved.get("current"):
             entries = [saved["current"], *entries]
         for entry in entries:
-            item = self.entry(entry["id"], entry["artist"], entry["title"])
+            item = self.entry(entry["id"], entry["artist"], entry["title"], entry.get("requester"))
             if entry is saved.get("current"):
                 item["resume"] = float(entry.get("position") or 0)
             self.upcoming.append(item)
@@ -106,7 +106,7 @@ class State:
     def save(self):
         if self.path is None:
             return
-        brief = lambda i: {"id": i["id"], "artist": i["artist"], "title": i["title"]}
+        brief = lambda i: {"id": i["id"], "artist": i["artist"], "title": i["title"], **({"requester": i["requester"]} if i.get("requester") else {})}
         data = {"current": self.current and {**brief(self.current), "position": self.position},
                 "upcoming": [brief(i) for i in self.upcoming if i["status"] != "error"], "played": self.played,
                 "theme": self.theme, "room_ends": self.room_ends}
@@ -184,8 +184,8 @@ class State:
                     self.guide = "jyutping" if cantonese(candidate.get("lyrics") or []) and "jyutping" in self.guides() else "latin"
 
     @staticmethod
-    def entry(video_id, artist, title):
-        return {"key": uuid.uuid4().hex, "id": video_id, "artist": artist, "title": title,
+    def entry(video_id, artist, title, requester=None):
+        return {"key": uuid.uuid4().hex, "id": video_id, "artist": artist, "title": title, "requester": requester,
                 "status": "queued", "lyrics": [], "lyrics_status": "processing", "viewer_lyrics_source": "unknown", "lyrics_error": None,
                 "duration": 0, "error": None}
 
@@ -248,16 +248,16 @@ class State:
     def queued(self, video_id):
         return any(i and i["id"] == video_id and i["status"] != "error" for i in (self.current, *self.upcoming))
 
-    async def add(self, video_id, artist, title, *, allow_duplicate=False):
+    async def add(self, video_id, artist, title, *, allow_duplicate=False, requester=None):
         if not allow_duplicate and self.queued(video_id):
             raise ValueError("That song is already in the queue")
-        item = self.entry(video_id, artist, title)
+        item = self.entry(video_id, artist, title, requester)
         self.upcoming.append(item)
         self.wake.set()
         await self.broadcast()
         return item
 
-    async def add_next(self, video_id, artist, title):
+    async def add_next(self, video_id, artist, title, requester=None):
         """Make an existing upcoming copy next, or add a new copy at the front."""
         existing = next((item for item in self.upcoming
                          if item["id"] == video_id and item["status"] != "error"), None)
@@ -270,7 +270,7 @@ class State:
             return {"item": existing, "added": False, "moved": True, "already_next": False}
         if len(self.upcoming) >= 100:
             raise ValueError("Queue is full")
-        item = self.entry(video_id, artist, title)
+        item = self.entry(video_id, artist, title, requester)
         self.upcoming.insert(0, item)
         self.wake.set()
         await self.broadcast()

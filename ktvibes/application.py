@@ -43,6 +43,8 @@ def create_app(runtime: Runtime | None = None) -> FastAPI:
         return response
 
     app.include_router(system.create_router(runtime))
+    from .routes import identities
+    app.include_router(identities.create_router(runtime))
     app.include_router(playback.create_router(runtime))
     app.include_router(catalog.create_router(runtime))
     app.include_router(lyrics.create_router(runtime.lyrics))

@@ -1,4 +1,5 @@
 import {$, el, prepLabel, thumbnail, REDUCED} from './shared.js';
+import {requesterBadge} from './requester.js';
 
 export function createRemoteQueue({getState, setState, send, toast, haptic, swipes, pickLyrics, openSongbook}) {
  const SPRING = 'cubic-bezier(.38,1.21,.22,1)';
@@ -8,7 +9,7 @@ export function createRemoteQueue({getState, setState, send, toast, haptic, swip
  const RING=2*(49+49-4*14.5)+2*Math.PI*14.5;
  const RING_SEGMENT=RING*.22,RING_GAP=RING-RING_SEGMENT;
  const statusText=item=>item.status==='ready'?'Ready':item.status==='error'?'Failed':prepLabel(item).text;
- const queueRenderShape=()=>JSON.stringify([!!getState().current,...getState().upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.error])]);
+ const queueRenderShape=()=>JSON.stringify([!!getState().current,...getState().upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.error,i.requester])]);
  // Classic shows the machine's Korean status beside it.
  const STATUS_KO={queued:'대기 중',downloading:'다운로드 중',separating:'보컬 분리 중',searching_synced_lyrics:'싱크 가사 검색 중',aligning_lyrics:'가사 싱크 조정 중',ready:'준비 완료',error:'준비 실패'};
  const statusKo=(item,index)=>index===0&&item.status==='ready'?'다음곡':STATUS_KO[item.status]||'';
@@ -82,6 +83,7 @@ export function createRemoteQueue({getState, setState, send, toast, haptic, swip
   if(justReady&&item.status==='ready')haptic(10);
   const info=el('div',undefined,'info'),line=el('p');if(item.number)line.append(el('span',String(item.number),'qnum classic-only'),' ');line.append(item.artist,...(justReady&&item.status==='ready'?[el('em','준비 완료','ready-lamp classic-only')]:[]),el('span',' · ','sep'),el('span',statusKo(item,index),'status-ko classic-only'),el('span',statusText(item),'status'));
   info.append(el('h3',item.title),line);
+  info.append(requesterBadge(item));
   if(item.status!=='ready'&&item.status!=='error'){const bar=el('div',undefined,'prepbar classic-only');bar.append(el('i'));info.append(bar);}
   if(item.error){const retry=el('button','Retry','retry');retry.onclick=()=>send({action:'retry',key:item.key});info.append(el('p',item.error,'error'),retry);}
   // Classic: 우선 moves a song to sing next, as on the machine.

@@ -27,13 +27,17 @@ def song(key, title, video_id="aaaaaaaaaaa"):
 def remote_url():
     class Handler(SimpleHTTPRequestHandler):
         def do_GET(self):
-            self.path = "/remote.html" if self.path == "/remote" else self.path.removeprefix("/static")
+            self.path = {"/remote": "/remote.html", "/tv": "/tv.html"}.get(self.path, self.path.removeprefix("/static"))
             super().do_GET()
 
         def log_message(self, *args):
             pass
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(Handler, directory=str(ROOT / "static")))
+    class AssetServer(ThreadingHTTPServer):
+        # Page navigation loads the app's JS/CSS module graph concurrently.
+        request_queue_size = 64
+
+    server = AssetServer(("127.0.0.1", 0), partial(Handler, directory=str(ROOT / "static")))
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     yield f"http://127.0.0.1:{server.server_port}/remote"
@@ -64,6 +68,8 @@ class Remote:
         self.empty_results = False
         self.selection = None
         self.update = None
+        self.identities = [dict(id='a'*32, name='Alex', avatar='avatar-01'), dict(id='b'*32, name='Bea', avatar='avatar-02')]
+        self.identity_failure = False
         self.state = dict(type="state", current=song("current", "Current Song"),
                           upcoming=[song("one", "First Song"), song("two", "Second Song", "bbbbbbbbbbb"),
                                     song("three", "Third Song", "ccccccccccc")],
@@ -114,11 +120,36 @@ class Remote:
         body = request.post_data_json if request.post_data else None
         self.requests.append((method, path, body))
         data = {}
-        if path == "/api/config":
+        if path == '/api/qr.svg':
+            route.fulfill(content_type='image/svg+xml', body='<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"/>')
+            return
+        elif path == '/api/identities' and method == 'GET':
+            data = dict(identities=self.identities, avatars=[f'avatar-{i:02}' for i in range(1, 11)])
+        elif path.startswith('/api/identities'):
+            if self.identity_failure:
+                route.fulfill(status=503, json={'detail': 'Could not save identity'})
+                return
+            if path.endswith('/order'):
+                by_id = {item['id']: item for item in self.identities}
+                self.identities = [by_id[key] for key in body['ids']]
+                data = self.identities
+            elif method == 'POST':
+                data = dict(id='c'*32, **body)
+                self.identities.append(data)
+            elif method == 'DELETE':
+                self.identities = [item for item in self.identities if item['id'] != path.split('/')[-1]]
+                route.fulfill(status=204)
+                return
+            else:
+                data = next(item for item in self.identities if item['id'] == path.split('/')[-1])
+                data.update(body)
+        elif path == "/api/config":
             data = {"remote_url": "http://127.0.0.1/remote", "version": "0.7.1", "update": self.update, "update_check_complete": True}
         elif path == "/api/recent":
             data = self.recent
         elif path in ("/api/suggest", "/api/songbook"):
+            data = []
+        elif path == '/api/ambient':
             data = []
         elif path == "/api/search":
             data = [{**self.recent[0], "channel": "Test Artist", "parsed": {"artist": "Test Artist", "title": "Recent Song"}}]

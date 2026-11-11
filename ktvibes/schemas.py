@@ -6,6 +6,7 @@ class Song(BaseModel):
     id: str = Field(pattern=r"^[A-Za-z0-9_-]{11}$")
     artist: str = Field(min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=300)
+    identity_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
 
     @field_validator("artist", "title")
     @classmethod

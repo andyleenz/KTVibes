@@ -2,6 +2,8 @@ import {createSwipeState} from './swipe-state.js';
 import {createLyricsPanel} from './remote-lyrics.js';
 import {createRemoteQueue} from './remote-queue.js';
 import {createRemoteStatus} from './remote-status.js';
+import {renderRequester} from './requester.js';
+import {identityForQueue} from './remote-identities.js';
 import {classicRemote,toastParts,emptyNote,secondsLeft} from './classic-remote.js';
 import {$,el,connect,api,clock,throttle,syncRanges,REDUCED,thumbnail} from './shared.js';
 let state,classicUi,seekDrag=null,seekPending=null;
@@ -52,6 +54,8 @@ function showNow(first){
  if(c){$('hero-title').textContent=c.title;$('hero-artist').textContent=c.artist;}$('hero-length').textContent=clock(c?.duration);
  $('hero-offset').textContent=`${Number(state.offset)>=0?'+':''}${Number(state.offset||0).toFixed(1)}s`;$('hero-offset-earlier').disabled=$('hero-offset-later').disabled=!c;
  $('dock-title').textContent=c?.title||'Nothing playing';$('dock-artist').textContent=c?.artist||'';
+ renderRequester($('hero-requester'),c);renderRequester($('dock-requester'),c,true);
+ if(c?.requester?.name)$('dock-now').setAttribute('aria-label',`Jump to currently playing song. Requested by ${c.requester.name}`);
  showPosition();
 }
 // The card unfolds when a song starts on an empty stage and folds away when the stage empties:
@@ -263,8 +267,8 @@ async function loadRecent(){
 }
 // Search in pages of 10; "More results" appends the next page.
 let search={query:'',page:0,seen:new Set()},searchRun=0;
-const enqueue=song=>api('/api/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title})});
-const enqueueNext=song=>api('/api/queue/next',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title})});
+const enqueue=async song=>api('/api/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title,identity_id:await identityForQueue()})});
+const enqueueNext=async song=>api('/api/queue/next',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title,identity_id:await identityForQueue()})});
 // Queue-copy counts include the current song and every non-failed upcoming item.
 function queueCopies(id){return [state?.current,...(state?.upcoming||[])].filter(item=>item?.id===id&&item.status!=='error').length;}
 function syncResultCard(button){

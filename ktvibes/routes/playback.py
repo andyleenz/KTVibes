@@ -16,14 +16,14 @@ def create_router(runtime):
             raise HTTPException(409, "Queue is full")
         try:
             # Search and Recent expose an explicit duplicate-confirmation step.
-            return await runtime.state.add(song.id, song.artist, song.title, allow_duplicate=True)
+            return await runtime.state.add(song.id, song.artist, song.title, allow_duplicate=True, requester=runtime.identities.snapshot(song.identity_id))
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
     @router.post('/api/queue/next')
     async def enqueue_next(song: Song):
         try:
-            return await runtime.state.add_next(song.id, song.artist, song.title)
+            return await runtime.state.add_next(song.id, song.artist, song.title, requester=runtime.identities.snapshot(song.identity_id))
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 

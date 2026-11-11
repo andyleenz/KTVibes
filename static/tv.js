@@ -1,4 +1,5 @@
 import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs} from './shared.js';
+import {renderRequester,requesterBadge} from './requester.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0,shownPair='',fitKey='';
@@ -78,13 +79,13 @@ api('/api/config').then(c=>$('remote-url').textContent=$('sticker-url').textCont
 function render(next){
  state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';for(const b of document.querySelectorAll('[data-theme-pick]'))b.setAttribute('aria-pressed',b.dataset.themePick===document.body.dataset.theme);showClassicBar(state);showSpecs(state);showBoot();roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
- $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
- if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
+ $('on-deck').replaceChildren(...queued.slice(0,1).map(i=>{const row=el('li'),line=el('span',undefined,'on-deck-song');row.dataset.key=i.key;line.textContent=i.title;row.append(line,requesterBadge(i));return row;}));
  if(!queued.length)$('on-deck').append(el('li','Nothing queued','more'));
  // The two songs after the next one peek out from under its card between songs.
- [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),`${item.title} · ${item.artist}`);peek.replaceChildren(line);}});
+ [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),`${item.title} · ${item.artist}`);peek.replaceChildren(line,requesterBadge(item));}});
  showPrep(queued);showBoard(state,queued);setAmbient(!state.current);
  $('now-card').hidden=!state.current;
+ for(const id of ['song-requester','card-requester','next-requester'])renderRequester($(id),state.current);
  // The idle screen already shows a large QR code.
  $('corner-join').hidden=$('qr-mini').hidden=!state.current;
  $('tv-bottom').hidden=!state.current;
@@ -512,6 +513,7 @@ addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',
 function showPrep(queued){
  const item=state.current?null:queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
  $('idle-prep').hidden=!item;$('idle-hero').hidden=!!item;
+ renderRequester($('prep-requester'),item);
  if(!item)return;
  const {percent,text}=prepLabel(item);  // no percent while yt-dlp is still extracting
  $('idle-prep-step').textContent=text;$('idle-prep-title').textContent=item.title;

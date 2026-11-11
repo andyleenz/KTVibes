@@ -44,6 +44,32 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['version'], self.runtime.project_version())
 
+    def test_identity_management_and_queue_requester_snapshots(self):
+        created = self.client.post('/api/identities', json={'name': 'Mina', 'avatar': 'avatar-03'})
+        self.assertEqual(created.status_code, 201)
+        identity = created.json()
+        self.assertEqual(self.client.get('/api/identities').json()['identities'], [identity])
+        song = {'id': 'aaaaaaaaaaa', 'artist': 'A', 'title': 'Song', 'identity_id': identity['id']}
+        queued = self.client.post('/api/queue', json=song)
+        self.assertEqual(queued.json()['requester'], {'id': identity['id'], 'name': 'Mina', 'avatar': 'avatar-03'})
+        self.client.patch(f"/api/identities/{identity['id']}", json={'name': 'Mina 2', 'avatar': 'avatar-04'})
+        self.client.delete(f"/api/identities/{identity['id']}")
+        self.assertEqual(self.client.get('/api/state').json()['upcoming'][0]['requester']['name'], 'Mina')
+        guest = self.client.post('/api/queue', json={**song, 'id': 'bbbbbbbbbbb', 'identity_id': None})
+        self.assertEqual(guest.json()['requester']['name'], 'Guest')
+
+    def test_identity_order_is_persistent_and_rejects_stale_lists(self):
+        from ktvibes.identities import IdentityStore
+        one = self.client.post('/api/identities', json={'name': 'One', 'avatar': 'avatar-01'}).json()
+        two = self.client.post('/api/identities', json={'name': 'Two', 'avatar': 'avatar-02'}).json()
+        ids = [two['id'], one['id']]
+        response = self.client.put('/api/identities/order', json={'ids': ids})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([x['id'] for x in IdentityStore(self.runtime.cache / 'identities.json').items], ids)
+        for invalid in ([one['id']], [one['id'], one['id']], [one['id'], 'missing']):
+            self.assertEqual(self.client.put('/api/identities/order', json={'ids': invalid}).status_code, 409)
+        self.assertEqual([x['id'] for x in self.runtime.identities.items], ids)
+
     def test_apps_keep_queue_cache_and_version_checks_independent(self):
         from fastapi.testclient import TestClient
         from ktvibes.application import create_app
