@@ -63,3 +63,12 @@ These tests verify browser behavior against a fixture contract. They do not veri
 real backend integration, model inference, audio/video synchronization, Gatekeeper,
 or touch behavior on a physical phone. WebKit and furigana screenshot tests can be
 added separately after this suite is established.
+
+## Refactoring checks
+
+API tests build a fresh application/runtime for each test. They cover independent
+queues and caches across app instances; pending lyrics lookups are checked for
+cancellation during shutdown. Browser regressions also cover the lyrics panel
+following a song transition and TV connection status after transport callbacks.
+
+Module responsibilities are documented in [Code structure](architecture.md).

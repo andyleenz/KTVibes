@@ -1,6 +1,6 @@
 import unittest
 
-from ktvibes.main import newer_release, project_version, version_key
+from ktvibes.updates import newer_release, project_version, version_key
 
 
 class UpdateCheckTests(unittest.TestCase):

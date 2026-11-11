@@ -339,6 +339,7 @@ def test_version_popover_cannot_reopen_while_disconnected(remote, page):
     remote.socket.close(code=4001, reason="test disconnect")
     expect(page.locator("#connection-label")).to_have_text("Disconnected")
     expect(page.locator("#update-popover")).to_be_hidden()
+
     if page.viewport_size["width"] <= 600:
         button.click()
     else:
@@ -347,3 +348,26 @@ def test_version_popover_cannot_reopen_while_disconnected(remote, page):
         page.keyboard.press("Tab")
         page.keyboard.press("Tab")
     expect(page.locator("#update-popover")).to_be_hidden()
+
+
+def test_lyrics_panel_follows_current_song_changes(remote, page):
+    page.locator('#hero-lyrics').click()
+    expect(page.locator('.lyric-reader')).to_contain_text('風が呼んでいる')
+    remote.state['current'] = remote.state['upcoming'].pop(0)
+    with page.expect_request('**/api/lyrics/view/one'):
+        remote.push()
+    expect(page.locator('.lyric-view-status')).to_have_text('Synced lyrics')
+    remote.state['current'] = None
+    remote.push()
+    expect(page.locator('.lyric-view-status')).to_contain_text('Open Lyrics from the current song')
+
+
+def test_tv_reports_connection_changes(remote, page, remote_url):
+    remote.state.update(current=None, upcoming=[])
+    page.route('**/api/ambient', lambda route: route.fulfill(json=[]))
+    page.route('**/api/qr.svg', lambda route: route.fulfill(content_type='image/svg+xml', body='<svg xmlns="http://www.w3.org/2000/svg"/>'))
+    page.route_web_socket('**/ws?role=tv', remote.websocket)
+    page.goto(remote_url.rsplit('/remote', 1)[0] + '/static/tv.html')
+    expect(page.locator('#connection')).to_have_text('Connected')
+    remote.socket.close(code=4001, reason='test disconnect')
+    expect(page.locator('#connection')).to_have_text('Disconnected')

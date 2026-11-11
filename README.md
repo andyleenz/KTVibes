@@ -58,6 +58,7 @@ uv run ktvibes
 ```
 
 For Python and Remote browser test commands, see [Testing](docs/testing.md).
+For module responsibilities and dependency boundaries, see [Code structure](docs/architecture.md).
 
 ## Updates
 

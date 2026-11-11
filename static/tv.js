@@ -50,7 +50,27 @@ function setAmbient(on){
 }
 ambient.onended=nextAmbient;
 ambient.onerror=()=>{if(!ambientOn)return;ambientIds=ambientIds.filter(id=>id!==ambient.dataset.id);nextAmbient();};
-const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',value:enabled});if(currentKey&&finishedKey===currentKey)send({action:'ended',key:currentKey});},event=>{if(event.type==='react')cheer(event.value);else if(event.type==='dial')dial(event.digits);else if(event.type==='reserved')reserved(event.number);});
+function showConnection(online) {
+ $('connection').textContent = online ? 'Connected' : 'Disconnected';
+ $('connection').classList.toggle('online', online);
+ $('connection').classList.toggle('lost', !online);
+}
+const send = connect('tv', {
+ onState: render,
+ onError: error,
+ onOpen() {
+  showConnection(true);
+  restoring = true;
+  send({action: 'audio', value: enabled});
+  if (currentKey && finishedKey === currentKey) send({action: 'ended', key: currentKey});
+ },
+ onEvent(event) {
+  if (event.type === 'react') cheer(event.value);
+  else if (event.type === 'dial') dial(event.digits);
+  else if (event.type === 'reserved') reserved(event.number);
+ },
+ onClose: () => showConnection(false)
+});
 function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
 function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fromEntries(SETTING_KEYS.map(k=>[k,s[k]]))));}catch{}}
 function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
