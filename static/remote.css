@@ -175,6 +175,8 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .queue-swipe-action{position:absolute;top:1px;bottom:1px;z-index:0;display:grid;place-items:center;width:96px;padding:0 8px;font-size:13px;font-weight:700;touch-action:pan-y}
 .queue-next{left:0;background:var(--lime);color:var(--on-lime)}
 .queue-remove{right:0;background:#e5484d;color:#fff}
+/* The revealed action must receive taps while the surface is still settling. */
+.queue-swipe.open:not(.dragging)>.queue-remove{z-index:2}
 .queue-swipe:has(.queue-next:focus-visible) .row{transform:translateX(96px)}
 .queue-swipe:has(.queue-remove:focus-visible) .row{transform:translateX(-96px)}
 .queue-swipe.open .row{box-shadow:4px 0 10px #0004}

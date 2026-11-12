@@ -75,7 +75,23 @@ export function createRemoteQueue({getState, setState, send, toast, haptic, swip
  function queueRow(item,index,justReady){
   const wrap=el('div',undefined,'swipe queue-swipe');wrap.dataset.key=item.key;
   const next=el('button','Next','queue-swipe-action queue-next');next.type='button';next.setAttribute('aria-label',`Move ${item.title} to play next`);next.onclick=()=>prioritizeQueueItem(item.key);
-  const remove=el('button','Remove','queue-swipe-action queue-remove');remove.type='button';remove.setAttribute('aria-label',`Remove ${item.title} from the queue`);remove.onclick=()=>removeQueueItem(item);
+  const remove=el('button','Remove','queue-swipe-action queue-remove');remove.type='button';remove.setAttribute('aria-label',`Remove ${item.title} from the queue`);
+  // Handle a touch tap on the action itself, independent of the row gesture and
+  // the browser's later compatibility click. Moving or scrolling cancels the tap.
+  let removeTouch=null,removePointerType='';
+  remove.addEventListener('pointerdown',e=>{
+   removePointerType=e.pointerType;
+   if((e.pointerType==='touch'||e.pointerType==='pen')&&e.isPrimary&&wrap.classList.contains('open'))removeTouch={id:e.pointerId,x:e.clientX,y:e.clientY};
+  });
+  remove.addEventListener('pointermove',e=>{if(removeTouch?.id===e.pointerId&&Math.hypot(e.clientX-removeTouch.x,e.clientY-removeTouch.y)>8)removeTouch=null;});
+  remove.addEventListener('pointercancel',()=>{removeTouch=null;});
+  remove.addEventListener('pointerup',e=>{
+   const tap=removeTouch;removeTouch=null;if(!tap||tap.id!==e.pointerId||!wrap.classList.contains('open'))return;
+   const bounds=remove.getBoundingClientRect();
+   if(Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>8||e.clientX<bounds.left||e.clientX>bounds.right||e.clientY<bounds.top||e.clientY>bounds.bottom)return;
+   e.preventDefault();e.stopPropagation();removeQueueItem(item);
+  });
+  remove.onclick=e=>{if(e.detail>0&&(removePointerType==='touch'||removePointerType==='pen'))return;removeQueueItem(item);};
   const row=el('article',undefined,`row ${item.status}`);
   const thumb=el('div',undefined,'thumb'),image=el('img',undefined,'art');image.src=thumbnail(item.id);image.alt='';image.draggable=false;thumb.append(image);
   // The ring shows while the song prepares, and once more as it turns ready.
@@ -120,12 +136,10 @@ export function createRemoteQueue({getState, setState, send, toast, haptic, swip
   for(const type of ['pointermove','pointerup','pointercancel'])row.addEventListener(type,cancel);
  }
  function queueSwipeHandlers(wrap,row,key){
-  let start=null,dx=0,base=0,swiping=false,startedOnRemove=false;
+  let start=null,dx=0,base=0,swiping=false;
   wrap.addEventListener('pointerdown',e=>{
-   const action=e.target.closest('.queue-remove');
-   if((e.target.closest('button')&&!action)||(e.pointerType==='mouse'&&e.button!==0))return;
+   if(e.target.closest('button')||(e.pointerType==='mouse'&&e.button!==0))return;
    start={x:e.clientX,y:e.clientY};base=wrap.classList.contains('open')?-swipes.distance:0;dx=base;swiping=false;
-   startedOnRemove=!!action&&base<0;
   });
   wrap.addEventListener('pointermove',e=>{
    if(!start||dragging)return;
@@ -134,7 +148,7 @@ export function createRemoteQueue({getState, setState, send, toast, haptic, swip
    dx=Math.max(-swipes.distance*1.25,Math.min(swipes.distance*1.25,base+mx));row.style.transform=`translateX(${dx}px)`;
   });
   const end=()=>{
-   if(!start)return;start=null;wrap.classList.remove('dragging');if(!swiping){if(base<0&&!startedOnRemove)swipes.close();finishQueueSwipe();return;}
+   if(!start)return;start=null;wrap.classList.remove('dragging');if(!swiping){if(base<0)swipes.close();finishQueueSwipe();return;}
    row.dataset.swiped='1';
    if(base<0){
     if(dx>-swipes.distance/2){wrap.classList.remove('open');row.style.transform='';if(swipes.current===wrap)swipes.current=null;}

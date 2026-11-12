@@ -144,6 +144,45 @@ def test_queue_swipe_next_and_remove(remote, page):
     assert {"action": "remove", "key": "two"} in remote.commands
 
 
+@pytest.mark.parametrize('suppress_click', [False, True])
+def test_touch_remove_receives_first_tap_during_swipe_settle(remote, page, suppress_click):
+    if not page.evaluate('navigator.maxTouchPoints'):
+        pytest.skip('Requires native touch input')
+    page.emulate_media(reduced_motion='no-preference')
+    if suppress_click:
+        page.evaluate('''()=>document.addEventListener('click',e=>{
+            if(e.target.closest('.queue-remove'))e.stopImmediatePropagation();
+        },true)''')
+    row = page.locator('#queue [data-key="two"]')
+    row.scroll_into_view_if_needed()
+    bounds = row.locator('.queue-remove').bounding_box()
+    tap = (bounds['x'] + 10, bounds['y'] + bounds['height'] / 2)
+    assert page.evaluate('([x,y])=>document.elementFromPoint(x,y).closest(".queue-remove")!==null', tap) is False
+    start = center(row.locator('h3'))
+    # Just past the reveal threshold: the surface still covers the action's left edge.
+    touch_scroll(page, start, (start[0] - 52, start[1]))
+    assert page.evaluate('([x,y])=>document.elementFromPoint(x,y).closest(".queue-remove")!==null', tap) is True
+    session = page.context.new_cdp_session(page)
+    session.send('Input.dispatchTouchEvent', {'type':'touchStart', 'touchPoints':[{'x':tap[0], 'y':tap[1]}]})
+    session.send('Input.dispatchTouchEvent', {'type':'touchEnd', 'touchPoints':[]})
+    session.detach()
+    expect(row).to_have_count(0)
+    assert remote.commands.count({'action':'remove', 'key':'two'}) == 1
+
+
+def test_touch_scrolling_on_revealed_remove_does_not_delete(remote, page):
+    if not page.evaluate('navigator.maxTouchPoints'):
+        pytest.skip('Requires native touch input')
+    row = page.locator('#queue [data-key="two"]')
+    row.scroll_into_view_if_needed()
+    start = center(row.locator('h3'))
+    touch_scroll(page, start, (start[0] - 110, start[1]))
+    start = center(row.locator('.queue-remove'))
+    touch_scroll(page, start, (start[0], start[1] - 60))
+    expect(row).to_have_count(1)
+    assert not any(command['action'] == 'remove' for command in remote.commands)
+
+
 def test_search_add_duplicate_and_insert_next(remote, page):
     page.get_by_role("combobox", name="Search songs").fill("Recent Song")
     page.locator("#search-button").click()
