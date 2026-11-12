@@ -44,6 +44,20 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['version'], self.runtime.project_version())
 
+    def test_branded_qr_embeds_icon_and_keeps_plain_variant(self):
+        import base64
+        import xml.etree.ElementTree as ET
+        for branded in (False, True):
+            response = self.client.get('/api/qr.svg', params={'branded': str(branded).lower()})
+            self.assertEqual(response.status_code, 200)
+            svg = ET.fromstring(response.content)
+            images = svg.findall('{http://www.w3.org/2000/svg}image')
+            self.assertEqual(len(images), int(branded))
+            if branded:
+                self.assertEqual(base64.b64decode(images[0].attrib['href'].split(',')[1]),
+                                 (self.runtime.root / 'static/apple-touch-icon.png').read_bytes())
+                self.assertEqual(svg[0].attrib['fill'], 'white')
+
     def test_identity_management_and_queue_requester_snapshots(self):
         created = self.client.post('/api/identities', json={'name': 'Mina', 'avatar': 'avatar-03'})
         self.assertEqual(created.status_code, 201)

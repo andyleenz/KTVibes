@@ -162,6 +162,19 @@ body:not([data-theme=classic]) #now-card:not([hidden]){display:block}.now-songli
 @media(max-width:520px){#hero-requester{max-width:100%}#song-requester{max-width:38vw;font-size:11px}#song-requester img{width:18px;height:18px}.peek{gap:6px}.peek .song-requester{max-width:35%;font-size:10px}.peek .song-requester img{width:16px;height:16px}#next-requester{font-size:12px}}
 @media(prefers-reduced-motion:reduce){#card-requester{transition:none}}
 /* The corner preview answers only what's next and who requested it. */
+.player-brand{position:relative;flex:0 0 auto}.player-brand>.brand{display:block;line-height:1.2;white-space:nowrap;opacity:1;transition:opacity .75s ease-in-out}
+body:not([data-theme=classic]).tv-has-current .player-brand>.brand{position:relative;width:max-content;left:50%;transform:translateX(-50%)}
+body:not([data-theme=classic]) .now-playing{align-items:flex-start;gap:24px}
+body:not([data-theme=classic]).tv-has-current .player-brand{flex-basis:clamp(110px,10vw,160px);width:clamp(110px,10vw,160px)}
+body:not([data-theme=classic]) #now-card{flex:1;min-width:0}
+.player-join{position:absolute;top:0;left:0;width:100%;opacity:0;transition:opacity .75s ease-in-out;pointer-events:none}.player-join img{display:block;width:100%;height:auto;aspect-ratio:1;background:#fff;padding:4px;border-radius:10px}
+.tv-has-current .player-brand>.brand,.tv-has-current .player-join{transition:opacity .75s ease-in-out}
+body.tv-has-current.player-transition .player-brand>.brand,body.tv-has-current.player-transition .player-join{opacity:0;transition-duration:.6s}
+.player-brand-visible .player-brand>.brand{opacity:1}.player-brand-visible .player-join{opacity:0}.tv-has-current:not(.player-brand-visible) .player-brand>.brand{opacity:0;pointer-events:none}.tv-has-current:not(.player-brand-visible) .player-join{opacity:1}
+body:not([data-theme=classic]) .tv-side .top-queue{width:min(30vw,420px)}
+body:not([data-theme=classic]) .tv-stack{top:0;margin-top:0}
+body:not([data-theme=classic]) .tv-side .tv-tools{position:absolute;top:0;right:calc(min(30vw,420px) + 12px)}
+body:not([data-theme=classic]) #on-deck li{margin-bottom:10px}
 body:not([data-theme=classic]) #on-deck li::before{content:none}
 body:not([data-theme=classic]) #on-deck .on-deck-song{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 body:not([data-theme=classic]) #on-deck .song-requester{justify-content:flex-end;margin:6px 0 0;font-weight:400}

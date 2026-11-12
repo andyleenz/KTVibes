@@ -201,7 +201,7 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         second['status'] = 'ready'
         await state.control({'action': 'skip'})
         self.assertIs(state.current, second)
-        self.assertAlmostEqual(state.transition_until - time.time(), 4, delta=0.5)
+        self.assertAlmostEqual(state.transition_until - time.time(), 8, delta=0.5)
         # A song that was still preparing when the last one ended starts without a pause once ready.
         await state.control({'action': 'skip'})
         third = await state.add('ccccccccccc', 'C', 'Third')
@@ -220,13 +220,13 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
             song['status'] = 'ready'
             songs.append(song)
         state.promote()
-        # A song sung to the end: the score (5 s) shows, then the 예약곡 board (4 s).
+        # A song sung to the end: the score (5 s) shows, then the 예약곡 board (8 s).
         await state.control({'action': 'ended', 'key': songs[0]['key']})
         self.assertIs(state.current, songs[1])
-        self.assertAlmostEqual(state.transition_until - time.time(), 9, delta=0.5)
+        self.assertAlmostEqual(state.transition_until - time.time(), 13, delta=0.5)
         # A skipped song gets no score, so only the board.
         await state.control({'action': 'skip'})
-        self.assertAlmostEqual(state.transition_until - time.time(), 4, delta=0.5)
+        self.assertAlmostEqual(state.transition_until - time.time(), 8, delta=0.5)
 
     async def test_seek_and_lyric_scale_are_clamped(self):
         state = State()
