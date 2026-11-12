@@ -147,21 +147,34 @@ def test_queue_swipe_next_and_remove(remote, page):
 def test_search_add_duplicate_and_insert_next(remote, page):
     page.get_by_role("combobox", name="Search songs").fill("Recent Song")
     page.locator("#search-button").click()
-    add = page.locator("#results .result")
+    result = page.locator("#results .result")
+    result.locator("strong").click()
+    assert not [r for r in remote.requests if r[0] == "POST"]
+    add = result.locator(".result-add")
     add.click()
     expect(page.locator("#queue-count")).to_have_text("4")
     add.click()  # Existing copy requires confirmation.
-    expect(add).to_have_attribute("data-confirm", "1")
+    expect(result).to_have_attribute("data-confirm", "1")
     add.click()
     expect(page.locator("#queue-count")).to_have_text("5")
     keys = queue_keys(page)
     assert len(keys) == len(set(keys)) == 5
-    page.get_by_role("button", name="Add Recent Song to play next", exact=True).click()
+    result.get_by_role("button", name="Add Recent Song to play next", exact=True).click()
     expect(page.locator("#queue .queue-swipe h3").first).to_have_text("Recent Song")
     expect(page.locator("#queue-count")).to_have_text("5")
     posts = [path for method, path, _ in remote.requests if method == "POST"]
     assert posts.count("/api/queue") == 2
     assert posts[-1] == "/api/queue/next"
+    body = next(body for method, path, body in reversed(remote.requests)
+                if method == "POST" and path == "/api/queue/next")
+    assert body["artist"] == "Test Artist"
+    assert body["title"] == "Recent Song"
+    for selector in ("#results .result", "#recent .result"):
+        row = page.locator(selector).first
+        bounds = row.bounding_box()
+        action = row.locator(".recent-next").bounding_box()
+        assert 0 <= bounds["x"] + bounds["width"] - action["x"] - action["width"] <= 12
+        assert row.locator(".result-info").bounding_box()["width"] > 100
 
 
 def test_recent_swipe_reveals_delete_without_adding_song(remote, page):
@@ -172,6 +185,17 @@ def test_recent_swipe_reveals_delete_without_adding_song(remote, page):
     expect(recent).to_have_class("swipe open")
     expect(recent.get_by_role("button", name="Delete Recent Song from this device")).to_be_in_viewport()
     assert not [r for r in remote.requests if r[0] == "POST"]
+
+
+def test_recent_song_only_queues_from_explicit_actions(remote, page):
+    result = page.locator("#recent .result").first
+    result.locator("strong").click()
+    assert not [r for r in remote.requests if r[0] == "POST"]
+    result.locator(".result-add").click()
+    expect(page.locator("#queue-count")).to_have_text("4")
+    result.get_by_role("button", name="Add Recent Song to play next").click()
+    expect(page.locator("#queue-count")).to_have_text("4")
+    assert [path for method, path, _ in remote.requests if method == "POST"] == ["/api/queue", "/api/queue/next"]
 
 
 @pytest.mark.parametrize("kind", ["Synced", "Plain"])

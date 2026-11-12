@@ -53,9 +53,8 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 /* Results and recent songs */
 .results{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}#results:not(:empty){margin-top:12px}
 .result{display:flex;align-items:center;gap:12px;width:100%;padding:8px;border:1px solid var(--line);border-radius:16px;background:var(--panel);text-align:left;transition:border-radius .3s var(--bouncy),transform .3s var(--bouncy)}
-.result:not(:disabled):active{border-radius:10px;transform:scale(.98)}
 .result img{flex:none;width:80px;height:45px;border-radius:8px;object-fit:cover;background:var(--panel2)}
-.result div{flex:1;min-width:0}.result strong{display:block;font-size:14px;line-height:1.3}.result small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.result>.result-info{flex:1;min-width:0;overflow-wrap:anywhere}.result strong{display:block;font-size:14px;line-height:1.3}.result small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 .tag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;background:#d7fc7022;color:var(--lime);font-size:10px;letter-spacing:.5px;vertical-align:1px}
 .result-icon{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:50%;color:var(--lime);transition:background .25s,color .25s}
 .result-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
@@ -185,14 +184,14 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 
 /* Recent: swipe a row left to reveal Delete; ⋯ opens more actions. */
 .swipe{position:relative}
-.swipe .result{position:relative;z-index:1;padding-right:48px;touch-action:pan-y;transition:transform .45s var(--spring-soft),border-radius .3s var(--bouncy)}
-.swipe .result:not(:disabled):active{transform:none}
+.swipe .result{position:relative;z-index:1;touch-action:pan-y;transition:transform .45s var(--spring-soft),border-radius .3s var(--bouncy)}
 .swipe.dragging .result{transition:none}
 .swipe-delete{position:absolute;top:1px;right:1px;bottom:1px;width:88px;border-radius:16px;background:#e5484d;color:#fff;font-weight:700;font-size:14px}
 .swipe:has(.swipe-delete:focus-visible) .result{transform:translateX(-96px)}
 .song-more{position:absolute;top:0;bottom:0;right:8px;z-index:2;width:36px;height:36px;margin:auto 0;border-radius:18px;color:var(--muted);font-size:20px;line-height:1;transition:opacity .2s}
 .song-more:hover{color:var(--ink);background:#ffffff14}
 .swipe.open .song-more,.swipe.dragging .song-more{opacity:0;pointer-events:none}
+.result-actions{display:flex;align-items:center;gap:2px;flex:none;margin-left:auto}.result-add,.result-actions .recent-next{position:static;display:grid;place-items:center;width:36px;height:36px;margin:0;border-radius:18px;color:var(--lime);transition:opacity .2s,background .2s,transform .2s var(--bouncy)}.result-add:active,.result-actions .recent-next:active{transform:scale(.88)}.result-add:disabled,.result-actions .recent-next:disabled{opacity:.5}.result-add .result-icon{width:34px;height:34px}
 .recent-next{position:absolute;top:0;right:8px;bottom:0;z-index:2;display:grid;place-items:center;width:36px;height:36px;margin:auto 0;border-radius:18px;color:var(--lime);transition:opacity .2s,background .2s}
 .recent-next svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .recent-next:hover{background:#d7fc7018}.recent-next:disabled{opacity:.5}

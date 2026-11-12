@@ -153,6 +153,8 @@ class Remote:
             data = []
         elif path == "/api/search":
             data = [{**self.recent[0], "channel": "Test Artist", "parsed": {"artist": "Test Artist", "title": "Recent Song"}}]
+            # Real search responses keep the enqueue artist inside parsed.
+            data[0].pop("artist", None)
         elif path in ("/api/queue", "/api/queue/next") and method == "POST":
             queue = self.state["upcoming"]
             existing = next((item for item in queue if item["id"] == body["id"]), None)
