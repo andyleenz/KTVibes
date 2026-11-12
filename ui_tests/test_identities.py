@@ -9,14 +9,18 @@ def open_picker(page):
 def test_identity_modes_autosave_and_inline_delete(remote, page):
     expect(page.locator('#identity-pop')).not_to_be_visible()
     open_picker(page)
+    expect(page.locator('.identity-add')).not_to_be_visible()
     alex = page.locator('[data-id="' + 'a'*32 + '"]')
     alex.locator('.identity-choice').click()
     expect(page.locator('#identity-form')).not_to_have_class('identity-form open')
-    expect(page.locator('#profile-button')).to_have_attribute('aria-label', 'Identity: Alex')
+    expect(page.locator('#profile-button')).to_have_attribute('aria-label', 'Identity')
+    expect(page.locator('#profile-button')).not_to_have_attribute('title', 'Identity')
     page.locator('#identity-pencil').click()
+    expect(page.locator('.identity-add')).to_be_visible()
     expect(page.locator('[data-id="guest"] .identity-remove')).to_have_count(0)
     expect(page.locator('#identity-form')).to_have_class('identity-form open')
     expect(page.locator('#identity-name')).to_have_value('Alex')
+    expect(page.locator('#identity-name')).to_have_attribute('maxlength', '12')
     page.locator('#identity-name').fill('Alex updated')
     page.locator('#identity-pencil').click()
     expect(page.locator('#identity-form')).not_to_have_class('identity-form open')
@@ -28,13 +32,37 @@ def test_identity_modes_autosave_and_inline_delete(remote, page):
     expect(page.locator('#identity-save')).to_have_count(0)
     alex.locator('.identity-remove').click()
     expect(page.locator('#identity-delete-confirm')).to_be_visible()
+    expect(page.locator('#identity-form')).not_to_have_class('identity-form open')
+    expect(page.locator('#identity-delete-label')).to_have_text('Delete Alex updated ?')
+    expect(page.locator('#identity-delete-label em')).to_have_text('Alex updated')
+    expect(page.locator('#identity-delete-yes')).to_have_text('Confirm')
+    expect(page.locator('#identity-delete-confirm button')).to_have_count(1)
+    expect(page.locator('#identity-delete-cancel')).to_have_count(0)
     page.locator('#identity-delete-yes').click()
     expect(alex).to_have_count(0)
-    expect(page.locator('#profile-button')).to_have_attribute('aria-label', 'Guest identity')
+    expect(page.locator('#profile-button')).to_have_attribute('aria-label', 'Identity')
+
+
+def test_identity_picker_opens_on_mouse_hover_and_closes_after_leaving(remote, page):
+    import pytest
+    if page.evaluate('navigator.maxTouchPoints'):
+        pytest.skip('Mouse hover behavior is desktop-only')
+    button = page.locator('#profile-button')
+    box = button.bounding_box()
+    page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+    page.wait_for_timeout(100)
+    expect(page.locator('#identity-pop')).not_to_be_visible()
+    page.wait_for_timeout(250)
+    expect(page.locator('#identity-pop')).to_be_visible()
+    page.locator('.identity-head').hover()
+    expect(page.locator('#identity-pop')).to_be_visible()
+    page.mouse.move(800, 500)
+    expect(page.locator('#identity-pop')).not_to_be_visible()
 
 
 def test_identity_creation_and_close_save_failure(remote, page):
     open_picker(page)
+    page.locator('#identity-pencil').click()
     page.locator('.identity-add').click()
     page.locator('#identity-name').fill('New singer')
     page.locator('.identity-head strong').click()

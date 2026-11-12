@@ -11,6 +11,7 @@ export function createRemoteStatus() {
   let currentVersion = '';
   let pollTimer;
   let closeTimer;
+  let hoverOpenTimer;
   let keyboardFocus = false;
 
   function renderVersion() {
@@ -80,10 +81,17 @@ export function createRemoteStatus() {
     }
   };
   wrap.addEventListener('pointerenter', event => {
-    if (event.pointerType === 'mouse' && matchMedia('(hover: hover)').matches) open();
+    if (event.pointerType === 'mouse' && matchMedia('(hover: hover)').matches) {
+      clearTimeout(closeTimer);
+      clearTimeout(hoverOpenTimer);
+      hoverOpenTimer = setTimeout(open, 300);
+    }
   });
   wrap.addEventListener('pointerleave', event => {
-    if (event.pointerType === 'mouse' && !wrap.contains(document.activeElement)) close();
+    if (event.pointerType === 'mouse') {
+      clearTimeout(hoverOpenTimer);
+      if (!wrap.contains(document.activeElement)) close();
+    }
   });
   wrap.addEventListener('focusin', () => {
     if (keyboardFocus) open();
@@ -93,7 +101,10 @@ export function createRemoteStatus() {
   });
   document.addEventListener('pointerdown', event => {
     keyboardFocus = false;
-    if (!event.target.closest('.connection-wrap')) close();
+    if (!event.target.closest('.connection-wrap')) {
+      clearTimeout(hoverOpenTimer);
+      close();
+    }
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Tab') keyboardFocus = true;
@@ -125,6 +136,7 @@ export function createRemoteStatus() {
       button.classList.remove('online', 'has-update');
       button.classList.add('lost');
       clearTimeout(closeTimer);
+      clearTimeout(hoverOpenTimer);
       popover.hidden = true;
       popover.classList.remove('open');
       popover.setAttribute('aria-hidden', 'true');

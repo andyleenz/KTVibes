@@ -289,7 +289,11 @@ def test_update_notice_opens_release_popover(remote, page):
     if page.viewport_size["width"] <= 600:
         button.click()
     else:
-        button.hover()
+        box = button.bounding_box()
+        page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        page.wait_for_timeout(100)
+        expect(page.locator("#update-popover")).to_be_hidden()
+        page.wait_for_timeout(250)
     expect(page.locator("#update-popover")).to_be_visible()
     expect(page.locator("#current-version")).to_have_text("v0.7.1")
     expect(page.locator("#version-arrow")).to_have_text("→")
@@ -310,7 +314,12 @@ def test_current_version_popover_without_update(remote, page):
     if page.viewport_size["width"] <= 600:
         page.locator("#connection").click()
     else:
-        page.locator("#connection").hover()
+        button = page.locator("#connection")
+        box = button.bounding_box()
+        page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        page.wait_for_timeout(100)
+        expect(page.locator("#update-popover")).to_be_hidden()
+        page.wait_for_timeout(250)
     expect(page.locator("#update-popover")).to_be_visible()
     expect(page.locator("#version-heading")).to_have_text("Current version")
     expect(page.locator("#current-version")).to_have_text("v0.7.1")

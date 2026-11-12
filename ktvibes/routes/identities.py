@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from ..identities import AVATARS
 
 class IdentityBody(BaseModel):
-    name: str = Field(min_length=1, max_length=32)
+    name: str = Field(min_length=1, max_length=12)
     avatar: str
 
 class IdentityOrder(BaseModel):

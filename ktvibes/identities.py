@@ -28,8 +28,8 @@ class IdentityStore:
 
     def create(self, name, avatar):
         name = name.strip()
-        if not name or len(name) > 32 or avatar not in AVATARS:
-            raise ValueError("Choose a name (1–32 characters) and a valid avatar")
+        if not name or len(name) > 12 or avatar not in AVATARS:
+            raise ValueError("Choose a name (1–12 characters) and a valid avatar")
         item = {"id": uuid.uuid4().hex, "name": name, "avatar": avatar}
         self.save([*self.items, item])
         return item
@@ -39,8 +39,8 @@ class IdentityStore:
         if not item:
             raise KeyError(identity_id)
         name = name.strip()
-        if not name or len(name) > 32 or avatar not in AVATARS:
-            raise ValueError("Choose a name (1–32 characters) and a valid avatar")
+        if not name or len(name) > 12 or avatar not in AVATARS:
+            raise ValueError("Choose a name (1–12 characters) and a valid avatar")
         updated = {**item, "name": name, "avatar": avatar}
         self.save([updated if row["id"] == identity_id else row for row in self.items])
         return updated
