@@ -1,5 +1,6 @@
 import io
 import base64
+import os
 import xml.etree.ElementTree as ET
 import qrcode
 import qrcode.image.svg
@@ -20,7 +21,7 @@ def create_router(runtime):
 
     @router.get('/api/config')
     async def config():
-        return {"remote_url": runtime.remote_url(), "version": runtime.project_version(), "update": runtime.updates.info, "update_check_complete": runtime.updates.check_complete}
+        return {"remote_url": runtime.remote_url(), "port": runtime.port, "instance_id": os.environ.get('KTVIBES_INSTANCE_ID'), "version": runtime.project_version(), "update": runtime.updates.info, "update_check_complete": runtime.updates.check_complete}
 
     @router.get('/api/qr.svg')
     async def qr(branded: bool = False):

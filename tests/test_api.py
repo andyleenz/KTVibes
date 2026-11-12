@@ -44,6 +44,16 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['version'], self.runtime.project_version())
 
+    def test_desktop_network_configuration_and_identity(self):
+        with patch.dict('os.environ', {'KTVIBES_ADVERTISE_IP': '10.1.2.3', 'KTVIBES_REMOTE_URL': '', 'KTVIBES_INSTANCE_ID': 'desktop-test'}), patch.object(self.runtime, 'port', 8890):
+            config = self.client.get('/api/config').json()
+            self.assertEqual(config['remote_url'], 'http://10.1.2.3:8890/remote')
+            self.assertEqual(config['port'], 8890)
+            self.assertEqual(config['instance_id'], 'desktop-test')
+            self.assertEqual(self.client.get('/api/qr.svg?branded=true').status_code, 200)
+        with patch.dict('os.environ', {'KTVIBES_ADVERTISE_IP': '10.1.2.3', 'KTVIBES_REMOTE_URL': 'https://example.test'}):
+            self.assertEqual(self.runtime.remote_url(), 'https://example.test/remote')
+
     def test_branded_qr_embeds_icon_and_keeps_plain_variant(self):
         import base64
         import xml.etree.ElementTree as ET

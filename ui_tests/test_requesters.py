@@ -1,4 +1,5 @@
 import time
+import re
 from playwright.sync_api import expect
 
 
@@ -86,7 +87,7 @@ def test_tv_brand_qr_and_empty_layout(remote, page, remote_url):
     page.route_web_socket('**/ws?role=tv', remote.websocket)
     page.goto(remote_url.replace('/remote', '/tv'))
     expect(page.locator('#player-join')).to_be_visible()
-    expect(page.locator('#player-join img')).to_have_attribute('src', '/api/qr.svg?branded=true')
+    expect(page.locator('#player-join img')).to_have_attribute('src', re.compile(r'^/api/qr.svg\?branded=true(?:&address=.*)?$'))
     expect(page.locator('.player-brand > .brand')).to_have_css('opacity', '0')
     expect(page.locator('#corner-join')).to_be_hidden()
     remote.state.update(current=None, upcoming=[])
@@ -95,12 +96,12 @@ def test_tv_brand_qr_and_empty_layout(remote, page, remote_url):
     expect(page.locator('#player-join')).to_be_hidden()
     expect(page.locator('.top-queue')).to_be_hidden()
     expect(page.locator('.join')).to_be_visible()
-    expect(page.locator('.join img')).to_have_attribute('src', '/api/qr.svg?branded=true')
+    expect(page.locator('.join img')).to_have_attribute('src', re.compile(r'^/api/qr.svg\?branded=true(?:&address=.*)?$'))
     expect(page.locator('#remote-url')).not_to_be_empty()
     expect(page.locator('.join small')).to_be_hidden()
     remote.state['theme'] = 'classic'
     remote.push()
-    expect(page.locator('.join img')).to_have_attribute('src', '/api/qr.svg')
+    expect(page.locator('.join img')).to_have_attribute('src', re.compile(r'^/api/qr.svg(?:\?address=.*)?$'))
     expect(page.locator('#player-join')).to_be_hidden()
 
 
@@ -129,3 +130,14 @@ def test_tv_brand_rotation_keeps_header_aligned(remote, page, remote_url):
     page.clock.run_for(6600)
     expect(brand).to_have_css('opacity', '0')
     assert card.bounding_box() == initial
+
+
+def test_tv_refreshes_qr_when_network_address_changes(remote, page, remote_url):
+    config = {'remote_url': 'http://192.168.1.10:8765/remote'}
+    page.route('**/api/config', lambda route: route.fulfill(json=config))
+    page.route_web_socket('**/ws?role=tv', remote.websocket)
+    page.goto(remote_url.replace('/remote', '/tv'))
+    expect(page.locator('#remote-url')).to_have_text(config['remote_url'])
+    config['remote_url'] = 'http://192.168.2.10:8765/remote'
+    expect(page.locator('#remote-url')).to_have_text(config['remote_url'], timeout=8000)
+    expect(page.locator('#player-join img')).to_have_attribute('src', re.compile('address=http%3A%2F%2F192.168.2.10'))

@@ -40,6 +40,14 @@ Download `KTVibes-<version>-AppleSilicon.dmg` from the [latest KTVibes release](
 
 The app is installed in Applications; its private runtime, songs, lyrics, queue and models stay in `~/Library/Application Support/KTVibes`. Replacing the app during an update preserves that folder. Removing KTVibes from Applications leaves it in place; remove it separately if you want to delete the cache.
 
+### Desktop network settings
+
+On macOS and Windows, choose **Network Settings…** from the menu bar or system tray. The window shows the current Remote address and a copy icon. Expand **Advanced settings** to select an active IPv4 network adapter or change the port. Automatic network selection and port `8765` are the defaults; Reset restores them.
+
+Apply restarts the server. On macOS, it opens the player at the new address; on Windows, the settings window closes after the server restarts and the settings are saved. Playback is interrupted and the saved queue is restored; phones may need to scan the new QR code. If the preferred port is unavailable, KTVibes tries the next four ports, followed by five ports starting 10000 above the preferred port, within the valid port range. If all candidates fail, the desktop menu shows Port conflict and links to Network Settings. A failed restart restores the previous configuration. When the automatically detected IP changes, the TV address and QR refresh within about five seconds.
+
+Settings are stored in `~/Library/Application Support/KTVibes/network.json` on macOS and `%LOCALAPPDATA%\KTVibes\network.json` on Windows. Saved desktop settings take precedence over `KTVIBES_PORT` and `KTVIBES_ADVERTISE_IP`; source launches continue to use environment variables. `KTVIBES_REMOTE_URL` remains available for source/self-hosted deployments with a custom external URL. Selecting an IP changes the advertised Remote address; the server continues listening on all IPv4 interfaces.
+
 ### Linux
 
 The installer requires Git, FFmpeg and Node.js 22 or later. It installs uv, clones this fork's `dev` branch into `~/KTVibes`, installs Python dependencies and adds a `ktvibes` command:

@@ -46,6 +46,8 @@ class Runtime:
             url = os.environ["KTVIBES_REMOTE_URL"].rstrip("/")
             return url if url.endswith("/remote") else url + "/remote"
         try:
+            if host := os.environ.get('KTVIBES_ADVERTISE_IP'):
+                return f"http://{host}:{self.port}/remote"
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
                 sock.connect(("8.8.8.8", 80))
                 host = sock.getsockname()[0]

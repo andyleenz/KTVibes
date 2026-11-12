@@ -106,7 +106,8 @@ trap 'kill "$server_pid" 2>/dev/null || true' EXIT INT TERM
 
 server_ready=0
 for _ in $(seq 1 120); do
-    if curl --silent --fail http://127.0.0.1:8765/api/state >/dev/null; then
+    active_port="$(cat "${KTVIBES_PORT_FILE:-/dev/null}" 2>/dev/null || true)"
+    if [[ "$active_port" =~ ^[0-9]+$ ]] && curl --silent --fail "http://127.0.0.1:${active_port}/api/state" >/dev/null; then
         log "KTVIBES_SERVER_READY"
         server_ready=1
         break

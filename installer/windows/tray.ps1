@@ -34,13 +34,20 @@ $cmdPath = Join-Path $appDir 'KTVibes.cmd'
 $iconPath = Join-Path $appDir 'KTVibes.ico'
 $logDir = Join-Path $appDir 'logs'
 $logPath = Join-Path $logDir 'ktvibes.log'
+$script:activePortFile = Join-Path $logDir 'active-port'
+$script:conflictFile = Join-Path $logDir 'port-conflict'
 $null = New-Item -ItemType Directory -Force -Path $logDir
 $server = $null
 $currentVersion = [regex]::Match((Get-Content (Join-Path $appDir 'pyproject.toml') -Raw), '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
 $releaseUrl = 'https://github.com/JeffShih-wiwynn/KTVibes/releases/latest'
 $updateVersion = $null
+. (Join-Path $PSScriptRoot 'network-settings.ps1')
 
 function Start-KTVibes {
+    Remove-Item -LiteralPath $script:activePortFile -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $script:conflictFile -ErrorAction SilentlyContinue
+    $script:activePort = $script:networkPort
+    $script:portConflict = $false
     foreach ($oldLog in @((Join-Path $logDir 'ktvibes.log.1'), (Join-Path $logDir 'ktvibes.log.2'))) {
         if ((Test-Path $oldLog) -and (Get-Item $oldLog).Length -gt 5MB) { Remove-Item -LiteralPath $oldLog -Force }
     }
@@ -57,12 +64,28 @@ function Start-KTVibes {
     $start.WorkingDirectory = $appDir
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
+    $start.EnvironmentVariables['KTVIBES_PORT'] = [string]$script:networkPort
+    $start.EnvironmentVariables['KTVIBES_AUTO_PORT'] = '1'
+    $start.EnvironmentVariables['KTVIBES_PORT_FILE'] = $script:activePortFile
+    $start.EnvironmentVariables['KTVIBES_CONFLICT_FILE'] = $script:conflictFile
+    $start.EnvironmentVariables['KTVIBES_ADVERTISE_IP'] = $script:networkIP
+    $start.EnvironmentVariables.Remove('KTVIBES_REMOTE_URL')
+    $script:networkInstance = [Guid]::NewGuid().ToString('N')
+    $start.EnvironmentVariables['KTVIBES_INSTANCE_ID'] = $script:networkInstance
+    if ($script:networkBusy) { $start.EnvironmentVariables['KTVIBES_OPEN_BROWSER'] = '0' }
     $script:server = [System.Diagnostics.Process]::Start($start)
 }
 
 function Stop-KTVibes {
     if ($script:server -and -not $script:server.HasExited) {
-        & taskkill.exe /PID $script:server.Id /T /F 2>$null | Out-Null
+        $stop = New-Object System.Diagnostics.ProcessStartInfo
+        $stop.FileName = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+        $stop.Arguments = '/PID ' + $script:server.Id + ' /T /F'
+        $stop.UseShellExecute = $false
+        $stop.CreateNoWindow = $true
+        $process = [System.Diagnostics.Process]::Start($stop)
+        $process.WaitForExit()
+        $process.Dispose()
     }
     $script:server = $null
 }
@@ -76,11 +99,11 @@ $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $versionItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $menu.Renderer = New-Object KTVibesMenuRenderer
 $versionItem.Name = 'KTVibesVersionItem'
-$versionItem.add_Click({ Start-Process $script:releaseUrl })
+$versionItem.add_Click({ if ($script:portConflict) { Show-NetworkSettings -Conflict } else { Start-Process $script:releaseUrl } })
 [void]$menu.Items.Add($versionItem)
 [void]$menu.Items.Add('-')
 $openItem = $menu.Items.Add('Open Player')
-$openItem.add_Click({ Start-Process 'http://localhost:8765' })
+$openItem.add_Click({ Start-Process ('http://localhost:' + $script:activePort) })
 $logsItem = $menu.Items.Add('Show Logs')
 $logsItem.add_Click({
     $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -88,6 +111,8 @@ $logsItem.add_Click({
     $arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $viewer + '" -LogPath "' + $logPath + '"'
     Start-Process -FilePath $powershell -ArgumentList $arguments -WindowStyle Normal
 })
+$networkItem = $menu.Items.Add('Network Settings…')
+$networkItem.add_Click({ Show-NetworkSettings })
 [void]$menu.Items.Add('-')
 $loginItem = New-Object System.Windows.Forms.ToolStripMenuItem('Launch at Login')
 $loginItem.CheckOnClick = $true
@@ -117,8 +142,17 @@ $versionItem.ToolTipText = 'Open the latest KTVibes release on GitHub'
 $updateTimer = New-Object System.Windows.Forms.Timer
 $updateTimer.Interval = 10000
 $updateTimer.add_Tick({
+    if (Test-Path $script:activePortFile) {
+        $candidate = Get-Content -LiteralPath $script:activePortFile -Raw -ErrorAction SilentlyContinue
+        if ($candidate -match '^\s*\d+\s*$') { $script:activePort = [int]$candidate }
+    }
+    if ($script:server -and $script:server.HasExited -and -not (Test-Path $script:activePortFile)) {
+        $script:portConflict = Test-Path $script:conflictFile
+        if ($script:portConflict) { $versionItem.Text = 'Port conflict'; return }
+    }
     try {
-        $config = Invoke-RestMethod -Uri 'http://127.0.0.1:8765/api/config' -TimeoutSec 2
+        $config = Invoke-RestMethod -Uri ('http://127.0.0.1:' + $script:activePort + '/api/config') -TimeoutSec 2
+        if ($config.instance_id -ne $script:networkInstance) { return }
         if ($config.version) { $script:currentVersion = [string]$config.version }
         if ($config.update -and $config.update.version -and $config.update.url) {
             $script:updateVersion = ([string]$config.update.version).TrimStart('v')
@@ -140,7 +174,7 @@ $notify.Text = 'KTVibes'
 $notify.Icon = New-Object System.Drawing.Icon($iconPath)
 $notify.ContextMenuStrip = $menu
 $notify.Visible = $true
-$notify.add_DoubleClick({ Start-Process 'http://localhost:8765' })
+$notify.add_DoubleClick({ Start-Process ('http://localhost:' + $script:activePort) })
 try {
     Start-KTVibes
     $updateTimer.Start()

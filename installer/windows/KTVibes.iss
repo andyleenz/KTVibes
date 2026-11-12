@@ -39,6 +39,7 @@ Source: "python-runtime.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 Source: "KTVibes.cmd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "KTVibes.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "tray.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
+Source: "network-settings.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 Source: "show-logs.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 Source: "stop-running.ps1"; Flags: dontcopy
 Source: "KTVibes.ico"; DestDir: "{app}"; Flags: ignoreversion
@@ -50,6 +51,12 @@ Name: "{autodesktop}\KTVibes"; Filename: "{app}\KTVibes.exe"; WorkingDir: "{app}
 
 [Run]
 Filename: "{app}\KTVibes.exe"; Description: "Launch KTVibes"; Flags: postinstall nowait skipifsilent
+
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\network-ui"
+Type: filesandordirs; Name: "{app}\tools\dotnet"
+Type: files; Name: "{app}\installer\network-ui-bridge.ps1"
+Type: filesandordirs; Name: "{localappdata}\KTVibes\ipc"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\.venv"

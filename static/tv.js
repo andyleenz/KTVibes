@@ -95,13 +95,25 @@ const send = connect('tv', {
 function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
 function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fromEntries(SETTING_KEYS.map(k=>[k,s[k]]))));}catch{}}
 function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
-api('/api/config').then(c=>$('remote-url').textContent=$('sticker-url').textContent=c.remote_url).catch(e=>error(e.message));
+let remoteAddress='';
+async function refreshRemoteAddress(){
+ try{
+  const c=await api('/api/config');
+  if(c.remote_url===remoteAddress)return;
+  remoteAddress=c.remote_url;
+  $('remote-url').textContent=$('sticker-url').textContent=remoteAddress;
+  for(const img of document.querySelectorAll('img[src^="/api/qr.svg"]')){
+   const url=new URL(img.src);url.searchParams.set('address',remoteAddress);img.src=url.pathname+url.search;
+  }
+ }catch{}
+}
+refreshRemoteAddress();setInterval(refreshRemoteAddress,5000);
 function render(next){
  state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';for(const b of document.querySelectorAll('[data-theme-pick]'))b.setAttribute('aria-pressed',b.dataset.themePick===document.body.dataset.theme);showClassicBar(state);showSpecs(state);showBoot();roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  const classic=state.theme==='classic';
  const idleQR=document.querySelector('.join img'),qrSource=classic?'/api/qr.svg':'/api/qr.svg?branded=true';
- if(idleQR.getAttribute('src')!==qrSource)idleQR.setAttribute('src',qrSource);
+ if(new URL(idleQR.src).searchParams.has('branded')===classic)idleQR.setAttribute('src',qrSource+(remoteAddress?(classic?'?':'&')+'address='+encodeURIComponent(remoteAddress):''));
  document.body.classList.toggle('tv-has-current',!!state.current);
  $('player-join').hidden=classic||!state.current;
  rotateBrand(!classic&&!!state.current);

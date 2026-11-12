@@ -30,6 +30,32 @@ def run():
     if sys.argv[1:] == ["update"]:
         return update()
     import uvicorn
+    import socket
+    from pathlib import Path
+    preferred = app.state.runtime.port
+    candidates = list(range(preferred, min(preferred + 5, 65536)))
+    candidates += list(range(preferred + 10000, min(preferred + 10005, 65536)))
+    listener = None
+    if os.environ.get('KTVIBES_AUTO_PORT') == '1':
+        for candidate in candidates:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                sock.bind(('0.0.0.0', candidate))
+                sock.listen(2048)
+            except OSError:
+                sock.close()
+                continue
+            listener = sock
+            app.state.runtime.port = candidate
+            break
+        if listener is None:
+            print('KTVIBES_PORT_CONFLICT', flush=True)
+            if conflict_file := os.environ.get('KTVIBES_CONFLICT_FILE'):
+                Path(conflict_file).write_text(str(preferred), encoding='ascii')
+            return
+        print(f'KTVIBES_ACTIVE_PORT={app.state.runtime.port}', flush=True)
+        if port_file := os.environ.get('KTVIBES_PORT_FILE'):
+            Path(port_file).write_text(str(app.state.runtime.port), encoding='ascii')
     if os.environ.get("KTVIBES_OPEN_BROWSER") == "1":
         import threading
         import webbrowser
@@ -38,4 +64,11 @@ def run():
         # Common right after installing: the terminal predates the install and has a stale PATH.
         print(f"WARNING: {', '.join(missing)} not found on PATH. Songs can't be prepared until it is installed.\n"
               "If you just installed it, open a new terminal and run ktvibes again.", flush=True)
-    uvicorn.run(app, host="0.0.0.0", port=app.state.runtime.port)
+    if listener is None:
+        uvicorn.run(app, host="0.0.0.0", port=app.state.runtime.port)
+    else:
+        server = uvicorn.Server(uvicorn.Config(app, host='0.0.0.0', port=app.state.runtime.port))
+        try:
+            server.run(sockets=[listener])
+        finally:
+            listener.close()

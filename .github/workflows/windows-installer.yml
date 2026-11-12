@@ -37,8 +37,10 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'installer/windows/tray.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
-          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          foreach ($script in @('tray.ps1', 'network-settings.ps1')) {
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "installer/windows/$script"), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          }
 
       - uses: astral-sh/setup-uv@v10.3.2
 
