@@ -160,7 +160,7 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 /* Default theme: frosted glass cards over the stage, sentence-case labels, one Queue card top right, one floating control bar.
    Scoped away from Classic, which shares this markup. :where keeps the glass easy to override per card. */
 .tv{--glass:linear-gradient(160deg,#ffffff1f,#ffffff08 40%,#0000001a),#1a1f1c59;--glass-line:#ffffff26;--glass-shadow:inset 0 1px 0 #ffffff2e,0 18px 50px #0006;--mut:#ffffffa6;--bar-in:max(var(--edge),calc(50% - 590px))}
-.tv:not([data-theme=classic]) :where(.top-queue,#idle .join,.next-card,.peek,.osd,.tv-bottom,.connection:not(.online),#no-lyrics){background:var(--glass);-webkit-backdrop-filter:blur(28px) saturate(1.6);backdrop-filter:blur(28px) saturate(1.6);border:1px solid var(--glass-line);border-radius:22px;box-shadow:var(--glass-shadow)}
+.tv:not([data-theme=classic]) :where(.top-queue,#idle .join,.next-card,.peek,.osd,.tv-bottom,#reconnecting,#no-lyrics){background:var(--glass);-webkit-backdrop-filter:blur(28px) saturate(1.6);backdrop-filter:blur(28px) saturate(1.6);border:1px solid var(--glass-line);border-radius:22px;box-shadow:var(--glass-shadow)}
 .tv:not([data-theme=classic]) :is(#peek-1,#peek-2){background:var(--glass)}  /* beat the ids' solid fills */
 /* Labels: sentence case, muted, directly above what they label. */
 .tv:not([data-theme=classic]) .eyebrow{font-size:17px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--mut);margin-bottom:8px}
@@ -187,8 +187,10 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]) #on-deck li.more{display:block;font-size:15px;color:var(--mut)}
 .tv:not([data-theme=classic]) .corner-join{flex-direction:row;align-items:center;gap:14px;margin-top:16px;padding-top:16px;border-top:1px solid var(--glass-line);color:var(--ink);text-shadow:none;line-height:1.3}
 .tv:not([data-theme=classic]) .corner-join img{width:clamp(68px,5vw,96px);padding:5px;border-radius:10px}
-.tv:not([data-theme=classic]) .corner-join b{display:block;font-size:17px}.tv:not([data-theme=classic]) .corner-join small{font-size:14px;color:var(--mut)}
-/* Empty stage: the join card. */
+.tv:not([data-theme=classic]) .corner-join b{display:block;font-size:17px}.tv:not([data-theme=classic]) .corner-join small{font-size:15px;color:var(--mut)}
+/* Empty stage: the join card. While a song is being prepared, the Queue card's QR row takes over joining. */
+.tv:not([data-theme=classic]) #idle:has(#idle-prep:not([hidden])) .join{display:none}
+.tv:not([data-theme=classic]) .top-queue.join-only :is(.eyebrow,#on-deck){display:none}.tv:not([data-theme=classic]) .top-queue.join-only .corner-join{margin:0;padding:0;border:0}  /* nothing else queued: just the QR row */
 .tv:not([data-theme=classic]) #idle .join{display:inline-flex;gap:26px;padding:20px 30px 20px 20px}
 .tv:not([data-theme=classic]) .join img{width:min(200px,24vh);padding:9px;border-radius:14px}
 .tv:not([data-theme=classic]) .join strong{font-size:28px}.tv:not([data-theme=classic]) .join p{margin:8px 0 0;font-size:21px}.tv:not([data-theme=classic]) .join small{display:block;margin-top:8px;font-size:17px;color:var(--mut)}
@@ -221,12 +223,12 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]) .osd-text small{font-size:16px;letter-spacing:0;text-transform:none;color:var(--mut)}
 .tv:not([data-theme=classic]) .osd-text span{font-size:24px}
 /* Problems: one small glass toast, bottom left. It rises above the control bar while that shows.
-   shared.js writes the connection's state word (hidden at font-size 0, so no flex gap: it is a zero-width item); the toast says it plainly instead. */
-.tv:not([data-theme=classic]).still .tv-tools{opacity:1}  /* it only holds the connection toast */
-.tv:not([data-theme=classic]) :is(.connection:not(.online),#no-lyrics){position:fixed;left:var(--edge);bottom:36px;z-index:6;display:flex;align-items:center;margin:0;padding:10px 20px 10px 12px;border-radius:999px;background:var(--glass);color:var(--ink);font-size:0;line-height:1.3;transition:bottom .4s}
-.tv:not([data-theme=classic]) :is(.connection:not(.online),#no-lyrics)::before{content:'↻';display:grid;place-items:center;width:34px;height:34px;margin:0 12px 0 0;border-radius:50%;background:#ffd29e;color:#111313;font:700 20px/1 'DM Sans',sans-serif}
-.tv:not([data-theme=classic]) .connection:not(.online)::after{content:'Reconnecting to the server…';font-size:18px}
-.tv:not([data-theme=classic]) #no-lyrics{font-size:18px}.tv:not([data-theme=classic]) #no-lyrics::before{content:'♪';background:var(--lime)}
-.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])):not(.still) :is(.connection:not(.online),#no-lyrics){bottom:112px}
+   shared.js writes a bare state word into .connection (the remote shares it); the TV shows its own sentence instead, while that says it's offline. */
+#reconnecting{display:none}.tv:not([data-theme=classic]) .connection{display:none}
+.tv:not([data-theme=classic]):has(.connection:not(.online)) #reconnecting{display:flex}
+.tv:not([data-theme=classic]) :is(#reconnecting,#no-lyrics){position:fixed;left:var(--edge);bottom:36px;z-index:6;align-items:center;margin:0;padding:10px 20px 10px 12px;border-radius:999px;background:var(--glass);color:var(--ink);font-size:18px;line-height:1.3;transition:bottom .4s}
+.tv:not([data-theme=classic]) :is(#reconnecting,#no-lyrics)::before{content:'↻';display:grid;place-items:center;width:34px;height:34px;margin:0 12px 0 0;border-radius:50%;background:#ffd29e;color:#111313;font:700 20px/1 'DM Sans',sans-serif}
+.tv:not([data-theme=classic]) #no-lyrics{display:flex}.tv:not([data-theme=classic]) #no-lyrics::before{content:'♪';background:var(--lime)}
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])):not(.still) :is(#reconnecting,#no-lyrics){bottom:112px}
 .tv:not([data-theme=classic]):has(.connection:not(.online)) #no-lyrics{bottom:100px}
 .tv:not([data-theme=classic]):has(.connection:not(.online)):has(#tv-bottom:not([hidden])):not(.still) #no-lyrics{bottom:176px}
