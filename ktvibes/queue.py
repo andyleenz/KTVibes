@@ -2,12 +2,17 @@
 import asyncio
 import json
 import math
+import os
 from pathlib import Path
 import re
 import time
 import uuid
 from . import songbook
 from .lyrics import GUIDE_SLOTS, cantonese
+
+def classic_enabled():
+    """The Classic theme is parked behind KTVIBES_CLASSIC=1 while Default is the product."""
+    return os.environ.get("KTVIBES_CLASSIC") == "1"
 
 DISPLAY = {"video_mode": ("show", "blur", "hide"), "lyric_mode": ("two", "scroll", "off"), "theme": ("default", "classic")}
 def following(options, current):
@@ -92,7 +97,7 @@ class State:
             saved = {}
         # Before play history existed, fall back to whatever seed() knows (e.g. cache timestamps).
         self.played = saved["played"] if isinstance(saved.get("played"), dict) else seed()
-        self.theme = saved.get("theme") if saved.get("theme") in DISPLAY["theme"] else "default"
+        self.theme = saved.get("theme") if saved.get("theme") in DISPLAY["theme"] and (saved.get("theme") != "classic" or classic_enabled()) else "default"
         self.room_ends = float(saved["room_ends"]) if self.theme == "classic" and isinstance(saved.get("room_ends"), (int, float)) else None
         entries = saved.get("upcoming", [])
         if saved.get("current"):
@@ -303,6 +308,8 @@ class State:
                 value = following(options, getattr(self, action))
             if value not in options:
                 raise ValueError(f"Unknown {action.replace('_', ' ')}")
+            if action == "theme" and value == "classic" and not classic_enabled():
+                raise ValueError("Classic is turned off")
             if action == "lyric_mode" and self.theme == "classic":
                 value = "two"  # Classic always shows two lines (a TV restoring its own setting must not fail)
             setattr(self, action, value)

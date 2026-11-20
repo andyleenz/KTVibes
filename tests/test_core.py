@@ -112,6 +112,7 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         state.promote()
         self.assertLessEqual(state.transition_until, time.time())
 
+    @unittest.mock.patch.dict(os.environ, {'KTVIBES_CLASSIC': '1'})
     async def test_classic_breather_leaves_room_for_the_score(self):
         import time
         state = State()
@@ -311,6 +312,7 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
             await state.control({'action': 'offset', 'delta': .5})
             self.assertEqual(json.loads(meta.read_text(encoding='utf-8')), {'title': '晴天', 'lyric_offset': 1.5})
 
+    @unittest.mock.patch.dict(os.environ, {'KTVIBES_CLASSIC': '1'})
     async def test_classic_room_timer_holds_the_next_song_until_time_is_added(self):
         state = State()
         clock = unittest.mock.patch('ktvibes.queue.time.time')
@@ -345,6 +347,31 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await state.control({'action': 'theme', 'value': 'classic'})
         self.assertEqual(state.room_ends, 1000.0 + 61 * 60)  # a fresh 30 minutes
 
+    async def test_classic_theme_refused_without_flag(self):
+        state = State()
+        with unittest.mock.patch.dict(os.environ):
+            os.environ.pop('KTVIBES_CLASSIC', None)
+            with self.assertRaises(ValueError):
+                await state.control({'action': 'theme', 'value': 'classic'})
+        self.assertEqual(state.theme, 'default')
+
+    async def test_classic_theme_allowed_with_flag(self):
+        state = State()
+        with unittest.mock.patch.dict(os.environ, {'KTVIBES_CLASSIC': '1'}):
+            await state.control({'action': 'theme', 'value': 'classic'})
+        self.assertEqual(state.theme, 'classic')
+
+    async def test_saved_classic_loads_default_without_flag(self):
+        with tempfile.TemporaryDirectory() as temp, unittest.mock.patch.dict(os.environ):
+            os.environ.pop('KTVIBES_CLASSIC', None)
+            path = Path(temp) / 'queue.json'
+            path.write_text(json.dumps({'theme': 'classic', 'room_ends': 9e9}), encoding='utf-8')
+            state = State()
+            state.restore(path)
+            self.assertEqual(state.theme, 'default')
+            self.assertIsNone(state.room_ends)
+
+    @unittest.mock.patch.dict(os.environ, {'KTVIBES_CLASSIC': '1'})
     async def test_theme_and_room_time_survive_restart(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / 'queue.json'

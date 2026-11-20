@@ -31,6 +31,14 @@ class APITests(unittest.TestCase):
             item.stop()
         self.temp.cleanup()
 
+    def test_config_reports_classic(self):
+        import os
+        with patch.dict(os.environ):
+            os.environ.pop('KTVIBES_CLASSIC', None)
+            self.assertIs(self.client.get('/api/config').json()['classic'], False)
+            os.environ['KTVIBES_CLASSIC'] = '1'
+            self.assertIs(self.client.get('/api/config').json()['classic'], True)
+
     def test_update_pulls_only_a_clean_checkout(self):
         import subprocess
         root = Path(self.temp.name)
