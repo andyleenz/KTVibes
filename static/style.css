@@ -194,10 +194,15 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]) #idle .join{display:inline-flex;gap:26px;padding:20px 30px 20px 20px}
 .tv:not([data-theme=classic]) .join img{width:min(200px,24vh);padding:9px;border-radius:14px}
 .tv:not([data-theme=classic]) .join strong{font-size:28px}.tv:not([data-theme=classic]) .join p{margin:8px 0 0;font-size:21px}.tv:not([data-theme=classic]) .join small{display:block;margin-top:8px;font-size:17px;color:var(--mut)}
+/* Ambient videos play behind the empty stage, some with bright burned-in lyric panels: a soft dark pool
+   (blurred, darkened) behind the headline keeps it legible over any frame, with no edge of its own. */
+.tv:not([data-theme=classic]) :is(#idle-hero,#idle-prep){position:relative;isolation:isolate}
+.tv:not([data-theme=classic]) :is(#idle-hero,#idle-prep)::before{content:'';position:absolute;inset:-14vh -18vw;z-index:-1;pointer-events:none;background:radial-gradient(closest-side,#000000c8,#0000009c 45%,#00000040 75%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);-webkit-mask-image:radial-gradient(closest-side,#000 50%,transparent);mask-image:radial-gradient(closest-side,#000 50%,transparent)}  /* the blur softens burned-in text behind; the mask fades it out */
+.tv:not([data-theme=classic]) :is(#idle-hero h1,#idle-prep h1,#idle-prep .eyebrow){text-shadow:0 2px 12px #000c}
 /* Preparing on an empty stage: title, then the bar, then "Preparing 42%" under it. */
 .tv:not([data-theme=classic]) .idle-prep{display:flex;flex-direction:column;align-items:center}
 .tv:not([data-theme=classic]) .idle-prep .prep-track{order:1;width:min(560px,calc(100vw - 2*(var(--queue-w) + var(--edge) + 24px)))}  /* clear of the Queue card in small windows */
-.tv:not([data-theme=classic]) .idle-prep .eyebrow{order:2;margin:16px 0 0;font-size:19px;color:var(--mut);text-transform:none}
+.tv:not([data-theme=classic]) .idle-prep .eyebrow{order:2;margin:16px 0 0;font-size:19px;color:#ffffffcc;text-transform:none}
 /* Between songs: the glass card squares off to the recipe's radius. */
 .tv:not([data-theme=classic]) :is(.next-card,.peek){border-radius:22px}
 /* While singing: one floating glass pill, play and skip, the time, then guide and mix, then fullscreen and the remote.
