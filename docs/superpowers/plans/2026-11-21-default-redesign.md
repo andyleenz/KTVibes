@@ -30,7 +30,7 @@
 - **Search placeholder:** "Song or artist", English only.
 - **No ALL CAPS labels or eyebrows** in Default. Use sentence case at 15px or more on the TV.
 - **TV overlays stay subtle.** No remote controls duplicated on the TV beyond the existing floating bar.
-- **Classic stays loadable** when `KTVIBES_CLASSIC=1`. It is not restyled.
+- **Classic stays selectable in Settings.** It is not restyled, but nothing in it may look broken.
 - **Before each commit, run `uv run python -m pytest -q`.** Every test must pass.
 - **Commits end with:** `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
 
@@ -157,7 +157,7 @@
 - **Settings sheet:**
   - The subtitle is "Changes show on the TV".
   - Sound and Screen tabs (`.tabs2` in the spike). Sound holds Mix, the presets and Key and speed, with a Reset link. Screen holds Display and Fix lyrics.
-  - The theme section only shows when the flag is on (Task 1).
+  - The theme section stays (Classic is selectable). Put it in the Screen tab.
 - **All copy in sentence case.** No uppercase eyebrows such as "NOW SINGING".
 
 - [ ] **Step 1:** update the markup and CSS.
@@ -259,7 +259,7 @@
 
 ### Task 8: Classic check and branch review
 
-- [ ] **Step 1:** start with `KTVIBES_CLASSIC=1`, switch to Classic on the remote, and check that the TV and remote load, a song plays, and the keypad queues by number. Fix only breakages, not looks.
+- [ ] **Step 1:** switch to Classic on the remote, and check that the TV and remote load, a song plays, and the keypad queues by number. Fix breakages and anything that looks broken; no restyle.
 - [ ] **Step 2:** run `uv run python -m pytest -q`, which must all pass.
 - [ ] **Step 3:** run a whole-branch code review, and fix the findings.
 - [ ] **Step 4:** commit the fixes.

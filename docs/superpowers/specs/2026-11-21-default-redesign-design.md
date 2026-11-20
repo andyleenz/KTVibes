@@ -27,7 +27,7 @@ The Default theme should look like one finished product: frosted-glass cards, se
 
 ## Decisions (the user's)
 
-- **Classic:** hidden behind a flag, not deleted.
+- **Classic:** stays selectable in the remote's Settings (the user changed their mind on the hidden flag, 2026-11-21). Not restyled, but it must not look broken.
 - **Names:**
   - "Ready to sing" for prepared songs.
   - "Queue" on both the remote and the TV, never "Up next".
