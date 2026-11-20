@@ -56,7 +56,7 @@ function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fro
 function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
 api('/api/config').then(c=>$('remote-url').textContent=$('sticker-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';for(const b of document.querySelectorAll('[data-theme-pick]'))b.setAttribute('aria-pressed',b.dataset.themePick===document.body.dataset.theme);showClassicBar(state);showSpecs(state);showBoot();roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';showClassicBar(state);showSpecs(state);roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
  $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
  if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
@@ -225,11 +225,8 @@ function roomClock(){
 }
 setInterval(roomClock,1000);
 // The attract screen's ticker lists the newest songbook entries; the boot screen counts the book.
-let songbookCount=0;
-function loadSongbook(){api('/api/songbook').then(songs=>{songbookCount=songs.length;$('ticker-track').replaceChildren(...[0,1].flatMap(()=>newSongs(songs).map(s=>{const row=el('span');row.append(el('span',String(s.number),'lcd'),s.title,el('em',s.artist));return row;})));showBoot();}).catch(()=>{});}
+function loadSongbook(){api('/api/songbook').then(songs=>{$('ticker-track').replaceChildren(...[0,1].flatMap(()=>newSongs(songs).map(s=>{const row=el('span');row.append(el('span',String(s.number),'lcd'),s.title,el('em',s.artist));return row;})));}).catch(()=>{});}
 // The boot screen's status line, like a machine's self-check.
-function showBoot(){if(!state)return;const left=state.room_ends==null?null:Math.max(0,state.room_ends-(Date.now()/1000+serverSkew)),item=(label,value,cls)=>{const s=el('span',`${label} `);s.append(el('b',value,cls));return s;};
- $('boot-status').replaceChildren(item('SONGBOOK',`${songbookCount}곡`),...(left==null?[]:[item('ROOM',`${String(Math.ceil(left/60)).padStart(3,'0')}분`)]),item('SOUND','OFF','off'));}
 loadSongbook();
 // The big LCD fills in as someone dials: lit digits, a blinking cursor, blank digits after it.
 function showAttractDial(digits){$('attract-dial').replaceChildren(digits,...(digits.length<5?[el('span','8','blink')]:[]),'!'.repeat(Math.max(0,4-digits.length)));}
@@ -281,8 +278,9 @@ function placeLyrics(list){
 function applyTempo(){const speed=state?.speed??1;for(const media of [music,voice,video]){media.defaultPlaybackRate=speed;if(media.playbackRate!==speed)media.playbackRate=speed;}if(shifter)shifter.parameters.get('ratio').value=2**((state?.key??0)/12);}
 function applyGain(){applyTempo();if(!musicGain)return;musicGain.gain.value=(state?.music??1)*stemGain;voiceGain.gain.value=(state?.vocal??0.1)*stemGain;}
 // The theme can be picked before sound is on; it switches the whole room (TV and phones).
-for(const b of document.querySelectorAll('[data-theme-pick]'))b.onclick=()=>send({action:'theme',value:b.dataset.themePick});
-$('enable-button').onclick=async()=>{
+// The whole start screen is the button: one click (or Enter) anywhere unlocks sound.
+$('enable').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('enable').click();}};
+$('enable').onclick=async()=>{
  try{
   if(!context){
    context=new AudioContext();musicGain=context.createGain();voiceGain=context.createGain();
@@ -323,7 +321,7 @@ async function start(){
   if(token===generation&&!state?.playing){music.pause();voice.pause();video.pause();}
  }catch(e){
   console.warn('Playback start failed',e.name,e.message);
-  if(token===generation&&e.name==='NotAllowedError'){music.pause();voice.pause();enabled=false;send({action:'audio',value:false});$('enable').hidden=false;$('audio-error').textContent='Tap Enable sound to resume playback.';}
+  if(token===generation&&e.name==='NotAllowedError'){music.pause();voice.pause();enabled=false;send({action:'audio',value:false});$('enable').hidden=false;$('audio-error').textContent='Click anywhere to turn sound back on.';}
  }finally{if(token===generation)starting=false;}
 }
 const COUNT_IN=4;  // seconds before the first line that the lyrics appear
