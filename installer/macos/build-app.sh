@@ -34,7 +34,17 @@ rsync -a --delete --exclude='.DS_Store' "$ROOT/static/" "$RESOURCES/project/stat
 install -m 644 "$ROOT/pyproject.toml" "$ROOT/uv.lock" "$ROOT/LICENSE" "$RESOURCES/project/"
 install -m 644 "$ROOT/installer/macos/THIRD_PARTY_NOTICES.txt" "$RESOURCES/THIRD_PARTY_NOTICES.txt"
 
-sips -s format icns "$ROOT/docs/icon-512.png" --out "$RESOURCES/KTVibes.icns" >/dev/null
+# Every size Finder and the Dock ask for; an .icns holding only 512px shows as a blank icon.
+ICONSET="$OUTPUT/KTVibes.iconset"
+rm -rf "$ICONSET"
+mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" "$ROOT/docs/icon-512.png" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+    double=$((size * 2))
+    sips -z "$double" "$double" "$ROOT/docs/icon-512.png" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$RESOURCES/KTVibes.icns"
+rm -rf "$ICONSET"
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
