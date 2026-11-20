@@ -8,7 +8,8 @@ import soundfile as sf
 from . import align, guides, songbook, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
-TIMING_VERSION = 10  # bump when alignment or guide output changes, so cached timing is rebuilt
+TIMING_VERSION = 10  # bump when alignment changes, so cached timing is rebuilt
+GUIDES_VERSION = 1  # bump when guide output changes: cached timing keeps, and only the guides are redone
 LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
 STARTED = time.time()  # energy-only timing (aligner failed) cached before this run is retried once
 
@@ -49,6 +50,15 @@ def fetch_video(video_id, folder, progress):
         log.exception("Video unavailable for %s", video_id)
         return "Video unavailable; using the stage background."
 
+def add_guides(lines: list[dict]) -> list[dict]:
+    """Every pronunciation guide; each writes only its own unit slots, so cached lines can be redone."""
+    return lyrics.add_kana(lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines))))))
+
+def save_timed(folder: Path, key: str, aligned: bool, lines: list[dict]):
+    temporary = folder / "timed.tmp"
+    temporary.write_text(json.dumps({"key": key, "aligned": aligned, "guides": GUIDES_VERSION, "lines": lines}, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(folder / "timed.json")
+
 def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) -> list[dict]:
     """Word timing and guides for these lyrics, reused from timed.json when the LRC text is unchanged."""
     key = f"{TIMING_VERSION}:{hashlib.sha256(raw.encode()).hexdigest()}"
@@ -56,8 +66,10 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         cached = json.loads((folder / "timed.json").read_text(encoding="utf-8"))
         # Energy-only timing (the aligner failed) is retried once per run, not on every play.
         if cached.get("key") == key and (cached.get("aligned", True) or (folder / "timed.json").stat().st_mtime >= STARTED):
-            # Kana is quick to add and newer than the timing cache: songs timed before it get it here, without aligning again.
-            return lyrics.add_kana(cached["lines"])
+            if cached.get("guides") != GUIDES_VERSION:
+                # Guides are quick to redo: songs cached before a guide changed get it without aligning again.
+                save_timed(folder, key, cached.get("aligned", True), add_guides(cached["lines"]))
+            return cached["lines"]
     except (OSError, ValueError, KeyError):
         pass
     samples, rate = sf.read(samples_path, dtype="float32")
@@ -75,10 +87,8 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
         log.exception("Forced alignment unavailable for %s", folder.name)
         aligned = False
     lyrics.time_units(lines, energy)
-    lines = lyrics.add_kana(lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines))))))
-    temporary = folder / "timed.tmp"
-    temporary.write_text(json.dumps({"key": key, "aligned": aligned, "lines": lines}, ensure_ascii=False), encoding="utf-8")
-    temporary.replace(folder / "timed.json")
+    lines = add_guides(lines)
+    save_timed(folder, key, aligned, lines)
     return lines
 
 class Removed(Exception):

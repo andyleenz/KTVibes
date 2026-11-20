@@ -326,17 +326,19 @@ def update():
 
 def open_browser():
     """KTVIBES_OPEN_BROWSER=1: the desktop apps set it, having no terminal to read the address from.
-    Waits for the server to listen, however long a large song cache takes to load; if it never
-    does (the port is taken), KTVibes exits and this daemon thread goes with it."""
+    Waits until KTVibes itself answers, however long a large song cache takes to load. Another program
+    on the port doesn't count: KTVibes then can't listen and exits, and this daemon thread goes with it."""
     import time
+    import urllib.request
     import webbrowser
     while True:
         try:
-            socket.create_connection(("127.0.0.1", PORT), timeout=1).close()
-        except OSError:
-            time.sleep(0.25)
-            continue
-        return webbrowser.open(f"http://127.0.0.1:{PORT}")
+            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/state", timeout=1) as response:
+                if "upcoming" in json.loads(response.read()):
+                    return webbrowser.open(f"http://127.0.0.1:{PORT}")
+        except (OSError, ValueError):
+            pass
+        time.sleep(0.25)
 
 def run():
     """`uv run ktvibes`: one process only, since queue state and the model live in memory."""
@@ -344,6 +346,14 @@ def run():
     if sys.argv[1:] == ["update"]:
         return update()
     import uvicorn
+    try:
+        socket.create_connection(("127.0.0.1", PORT), timeout=1).close()
+    except OSError:
+        pass  # nothing there, as expected
+    else:
+        # Something already answers here (another KTVibes, or an old dev server); uvicorn would only fail later.
+        sys.exit(f"Port {PORT} is already in use by another program. Quit it, or start KTVibes with "
+                 f"KTVIBES_PORT set to a free port (for example KTVIBES_PORT={PORT + 1}).")
     if os.environ.get("KTVIBES_OPEN_BROWSER") == "1":
         import threading
         threading.Thread(target=open_browser, daemon=True).start()

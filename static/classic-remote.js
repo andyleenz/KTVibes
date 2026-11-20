@@ -78,7 +78,7 @@ export function classicRemote({send,toast,haptic,swipeable}){
  const meter=(node,value)=>node.replaceChildren(...Array.from({length:5},(_,i)=>el('i',undefined,i<Math.round((value??0)*5)?'on':'')));
  // The 가이드 key shows the guide it has cycled to, as the Settings switch labels it.
  function showHandset(){if(!state)return;const c=!!state.current;$('hs-play').disabled=$('hs-skip').disabled=!c;$('hs-play').classList.toggle('paused',!state.playing);$('hs-play').querySelector('span').textContent=state.playing?'일시정지':'재생';
-  $('hs-guide').querySelector('b').textContent=(GUIDE_BADGES[state.guide]||GUIDE_BADGES.latin)[0];$('hs-guide').setAttribute('aria-label',`Pronunciation guide: ${state.guide==='latin'?'romanization':state.guide}. Press for the next one.`);meter($('hs-music'),state.music);meter($('hs-vocal'),state.vocal);}
+  const [badge,label]=GUIDE_BADGES[state.guide]||GUIDE_BADGES.latin;$('hs-guide').querySelector('b').textContent=badge;$('hs-guide').setAttribute('aria-label',`Pronunciation guide: ${label}. Press for the next one.`);meter($('hs-music'),state.music);meter($('hs-vocal'),state.vocal);}
  // The songbook: 신곡, the existing Recent list (최근), then every song A–Z by its title's first sound.
  let songs=[];
  const INITIALS='가가나다다라마바바사사아자자차카타파하';  // the 19 leading consonants, doubled ones folded

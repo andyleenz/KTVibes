@@ -209,19 +209,33 @@ class APITests(unittest.TestCase):
             started = []
             with patch.dict('os.environ', {'KTVIBES_OPEN_BROWSER': value}), patch('sys.argv', ['ktvibes']), \
                  patch.object(uvicorn, 'run'), patch.object(self.main.worker, 'missing_tools', return_value=[]), \
+                 patch.object(self.main.socket, 'create_connection', side_effect=OSError), \
                  patch.object(threading, 'Thread', lambda target, daemon: started.append(target) or Mock()):
                 self.main.run()
             self.assertEqual(started, [self.main.open_browser] if opens else [])
 
-    def test_browser_opens_once_the_server_listens(self):
-        # A large cache can take a while to load; the page must not open on a refused connection.
-        attempts = iter([OSError, OSError, Mock()])
-        def connect(address, timeout):
-            result = next(attempts)
-            if result is OSError:
-                raise OSError('refused')
-            return result
-        with patch.object(self.main.socket, 'create_connection', connect), patch('time.sleep') as sleep, patch('webbrowser.open') as opened:
+    def test_run_refuses_a_port_another_program_holds(self):
+        import uvicorn
+        with patch('sys.argv', ['ktvibes']), patch.object(uvicorn, 'run') as run, \
+             patch.object(self.main.socket, 'create_connection', return_value=Mock()):
+            with self.assertRaises(SystemExit) as stopped:
+                self.main.run()
+        self.assertIn(f'Port {self.main.PORT} is already in use', str(stopped.exception.code))
+        run.assert_not_called()
+
+    def test_browser_opens_once_ktvibes_answers(self):
+        # A large cache can take a while to load; the page must not open on a refused connection,
+        # nor on another program that happens to hold the port (an old dev server did).
+        import io
+        import urllib.request
+        page = lambda body: Mock(__enter__=lambda self: io.BytesIO(body), __exit__=lambda *a: None)
+        answers = iter([OSError('refused'), page(b'<html>someone else</html>'), page(b'{"upcoming": []}')])
+        def urlopen(url, timeout):
+            answer = next(answers)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+        with patch.object(urllib.request, 'urlopen', urlopen), patch('time.sleep') as sleep, patch('webbrowser.open') as opened:
             self.main.open_browser()
         self.assertEqual(sleep.call_count, 2)
         opened.assert_called_once_with(f'http://127.0.0.1:{self.main.PORT}')

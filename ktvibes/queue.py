@@ -176,9 +176,10 @@ class State:
                     self.played = dict(sorted(self.played.items(), key=lambda p: p[1])[-HISTORY:])
                 self.offset = candidate.get("offset", 0)
                 # Cantopop reads in jyutping, Mandarin in pinyin: follow the song when on either.
-                # Kana is only for Japanese; the next song in another language goes back to romanization.
-                if self.guide in ("latin", "jyutping") or self.guide == "kana" and "kana" not in self.guides():
-                    self.guide = "jyutping" if cantonese(candidate.get("lyrics") or []) and "jyutping" in self.guides() else "latin"
+                # A guide the new song has nothing for (kana on a Korean song) goes back to romanization.
+                modes = self.guides()
+                if self.guide in ("latin", "jyutping") or self.guide not in modes:
+                    self.guide = "jyutping" if cantonese(candidate.get("lyrics") or []) and "jyutping" in modes else "latin"
 
     @staticmethod
     def entry(video_id, artist, title):
@@ -209,8 +210,13 @@ class State:
             raise ValueError("That song is already in the queue")
         self.upcoming.insert(min(undo["index"], len(self.upcoming)), undo["item"])
 
+    def waiting(self, video_id):
+        """The queued entry for this song, unless it failed."""
+        return next((i for i in self.upcoming if i["id"] == video_id and i["status"] != "error"), None)
+
     def queued(self, video_id):
-        return any(i and i["id"] == video_id and i["status"] != "error" for i in (self.current, *self.upcoming))
+        on_stage = self.current and self.current["id"] == video_id and self.current["status"] != "error"
+        return bool(on_stage or self.waiting(video_id))
 
     async def add(self, video_id, artist, title, front=False, **details):
         """Queue a song at the end, or at the front to sing it next. `details` (a songbook number) go out with it."""
@@ -227,7 +233,7 @@ class State:
     async def add_next(self, video_id, artist, title, **details):
         """우선예약: sing a song next. One already waiting moves to the front rather than being queued twice;
         the song on stage is refused, as add() refuses it."""
-        waiting = next((i for i in self.upcoming if i["id"] == video_id and i["status"] != "error"), None)
+        waiting = self.waiting(video_id)
         if waiting is None:
             return await self.add(video_id, artist, title, front=True, **details)
         waiting.update(details)

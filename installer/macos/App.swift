@@ -86,7 +86,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         child.arguments = [script.path]
         child.environment = ProcessInfo.processInfo.environment.merging([
             "KTVIBES_APP_SUPPORT": Self.applicationSupportURL.path,
-            "KTVIBES_APP_RESOURCES": Bundle.main.resourceURL!.path
+            "KTVIBES_APP_RESOURCES": Bundle.main.resourceURL!.path,
+            "KTVIBES_OPEN_BROWSER": "1"  // the server opens the TV page once it is listening, on its own port
         ]) { _, new in new }
 
         let pipe = Pipe()
@@ -122,9 +123,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func appendOutput(_ text: String) {
         outputView.textStorage?.append(NSAttributedString(string: text))
         outputView.scrollToEndOfDocument(nil)
-        if text.contains("KTVIBES_SERVER_READY") {
+        if text.contains("Uvicorn running on") {
             statusLabel.stringValue = "KTVibes is running. Your browser is opening to the local TV screen."
-            NSWorkspace.shared.open(URL(string: "http://localhost:8765")!)
         }
     }
 

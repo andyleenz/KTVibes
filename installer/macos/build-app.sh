@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# Signing is optional, so anyone can build. With a Developer ID the app opens without Gatekeeper's warning:
+#   KTVIBES_SIGN_IDENTITY  "Developer ID Application: Name (TEAMID)", from a keychain on this Mac
+#   KTVIBES_NOTARY_PROFILE a notarytool keychain profile (xcrun notarytool store-credentials); needs the identity
+
 # The DMG name carries no version so releases/latest/download/KTVibes-AppleSilicon.dmg stays a stable link;
 # the version lives in Info.plist and in the release tag.
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -52,6 +56,15 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
+SIGN="${KTVIBES_SIGN_IDENTITY:-}"
+NOTARY="${KTVIBES_NOTARY_PROFILE:-}"
+[[ -z "$NOTARY" || -n "$SIGN" ]] || { echo "Notarizing needs KTVIBES_SIGN_IDENTITY too" >&2; exit 1; }
+if [[ -n "$SIGN" ]]; then
+    # Hardened runtime and a secure timestamp are what notarization asks for; the app needs no entitlements.
+    codesign --force --options runtime --timestamp --sign "$SIGN" "$APP"
+    codesign --verify --strict --verbose=2 "$APP"
+fi
+
 DMG="$OUTPUT/KTVibes-AppleSilicon.dmg"
 STAGE="$OUTPUT/.dmg-stage"
 rm -rf "$STAGE"
@@ -60,5 +73,14 @@ ditto "$APP" "$STAGE/KTVibes.app"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "KTVibes" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$STAGE"
+if [[ -n "$SIGN" ]]; then
+    codesign --force --timestamp --sign "$SIGN" "$DMG"
+fi
+if [[ -n "$NOTARY" ]]; then
+    # Notarizing the disk image covers the app inside it; stapling lets Gatekeeper pass it offline too.
+    xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY" --wait
+    xcrun stapler staple "$DMG"
+    spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+fi
 echo "Built: $APP"
-echo "Built: $DMG"
+echo "Built: $DMG${SIGN:+ (signed)}${NOTARY:+ (notarized)}"

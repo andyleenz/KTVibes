@@ -190,3 +190,7 @@ uv run python -m ktvibes.separate cache/fJ9rUzIMcZQ/audio.m4a cache/fJ9rUzIMcZQ
 `ktvibes/main.py` serves the API, WebSocket, media range requests, QR, and static pages. `queue.py` owns state, and `worker.py` prepares one entry at a time. `youtube.py`, `lyrics.py`, and `separate.py` wrap the external providers. The frontend is plain HTML/CSS/JavaScript with no build step.
 
 The queue and the media cache persist across restarts. Microphone input, scoring and authentication are not included. The remote is intended for your local network.
+
+## Thanks
+
+[Jeff Shih](https://github.com/JeffShih-wiwynn) built the kana guide, Play next, the two-column remote, the Windows installer and the Mac app in [his fork](https://github.com/JeffShih-wiwynn/KTVibes), along with several lyrics and Windows fixes. Thank you, Jeff.

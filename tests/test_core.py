@@ -542,10 +542,13 @@ class WorkerTests(unittest.TestCase):
             with patch.object(worker.align, 'align') as align:
                 worker.timed_lyrics(folder, raw, folder / 'vocals.wav', parse_lrc(raw))
                 timed = json.loads((folder / 'timed.json').read_text(encoding='utf-8'))
-                for line in timed['lines']:  # as an older version saved it
+                del timed['guides']  # as an older version saved it
+                for line in timed['lines']:
                     line['units'] = [unit[:6] for unit in line['units']]
                 (folder / 'timed.json').write_text(json.dumps(timed, ensure_ascii=False), encoding='utf-8')
                 again = worker.timed_lyrics(folder, raw, folder / 'vocals.wav', parse_lrc(raw))
+                # The guides are saved back, so the next play reads them straight from the cache.
+                self.assertEqual(json.loads((folder / 'timed.json').read_text(encoding='utf-8'))['guides'], worker.GUIDES_VERSION)
                 self.assertEqual(align.call_count, 1)
         self.assertEqual([unit[6] for unit in again[0]['units']], ['とうきょう', '', '', 'そら'])
 
@@ -858,7 +861,9 @@ class LyricsMatchTests(unittest.TestCase):
         from unittest.mock import Mock, patch
         from ktvibes import lyrics
         G2p = Mock(return_value=lambda text: text)
-        with patch.object(lyrics, '_g2p', None), patch.dict(sys.modules, {'g2pk2': SimpleNamespace(G2p=G2p)}):
+        lyrics.g2p.cache_clear()
+        self.addCleanup(lyrics.g2p.cache_clear)  # don't leave the fake behind for other tests
+        with patch.dict(sys.modules, {'g2pk2': SimpleNamespace(G2p=G2p)}):
             lyrics.add_korean_romanization([{'t': 0, 'text': '愛してる', 'units': [['愛', 0, 1]]}, {'t': 1, 'text': 'I love you', 'units': [['I ', 1, 2]]}])
             G2p.assert_not_called()  # loading it takes seconds
             # Hangul with a reading already (romaji in a Japanese song) needs none either.

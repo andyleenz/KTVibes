@@ -34,7 +34,10 @@ permissions:
 jobs:
   build:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 40  # notarization usually takes a few minutes, now and then much longer
+    env:
+      # Signing runs once these repository secrets exist; forks and pull requests from them build unsigned.
+      SIGNING: ${{ secrets.MACOS_CERT_P12 != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -49,6 +52,40 @@ jobs:
             exit 1
           fi
 
+      - name: Release builds must be signed
+        if: github.ref_type == 'tag' && env.SIGNING != 'true'
+        run: |
+          echo "A release DMG must be signed and notarized; add the MACOS_* and APPLE_* secrets." >&2
+          exit 1
+
+      - name: Load the signing certificate and notary key
+        if: env.SIGNING == 'true'
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -n 1)"
+          [ -n "$identity" ] || { echo "No Developer ID Application identity in MACOS_CERT_P12." >&2; exit 1; }
+          echo "KTVIBES_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          printf '%s' "$API_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials ktvibes-notary --key "$RUNNER_TEMP/notary.p8" \
+            --key-id "$API_KEY_ID" --issuer "$API_ISSUER" --keychain "$keychain"
+          rm "$RUNNER_TEMP/notary.p8"
+          echo "KTVIBES_NOTARY_PROFILE=ktvibes-notary" >> "$GITHUB_ENV"
+
       - name: Build app and disk image
         run: installer/macos/build-app.sh
 
@@ -56,6 +93,11 @@ jobs:
         run: |
           plutil -lint dist/macos/KTVibes.app/Contents/Info.plist
           hdiutil verify dist/macos/KTVibes-AppleSilicon.dmg
+          if [ "$SIGNING" = true ]; then xcrun stapler validate dist/macos/KTVibes-AppleSilicon.dmg; fi
+
+      - name: Remove the signing keychain
+        if: always() && env.SIGNING == 'true'
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v7

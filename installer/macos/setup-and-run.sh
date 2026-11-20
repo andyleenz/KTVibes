@@ -72,27 +72,18 @@ fi
 
 if [[ ! -x "$FFMPEG_DIR/bin/ffmpeg" || ! -x "$FFMPEG_DIR/bin/ffprobe" ]]; then
     log "Downloading Apple silicon FFmpeg and FFprobe…"
-    temp="$SUPPORT/ffmpeg.zip"
-    download_verified \
-        "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffmpeg.zip" \
-        "" "$temp"
-    mkdir -p "$SUPPORT/ffmpeg-unpack"
-    ditto -x -k "$temp" "$SUPPORT/ffmpeg-unpack"
-    ffmpeg_bin="$(find "$SUPPORT/ffmpeg-unpack" -type f -name ffmpeg -print -quit)"
-    [[ -n "$ffmpeg_bin" ]] || { log "FFmpeg archive did not contain ffmpeg"; exit 1; }
-    install -m 755 "$ffmpeg_bin" "$FFMPEG_DIR/bin/ffmpeg"
-    rm -rf "$SUPPORT/ffmpeg-unpack" "$temp"
-
-    temp="$SUPPORT/ffprobe.zip"
-    download_verified \
-        "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffprobe.zip" \
-        "" "$temp"
-    mkdir -p "$SUPPORT/ffprobe-unpack"
-    ditto -x -k "$temp" "$SUPPORT/ffprobe-unpack"
-    ffprobe_bin="$(find "$SUPPORT/ffprobe-unpack" -type f -name ffprobe -print -quit)"
-    [[ -n "$ffprobe_bin" ]] || { log "FFprobe archive did not contain ffprobe"; exit 1; }
-    install -m 755 "$ffprobe_bin" "$FFMPEG_DIR/bin/ffprobe"
-    rm -rf "$SUPPORT/ffprobe-unpack" "$temp"
+    for tool in ffmpeg ffprobe; do
+        temp="$SUPPORT/$tool.zip"
+        download_verified \
+            "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/$tool.zip" \
+            "" "$temp"
+        mkdir -p "$SUPPORT/$tool-unpack"
+        ditto -x -k "$temp" "$SUPPORT/$tool-unpack"
+        tool_bin="$(find "$SUPPORT/$tool-unpack" -type f -name "$tool" -print -quit)"
+        [[ -n "$tool_bin" ]] || { log "The $tool archive did not contain $tool"; exit 1; }
+        install -m 755 "$tool_bin" "$FFMPEG_DIR/bin/$tool"
+        rm -rf "$SUPPORT/$tool-unpack" "$temp"
+    done
 fi
 
 log "Preparing KTVibes files…"
@@ -110,26 +101,8 @@ log "Installing KTVibes packages. PyTorch may take several minutes on first setu
 log "Starting the KTVibes server…"
 cd "$PROJECT"
 "$UV_BIN" run --project "$PROJECT" --locked --no-dev ktvibes &
-server_pid=$!
+server_pid=$!  # it opens the browser itself (KTVIBES_OPEN_BROWSER, set by the app)
 # uv may run the server as a child; stop that too so quitting the app frees the port.
 trap 'pkill -P "$server_pid" 2>/dev/null || true; kill "$server_pid" 2>/dev/null || true' EXIT INT TERM
-
-server_ready=0
-for _ in $(seq 1 120); do
-    if curl --silent --fail http://127.0.0.1:8765/api/state >/dev/null; then
-        log "KTVIBES_SERVER_READY"
-        server_ready=1
-        break
-    fi
-    if ! kill -0 "$server_pid" 2>/dev/null; then
-        wait "$server_pid"
-        exit $?
-    fi
-    sleep 1
-done
-if [[ "$server_ready" != "1" ]]; then
-    log "KTVibes did not become ready within 120 seconds."
-    exit 1
-fi
 
 wait "$server_pid"

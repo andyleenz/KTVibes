@@ -80,6 +80,15 @@ def kakasi():
     import pykakasi  # slow to import, so only when a Japanese song turns up
     return pykakasi.kakasi()
 
+@functools.lru_cache(maxsize=4096)
+def convert(text: str) -> tuple[dict, ...]:
+    """kakasi's segments for this text; romaji and kana both read each line, so it is converted once."""
+    return tuple(kakasi().convert(text))
+
+def positions(units: list[str]) -> tuple[str, list[int]]:
+    """The line's text, and which unit each of its characters belongs to."""
+    return "".join(units), [i for i, unit in enumerate(units) for _ in unit]
+
 def japanese(lines: list[dict]) -> bool:
     """Kana anywhere marks a Japanese song, so its kanji-only lines are read as Japanese too."""
     return any(KANA_CHARS.search(line["text"]) for line in lines)
@@ -87,10 +96,9 @@ def japanese(lines: list[dict]) -> bool:
 def romaji(units: list[str]) -> list[str]:
     """Hepburn reading per unit. A kanji word's reading goes on its first character; kana are read
     one by one, with small kana (きゃ kya) and っ (doubles the next consonant) joined to their neighbour."""
-    text = "".join(units)
-    owner = [i for i, unit in enumerate(units) for _ in unit]  # character position -> unit index
+    text, owner = positions(units)
     out, position = [""] * len(units), 0
-    for segment in kakasi().convert(text):
+    for segment in convert(text):
         word, reading = segment["orig"], segment["hepburn"]
         if KANA_CHARS.search(word) and not HAN.search(word):
             chars = list(word)
@@ -98,7 +106,7 @@ def romaji(units: list[str]) -> list[str]:
                 if char in SMALL_KANA or char == "ー" or not KANA_CHARS.match(char):
                     continue
                 pair = char + (chars[k + 1] if k + 1 < len(chars) and chars[k + 1] in SMALL_KANA else "")
-                sound = "" if char in "っッ" else kakasi().convert(pair)[0]["hepburn"]
+                sound = "" if char in "っッ" else convert(pair)[0]["hepburn"]
                 if k and chars[k - 1] in "っッ" and sound:
                     sound = sound[0] + sound
                 if position + k < len(owner):
@@ -128,11 +136,10 @@ def kana(units: list[str]) -> list[tuple[str, int | None]]:
     """(hiragana reading, ruby group) per unit. Each kanji run of a word is one group, read as a whole
     (名前 なまえ can't be split per character) with the reading on its first unit; okurigana stay bare
     (思い出 おもいで -> 思 おも, 出 で). A group is named by where it starts in the line."""
-    text = "".join(units)
-    owner = [i for i, unit in enumerate(units) for _ in unit]  # character position -> unit index
+    text, owner = positions(units)
     starts = list(itertools.accumulate(map(len, units), initial=0))  # where each unit begins in the line
     out, position = [("", None)] * len(units), 0
-    for segment in kakasi().convert(text):
+    for segment in convert(text):
         word, reading = segment["orig"], segment["hira"]
         if HAN.search(word) and text.startswith(word, position):
             runs = re.findall(r"[\u3040-\u30ff]+|[^\u3040-\u30ff]+", word)  # kanji runs and kana runs
@@ -185,7 +192,14 @@ HANGUL = re.compile(r"[\uac00-\ud7a3]")
 INITIALS = "g kk n d tt r m b pp s ss  j jj ch k t p h".split(" ")
 VOWELS = "a ae ya yae eo e yeo ye o wa wae oe yo u wo we wi yu eu ui i".split()
 FINALS = ["", "k", "k", "k", "n", "n", "n", "t", "l", "k", "m", "l", "l", "l", "p", "l", "m", "p", "p", "t", "t", "ng", "t", "t", "k", "t", "p", "t"]
-_g2p = None
+@functools.cache
+def g2p():
+    from g2pk2 import G2p  # slow to start, so only when a line has Korean to read
+    return G2p()
+
+def needs_reading(unit: list) -> bool:
+    """Hangul with no romanization yet (another guide may have filled slot 3 already)."""
+    return bool(HANGUL.search(unit[0])) and not (len(unit) > 3 and unit[3])
 
 def romanize(syllables: str) -> list[str]:
     """Romanize Hangul syllables as sung. Input should already be the pronounced form."""
@@ -200,22 +214,18 @@ def romanize(syllables: str) -> list[str]:
 
 def add_korean_romanization(lines: list[dict]) -> list[dict]:
     """Romanize each Korean syllable from its sung pronunciation (눈물이 -> nun mu ri, 못하게 -> mo ta ge)."""
-    global _g2p
     for line in lines:
         units = line.get("units")
-        # Lines with no Hangul still to read are skipped, so a song without Korean never loads G2P (slow to start).
-        if not units or not any(HANGUL.search(u[0]) and not (len(u) > 3 and u[3]) for u in units):
+        # Lines with no Hangul still to read are skipped, so a song without Korean never loads G2P.
+        if not units or not any(map(needs_reading, units)):
             continue
-        if _g2p is None:
-            from g2pk2 import G2p
-            _g2p = G2p()
         written = HANGUL.findall(line["text"])
-        spoken = HANGUL.findall(_g2p(line["text"]))
+        spoken = HANGUL.findall(g2p()(line["text"]))
         # If sound changes altered the syllable count, fall back to the written form.
         readings = iter(romanize("".join(spoken if len(spoken) == len(written) else written)))
         for unit in units:
             syllables = HANGUL.findall(unit[0])
-            if syllables and not (len(unit) > 3 and unit[3]):
+            if needs_reading(unit):
                 put(unit, 3, " ".join(next(readings) for _ in syllables))
             elif syllables:
                 for _ in syllables:

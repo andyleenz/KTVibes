@@ -127,7 +127,7 @@ body.intro .title-card :is(h1,p),body.intro .title-card::after{opacity:1;transfo
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="0"]{grid-row:1;justify-self:start;text-align:left;transform-origin:left center}
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="1"]{grid-row:2;justify-self:end;text-align:right;transform-origin:right center}
 .tv[data-lyrics=two] #lyrics .lyric.past{color:var(--lime);opacity:1} /* a sung line stays lit until the next line takes its slot */
-.tv[data-lyrics=two]:is([data-guide=latin],[data-guide=jyutping],[data-guide=hangul],[data-guide=kana]) #lyrics .lyric::after{content:"";display:inline-block;width:0;height:1.56em;vertical-align:text-bottom} /* a line with no guide is as tall as one with, so the lines don't jump */
+.tv[data-lyrics=two][data-guide]:not([data-guide=off]) #lyrics .lyric::after{content:"";display:inline-block;width:0;height:1.56em;vertical-align:text-bottom} /* a line with no guide is as tall as one with, so the lines don't jump */
 .tv[data-lyrics=two] #lyrics .lyric[data-fit=squeeze]{max-width:none;scale:var(--squeeze) 1}
 .tv[data-lyrics=two] #lyrics .lyric[data-fit=wrap]{white-space:normal;text-wrap:balance}
 .tv[data-lyrics=two] #lyrics.measuring .lyric{display:block;position:absolute;left:0;visibility:hidden;animation:none}
