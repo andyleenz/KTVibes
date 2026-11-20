@@ -31,14 +31,6 @@ class APITests(unittest.TestCase):
             item.stop()
         self.temp.cleanup()
 
-    def test_config_reports_classic(self):
-        import os
-        with patch.dict(os.environ):
-            os.environ.pop('KTVIBES_CLASSIC', None)
-            self.assertIs(self.client.get('/api/config').json()['classic'], False)
-            os.environ['KTVIBES_CLASSIC'] = '1'
-            self.assertIs(self.client.get('/api/config').json()['classic'], True)
-
     def test_current_lyrics_empty_stage(self):
         response = self.client.get('/api/current/lyrics')
         self.assertEqual(response.status_code, 200)

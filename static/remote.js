@@ -14,9 +14,6 @@ function toast(text,action,kind){
  if(action){$('toast-action').textContent=action.label;$('toast-action').onclick=()=>{$('toast').classList.remove('on');action.run();};}
  $('toast').classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('on'),action?6000:2600);
 }
-// Classic is parked behind KTVIBES_CLASSIC, so its switch stays hidden unless the server says it's on.
-$('sg-theme').hidden=true;
-api('/api/config').then(config=>{$('sg-theme').hidden=!config.classic;}).catch(()=>{});
 const send=connect('remote',render,message=>toast(message,undefined,'err'));
 function render(next){
  const before=state;state=next;state.received=Date.now()/1000;

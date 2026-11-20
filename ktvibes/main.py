@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
-from .queue import State, classic_enabled
+from .queue import State
 from . import lyrics, songbook, stems, worker, youtube
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -272,7 +272,7 @@ def remote_url():
 
 @app.get("/api/config")
 async def config():
-    return {"remote_url": remote_url(), "classic": classic_enabled()}
+    return {"remote_url": remote_url()}
 
 @app.get("/api/qr.svg")
 async def qr():
