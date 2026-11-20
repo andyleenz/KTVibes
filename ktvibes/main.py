@@ -71,6 +71,13 @@ async def remote():
 async def get_state():
     return state.snapshot()
 
+@app.get("/api/current/lyrics")
+async def current_lyrics():
+    """The playing song's timed lyrics, for a remote (its broadcasts leave them out; only the TV gets them)."""
+    song = state.current
+    return {"key": song and song["key"], "lyrics_rev": song.get("lyrics_rev", 0) if song else 0,
+            "offset": state.offset, "lines": song and song.get("lyrics")}
+
 @app.get("/api/suggest")
 async def suggest(q: str = Query(min_length=1, max_length=200)):
     try:

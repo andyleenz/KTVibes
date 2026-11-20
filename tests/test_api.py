@@ -39,6 +39,20 @@ class APITests(unittest.TestCase):
             os.environ['KTVIBES_CLASSIC'] = '1'
             self.assertIs(self.client.get('/api/config').json()['classic'], True)
 
+    def test_current_lyrics_empty_stage(self):
+        response = self.client.get('/api/current/lyrics')
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()['key'])
+        self.assertIsNone(response.json()['lines'])
+
+    def test_current_lyrics_returns_units(self):
+        self.main.state.current = {'key': 'k1', 'id': 'aaaaaaaaaaa', 'lyrics_rev': 2,
+                                   'lyrics': [{'t': 1.0, 'text': 'hi', 'units': [['hi', 1.0, 1.5]]}]}
+        body = self.client.get('/api/current/lyrics').json()
+        self.assertEqual(body['key'], 'k1')
+        self.assertEqual(body['lyrics_rev'], 2)
+        self.assertEqual(body['lines'][0]['units'][0][0], 'hi')
+
     def test_update_pulls_only_a_clean_checkout(self):
         import subprocess
         root = Path(self.temp.name)
