@@ -334,7 +334,8 @@ def open_browser():
     while True:
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/state", timeout=1) as response:
-                if "upcoming" in json.loads(response.read()):
+                data = json.loads(response.read())
+                if isinstance(data, dict) and "upcoming" in data:
                     return webbrowser.open(f"http://127.0.0.1:{PORT}")
         except (OSError, ValueError):
             pass

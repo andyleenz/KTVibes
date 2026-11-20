@@ -165,7 +165,6 @@ main() {
         curl -sf --noproxy '*' --max-time 2 -o /dev/null "$URL/api/state" && break
         kill -0 "$server" 2>/dev/null ||
             fail "KTVibes stopped while starting. If port $PORT is in use, set KTVIBES_PORT to another port."
-        ((i < 600)) || fail "KTVibes did not answer on port $PORT within 5 minutes."
         sleep 0.5
     done
     tell "KTVibes is running. Open $URL on the TV computer; phones join by scanning its QR code."

@@ -78,6 +78,19 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         state.advance()
         self.assertEqual((state.current['id'], state.guide), ('bbbbbbbbbbb', 'latin'))
 
+    async def test_a_song_without_lyrics_keeps_the_chosen_guide(self):
+        state = State()
+        instrumental = await state.add('abcdefghijk', 'Band', 'Interlude')
+        korean = await state.add('bbbbbbbbbbb', 'IU', '좋은 날')
+        korean['lyrics'] = [{'t': 0, 'text': 'love', 'units': [['love', 0, 1, '', '러브']]}]
+        for item in (instrumental, korean):
+            item['status'], item['duration'] = 'ready', 100
+        state.guide = 'hangul'
+        state.promote()
+        self.assertEqual(state.guide, 'hangul')  # nothing to show here, but the room still wants Hangul
+        state.advance()
+        self.assertEqual((state.current['id'], state.guide), ('bbbbbbbbbbb', 'hangul'))
+
     async def test_breather_only_between_songs(self):
         import time
         state = State()
@@ -527,6 +540,28 @@ class WorkerTests(unittest.TestCase):
                     worker.timed_lyrics(folder, '[00:00.10]again', folder / 'vocals.wav', parse_lrc('[00:00.10]again'))
                 self.assertEqual(align.call_count, 2)
 
+    def test_a_cache_that_cannot_be_saved_still_keeps_its_timing(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import numpy as np
+        import soundfile as sf
+        from ktvibes import worker
+        raw = '[00:00.10]東京の空'
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            sf.write(folder / 'vocals.wav', np.zeros((8000, 2), dtype='float32'), 8000)
+            with patch.object(worker.align, 'align') as align:
+                first = worker.timed_lyrics(folder, raw, folder / 'vocals.wav', parse_lrc(raw))
+                timed = json.loads((folder / 'timed.json').read_text(encoding='utf-8'))
+                del timed['guides']  # an older cache, so the guides are refreshed
+                (folder / 'timed.json').write_text(json.dumps(timed, ensure_ascii=False), encoding='utf-8')
+                with patch.object(worker, 'save_timed', side_effect=OSError('read-only')):
+                    again = worker.timed_lyrics(folder, raw, folder / 'vocals.wav', parse_lrc(raw))
+            self.assertEqual(align.call_count, 1)  # not aligned again
+            self.assertEqual(again, first)
+
     def test_songs_timed_before_kana_get_it_without_aligning_again(self):
         import json
         import tempfile
@@ -656,10 +691,14 @@ class LyricsMatchTests(unittest.TestCase):
             with self.assertRaises(httpx.HTTPStatusError):
                 asyncio.run(lyrics.candidates('아이유(IU)', '좋은 날', 233, exhaustive=True))
             self.assertEqual(calls, ['/api/get', '/api/search'])
-            # A romanized record found before the limit is not the whole answer either: the song is retried later.
+            # A romanized record found before the limit is sung for now, but marked partial so the song is retried later.
             exact = {'id': 1, 'trackName': '좋은 날', 'duration': 233, 'syncedLyrics': '[00:10.00]joeun nal'}
+            result = asyncio.run(lyrics.fetch('아이유(IU)', '좋은 날', 233))
+            self.assertTrue(result['partial'])
+            self.assertEqual(result['raw'], exact['syncedLyrics'])
+            # The remote's picker still reports the wait rather than a list missing versions.
             with self.assertRaises(httpx.HTTPStatusError):
-                asyncio.run(lyrics.fetch('아이유(IU)', '좋은 날', 233))
+                asyncio.run(lyrics.candidates('아이유(IU)', '좋은 날', 233, exhaustive=True))
             self.assertIsNone(asyncio.run(lyrics.record(9)))
             with self.assertRaises(httpx.HTTPStatusError) as limited:
                 asyncio.run(lyrics.record(7))

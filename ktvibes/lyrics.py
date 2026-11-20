@@ -521,6 +521,10 @@ async def record(record_id: int) -> dict | None:
 
 async def candidates(artist: str, title: str, duration: float, hints: tuple[str, ...] = (), exhaustive: bool = False) -> list[dict]:
     """LRCLIB records that fit the song. Stops at the first good one unless exhaustive (for the remote's picker)."""
+    return (await lookup(artist, title, duration, hints, exhaustive))[0]
+
+async def lookup(artist: str, title: str, duration: float, hints: tuple[str, ...] = (), exhaustive: bool = False) -> tuple[list[dict], bool]:
+    """candidates(), and whether LRCLIB cut the search short (its 429), so what was found may lack the song's own version."""
     import httpx
     artists, titles = variants(artist), variants(title)
     want = wanted_script(artist, title, *hints)
@@ -552,8 +556,8 @@ async def candidates(artist: str, title: str, duration: float, hints: tuple[str,
                     if status and status < 500:
                         break
                     await asyncio.sleep(1 + attempt)
-        # A lookup LRCLIB cut short is not an answer: what it found so far may lack the song's own version.
-        if failure and (limited or not found):
+        # The picker shows every version, so a cut-short list would mislead; the automatic lookup uses what it has.
+        if failure and (not found or limited and exhaustive):
             raise failure
     unique = {c.get("id") or id(c): c for c in found if fits(c, duration)}
     if not want:
@@ -562,12 +566,13 @@ async def candidates(artist: str, title: str, duration: float, hints: tuple[str,
         votes = [script(c.get("syncedLyrics") or "") for c in unique.values()]
         votes = [v for v in votes if v != "latin"]
         want = max(("ko", "zh", "ja"), key=votes.count) if votes else None
-    return sorted(unique.values(), key=lambda c: rank(c, titles, duration, want))
+    return sorted(unique.values(), key=lambda c: rank(c, titles, duration, want)), limited
 
 async def fetch(artist: str, title: str, duration: float, hints: tuple[str, ...] = ()) -> dict:
-    matches = await candidates(artist, title, duration, hints)
+    """The best record's lyrics. `partial`: LRCLIB cut the search short, so look again next time."""
+    matches, partial = await lookup(artist, title, duration, hints)
     raw = matches[0].get("syncedLyrics", "") if matches else ""
-    return {"raw": raw, "lines": parse_lrc(raw)}
+    return {"raw": raw, "lines": parse_lrc(raw), "partial": partial}
 
 if __name__ == "__main__":
     print(json.dumps(asyncio.run(fetch(sys.argv[1], sys.argv[2], float(sys.argv[3]))), ensure_ascii=False, indent=2))

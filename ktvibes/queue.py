@@ -176,9 +176,10 @@ class State:
                     self.played = dict(sorted(self.played.items(), key=lambda p: p[1])[-HISTORY:])
                 self.offset = candidate.get("offset", 0)
                 # Cantopop reads in jyutping, Mandarin in pinyin: follow the song when on either.
-                # A guide the new song has nothing for (kana on a Korean song) goes back to romanization.
+                # A guide the new song has nothing for (kana on a Korean song) goes back to romanization;
+                # a song with no guides at all (no lyrics) leaves the room's choice alone.
                 modes = self.guides()
-                if self.guide in ("latin", "jyutping") or self.guide not in modes:
+                if self.guide in ("latin", "jyutping") or len(modes) > 1 and self.guide not in modes:
                     self.guide = "jyutping" if cantonese(candidate.get("lyrics") or []) and "jyutping" in modes else "latin"
 
     @staticmethod

@@ -10,6 +10,7 @@ from . import align, guides, songbook, stems, youtube, lyrics
 log = logging.getLogger(__name__)
 TIMING_VERSION = 10  # bump when alignment changes, so cached timing is rebuilt
 GUIDES_VERSION = 1  # bump when guide output changes: cached timing keeps, and only the guides are redone
+# (Korean romanization keeps a reading it already has, so changing it needs a TIMING_VERSION bump.)
 LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
 STARTED = time.time()  # energy-only timing (aligner failed) cached before this run is retried once
 
@@ -65,13 +66,20 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
     try:
         cached = json.loads((folder / "timed.json").read_text(encoding="utf-8"))
         # Energy-only timing (the aligner failed) is retried once per run, not on every play.
-        if cached.get("key") == key and (cached.get("aligned", True) or (folder / "timed.json").stat().st_mtime >= STARTED):
-            if cached.get("guides") != GUIDES_VERSION:
-                # Guides are quick to redo: songs cached before a guide changed get it without aligning again.
-                save_timed(folder, key, cached.get("aligned", True), add_guides(cached["lines"]))
-            return cached["lines"]
-    except (OSError, ValueError, KeyError):
-        pass
+        usable = cached.get("key") == key and (cached.get("aligned", True) or (folder / "timed.json").stat().st_mtime >= STARTED)
+        lines_cached = cached["lines"] if usable else None
+    except (OSError, ValueError, KeyError, AttributeError):
+        lines_cached = None
+    if lines_cached is not None:
+        if cached.get("guides") != GUIDES_VERSION:
+            # Guides are quick to redo: songs cached before a guide changed get them without aligning again.
+            # Failing that (say, a read-only cache) still leaves the timing, which is the slow part.
+            try:
+                add_guides(lines_cached)
+                save_timed(folder, key, cached.get("aligned", True), lines_cached)
+            except Exception:
+                log.exception("Could not refresh the guides for %s", folder.name)
+        return lines_cached
     samples, rate = sf.read(samples_path, dtype="float32")
     energy = lyrics.envelope(samples, rate)
     if shift := lyrics.find_shift(lines, energy):
@@ -170,13 +178,16 @@ async def run(state, cache: Path):
                 try:
                     result = await lyrics.fetch(*identity, item["duration"], (meta.get("source_title") or "",))
                     raw, item["lyrics"] = result["raw"], result["lines"]
-                    # A miss is remembered for a week, so a later LRCLIB addition is still picked up.
-                    meta["lyrics_identity"], meta["lyrics_checked"] = identity, time.time()
-                    meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
-                    if result["raw"]:
-                        (folder / "lyrics.lrc").write_text(result["raw"], encoding="utf-8")
+                    if result.get("partial"):
+                        pass  # LRCLIB cut the search short: sing what it found, but don't keep it as the answer
                     else:
-                        (folder / "lyrics.lrc").unlink(missing_ok=True)
+                        # A miss is remembered for a week, so a later LRCLIB addition is still picked up.
+                        meta["lyrics_identity"], meta["lyrics_checked"] = identity, time.time()
+                        meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
+                        if result["raw"]:
+                            (folder / "lyrics.lrc").write_text(result["raw"], encoding="utf-8")
+                        else:
+                            (folder / "lyrics.lrc").unlink(missing_ok=True)
                 except Exception:
                     log.exception("Lyrics unavailable for %s", item["id"])
                     item["lyrics_warning"] = "Lyrics unavailable; audio is ready."
