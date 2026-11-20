@@ -58,12 +58,19 @@ api('/api/config').then(c=>$('remote-url').textContent=$('sticker-url').textCont
 function render(next){
  state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';showClassicBar(state);showSpecs(state);roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
- $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
- if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
- if(!queued.length)$('on-deck').append(el('li','Nothing queued','more'));
+ // The Queue card lists failed songs too, so a song that won't play doesn't just vanish: title over artist, the artist line carrying its status.
+ // On an empty stage the song being prepared is the headline, so the card lists the songs "Up next" after it.
+ const prepping=state.current?null:queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
+ const listed=state.upcoming.map((item,n)=>({item,n})).filter(({item})=>item!==prepping);
+ $('top-queue').querySelector('.eyebrow').textContent=prepping?'Up next':'Queue';
+ $('on-deck').replaceChildren(...listed.slice(0,3).map(({item:i,n})=>{const artist=el('span',i.artist);if(i.status!=='ready')artist.append(' · ',el('em',prepStatus(i)));const text=el('div');text.append(el('b',i.title),artist);const row=el('li');row.append(el('i',String(n+1)),text);return row;}));
+ if(listed.length>3)$('on-deck').append(el('li',`+${listed.length-3} more`,'more'));
+ if(!listed.length)$('on-deck').append(el('li','Queue empty','more'));
+ // An empty stage already says "Pick a song." (or shows the song being prepared) and the big QR; an empty card would only repeat it.
+ $('top-queue').hidden=!state.current&&!listed.length;
  // The two songs after the next one peek out from under its card between songs.
  [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),`${item.title} · ${item.artist}`);peek.replaceChildren(line);}});
- showPrep(queued);showBoard(state,queued);setAmbient(!state.current);
+ showPrep(prepping);showBoard(state,queued);setAmbient(!state.current);
  $('now-card').hidden=!state.current;
  // The idle screen already shows a large QR code.
  $('corner-join').hidden=$('qr-mini').hidden=!state.current;
@@ -475,15 +482,16 @@ function cheer(emoji){
 }
 // "G" on a keyboard or remote also flips the guide.
 addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',value:'cycle'});});
+// One matter-of-fact status for every step (download, separation, lyrics): the guests only need to know it's coming.
+function prepStatus(item){if(item.status==='error')return 'Error preparing';const {percent}=prepLabel(item);return percent==null?'Preparing':`Preparing ${percent}%`;}
 // Songs download and separate one at a time; show the one in progress so a wait never looks like a hang.
 // On an empty stage the song being prepared is the headline. During a song, preparation shows
-// only as small status text in the "Up next" list, so it never covers the lyrics.
-function showPrep(queued){
- const item=state.current?null:queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
+// only as small status text in the Queue card, so it never covers the lyrics.
+function showPrep(item){
  $('idle-prep').hidden=!item;$('idle-hero').hidden=!!item;
  if(!item)return;
- const {percent,text}=prepLabel(item);  // no percent while yt-dlp is still extracting
- $('idle-prep-step').textContent=text;$('idle-prep-title').textContent=item.title;
+ const {percent}=prepLabel(item);  // no percent while yt-dlp is still extracting
+ $('idle-prep-step').textContent=prepStatus(item);$('idle-prep-title').textContent=item.title;
  const bar=$('idle-prep-bar');bar.parentElement.classList.toggle('busy',percent==null);bar.parentElement.style.setProperty('--p',percent==null?0:percent/100);
 }
 // A floating remote for whoever sits at the TV computer: an always-on-top Picture-in-Picture window
