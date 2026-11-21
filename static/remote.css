@@ -388,6 +388,7 @@ body:not([data-theme=classic]) :is(#recent-heading,#recent){display:none}
 .empty2{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:#ffffff08;color:var(--muted);font-size:15px}
 .empty2.warn{background:#ffd29e14;color:#ffd29e}
 #local-block .heading,#more-head{margin:20px 0 6px}
+#local-block[hidden]+#more-head{display:none}  /* nothing ready matches: YouTube results need no "More" */
 /* Search skeletons in Default: rows, not cards. */
 body:not([data-theme=classic]) .skeleton{padding:8px 0;border:0;background:none}body:not([data-theme=classic]) .skeleton>i{width:52px;height:52px;border-radius:10px}
 /* The library: a full-screen layer over home, the dock still below it; the phone's Back closes it. */
@@ -447,3 +448,8 @@ body:not([data-theme=classic]) #cheers .react{background:#232a1e}
  .lv-foot{padding-inline:var(--lv-pad)}
 }
 @media(min-width:1000px){body.sheet-inline .lyrics-view{right:var(--side)}}
+/* First visit: one line under the search bar, pointing up at it, and no dock until there's something to play. */
+.welcome{padding:36px 4px 0;animation:rise .5s var(--spring-soft) both}
+.welcome svg{display:block;width:44px;height:44px;margin-bottom:18px;fill:none;stroke:var(--lime);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.welcome p{font:700 40px/1.08 'Space Grotesk',sans-serif;letter-spacing:-.6px;text-wrap:balance;color:var(--ink)}
+body.bare .dock{display:none}

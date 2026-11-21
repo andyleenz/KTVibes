@@ -2,7 +2,7 @@ import {classicRemote,toastParts,emptyNote,secondsLeft} from './classic-remote.j
 import {$,el,connect,api,clock,throttle,prepLabel,prepStatus,livePosition,syncRanges,REDUCED,thumbnail} from './shared.js';
 import {openLyrics,lyricsState} from './remote-lyrics.js';
 const isClassic=()=>document.body.dataset.theme==='classic';
-let state,classicUi;
+let state,classicUi,libraryLoaded=false;
 const SPRING='cubic-bezier(.38,1.21,.22,1)';
 const haptic=pattern=>{try{navigator.vibrate?.(pattern);}catch{}};
 function showImage(img,src){if(img.getAttribute('src')!==src){if(src)img.src=src;else img.removeAttribute('src');}img.hidden=!src;}
@@ -232,6 +232,7 @@ function showQueue(before){
  const count=state.upcoming.length,classic=state.theme==='classic';$('queue-count').textContent=$('dock-count').textContent=count;
  // Default hides an empty queue altogether; Classic keeps its 예약곡 board with its empty notice.
  $('queue-heading').hidden=$('queue').hidden=!count&&!classic;$('queue-songs').textContent=songCount(count);
+ showWelcome();
  if(before&&count>before.upcoming.length&&!REDUCED.matches)for(const id of ['queue-count','dock-count']){const c=$(id);c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump');}
  const shape=JSON.stringify([!!state.current,...state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.error])]);  // the empty notice reads differently while a song plays
  if(shape!==queueShape&&!dragging){
@@ -463,7 +464,12 @@ async function loadLibrary(){
  for(const [id,row] of libraryRows){const song=ids.get(id);if(song)row.song=song;else{row.remove();libraryRows.delete(id);}}
  refreshSongs();
 }
-function refreshSongs(){showReady();showLibrary();showLocal();}
+function refreshSongs(){libraryLoaded=true;showReady();showLibrary();showLocal();}
+// A first visit: nothing playing, queued, ready or searched. One line takes the empty page and the dock steps aside.
+function showWelcome(){
+ const bare=!isClassic()&&libraryLoaded&&!!state&&!state.current&&!state.upcoming.length&&!library.length&&!$('query').value.trim()&&!$('results').children.length;
+ $('welcome').hidden=!bare;document.body.classList.toggle('bare',bare);
+}
 // Every word of the query appears in the song's title or artist.
 const matches=(words,song)=>words.every(w=>song.find.includes(w));
 const wordsOf=q=>q.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -524,10 +530,11 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('library').hidden&&!docum
 // Search: songs already prepared that match, filtered here as you type, sit above YouTube's results.
 function showLocal(){
  const q=$('query').value.trim().toLowerCase(),on=!!q&&!isClassic();
- $('local-block').hidden=!on;if(!on)return;
- const words=wordsOf(q),hits=library.filter(s=>matches(words,s)).sort((a,b)=>recency(b)-recency(a));
- $('local-count').textContent=hits.length||'';
- $('local').replaceChildren(...(hits.length?hits.slice(0,5).map(songRow):[el('div','No matches','empty2')]));
+ showWelcome();
+ const words=on?wordsOf(q):[],hits=on?library.filter(s=>matches(words,s)).sort((a,b)=>recency(b)-recency(a)):[];
+ $('local-block').hidden=!hits.length;if(!hits.length)return;  // nothing ready matches: YouTube's results stand alone
+ $('local-count').textContent=hits.length;
+ $('local').replaceChildren(...hits.slice(0,5).map(songRow));
  if(hits.length>5){const all=el('button',`See all ${hits.length}`,'seeall');all.onclick=()=>{$('library-filter').value=$('query').value;librarySort='recent';openLibrary();};$('local').append(all);}
 }
 $('query').addEventListener('input',showLocal);
@@ -711,6 +718,7 @@ async function loadPage(){
   $('results-end').hidden=!$('more').hidden||!search.seen.size;
   if(!search.seen.size)$('results').append(classic?emptyNote('없음','검색 결과가 없어요','No songs found. Try the title in its original language, or just the artist.'):el('div','No matches','empty2'));
   if(first)showResults();
+  showWelcome();
  }catch(error){
   if(run!==searchRun)return;if(first){$('results').replaceChildren();$('results').dataset.state='';}
   if(first&&!isClassic()){const note=el('div',undefined,'empty2 warn');note.append(el('b','Search unavailable'),el('small','Offline'));$('results').append(note);}else toast(error.message,undefined,'err');
