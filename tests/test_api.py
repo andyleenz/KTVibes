@@ -228,6 +228,18 @@ class APITests(unittest.TestCase):
                 self.main.run()
             self.assertEqual(started, [self.main.open_browser] if opens else [])
 
+    def test_run_prints_the_phone_remote_address(self):
+        # The TV no longer spells the address out; the terminal does, for anyone who can't scan.
+        import io
+        import uvicorn
+        out = io.StringIO()
+        with patch('sys.argv', ['ktvibes']), patch.object(uvicorn, 'run'), \
+             patch.object(self.main.worker, 'missing_tools', return_value=[]), \
+             patch.object(self.main.socket, 'create_connection', side_effect=OSError), \
+             patch.object(self.main, 'remote_url', return_value='http://10.0.0.5:8765/remote'), patch('sys.stdout', out):
+            self.main.run()
+        self.assertIn('Phone remote: http://10.0.0.5:8765/remote', out.getvalue())
+
     def test_run_refuses_a_port_another_program_holds(self):
         import uvicorn
         with patch('sys.argv', ['ktvibes']), patch.object(uvicorn, 'run') as run, \

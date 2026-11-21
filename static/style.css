@@ -237,3 +237,15 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])):not(.still) :is(#reconnecting,#no-lyrics){bottom:112px}
 .tv:not([data-theme=classic]):has(.connection:not(.online)) #no-lyrics{bottom:100px}
 .tv:not([data-theme=classic]):has(.connection:not(.online)):has(#tv-bottom:not([hidden])):not(.still) #no-lyrics{bottom:176px}
+.tv:not([data-theme=classic]) .join strong{display:block}
+/* Corner buttons (remote, fullscreen), Material 3 Expressive: tonal frosted containers that morph from a circle to a
+   rounded square under the pointer and squash on press, on an overshooting spring. Classic keeps its labelled keys. */
+.tv:not([data-theme=classic]) .open-remote{width:48px;height:48px;border:0;border-radius:24px;background:#ffffff1f;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#fff;opacity:.75;transition:opacity .5s,background .2s,border-radius .45s cubic-bezier(.34,1.56,.64,1),transform .45s cubic-bezier(.34,1.56,.64,1)}
+.tv:not([data-theme=classic]) #fullscreen{right:calc(var(--edge) + 60px)}
+.tv:not([data-theme=classic]) .open-remote:hover{border-radius:16px;background:#ffffff33;opacity:1}
+.tv:not([data-theme=classic]) .open-remote:active{border-radius:12px;transform:scale(.92)}
+.tv:not([data-theme=classic]) .open-remote svg{width:22px;height:22px;transition:transform .45s cubic-bezier(.34,1.56,.64,1)}
+.tv:not([data-theme=classic]) .open-remote:active svg{transform:scale(.88)}
+.tv:not([data-theme=classic]) .open-remote:focus-visible{outline:3px solid var(--lime);outline-offset:3px;border-radius:16px;opacity:1}
+/* Inside the glass bar they sit flush and take the tint only under the pointer. */
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) .open-remote:hover{background:#ffffff1f}
