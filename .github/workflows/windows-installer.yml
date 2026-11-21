@@ -91,13 +91,15 @@ jobs:
       - name: Install silently
         shell: pwsh
         run: |
-          $setup = Start-Process -FilePath .\KTVibes-Setup-x64.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$env:RUNNER_TEMP\inno.log" -Wait -PassThru
-          if ($setup.ExitCode -ne 0) { throw "The installer exited with $($setup.ExitCode)." }
           $app = Join-Path $env:LOCALAPPDATA 'Programs\KTVibes'
+          "APP_DIR=$app" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $started = Get-Date
+          $setup = Start-Process -FilePath .\KTVibes-Setup-x64.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$env:RUNNER_TEMP\inno.log" -Wait -PassThru
+          Write-Host "The installer took $([int]((Get-Date) - $started).TotalSeconds) s and exited with $($setup.ExitCode)."
+          if ($setup.ExitCode -ne 0) { throw "The installer exited with $($setup.ExitCode)." }
           foreach ($path in 'KTVibes.cmd', 'tools\uv\uv.exe', 'tools\ffmpeg\bin\ffmpeg.exe', 'tools\node\node.exe', '.venv') {
             if (-not (Test-Path (Join-Path $app $path))) { throw "Missing after install: $path" }
           }
-          "APP_DIR=$app" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Start KTVibes and check its pages
         shell: pwsh
@@ -120,7 +122,7 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          foreach ($file in "$env:APP_DIR\setup.log", "$env:RUNNER_TEMP\ktvibes.log", "$env:RUNNER_TEMP\ktvibes.log.err") {
+          foreach ($file in "$env:RUNNER_TEMP\inno.log", "$env:APP_DIR\setup.log", "$env:RUNNER_TEMP\ktvibes.log", "$env:RUNNER_TEMP\ktvibes.log.err") {
             if (Test-Path $file) { Write-Host "::group::$file"; Get-Content $file -Tail 80; Write-Host '::endgroup::' }
           }
 
