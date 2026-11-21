@@ -19,18 +19,46 @@ def _device() -> str:
         return "mps"
     return "cpu"
 
-def separate(source: Path, destination: Path) -> tuple[float, float]:
-    """Write vocals.opus and no_vocals.opus; returns (seconds taken, playback gain)."""
+def _load():
     global _model
+    if _model is None:
+        _model = get_model("htdemucs").to(_device()).eval()
+
+def warm():
+    """Load the model ahead of the first song, so its preparation doesn't wait on it."""
+    with _lock:
+        _load()
+
+class _Chunks:
+    """Stands in for demucs's tqdm: reports each chunk of the song the model finishes, as a fraction."""
+    def __init__(self, progress):
+        self.progress = progress
+
+    def tqdm(self, chunks, **_):
+        chunks = list(chunks)
+        for done, chunk in enumerate(chunks, 1):
+            yield chunk
+            self.progress(SEPARATING * done / len(chunks))
+
+SEPARATING = 0.65  # the model's share of the step's time; encoding the two stems takes the rest
+
+def separate(source: Path, destination: Path, progress=None) -> tuple[float, float]:
+    """Write vocals.opus and no_vocals.opus; returns (seconds taken, playback gain).
+    progress(fraction) is called from this thread as the model works through the song."""
+    import demucs.apply
     started = time.monotonic()
     with _lock:
-        if _model is None:
-            _model = get_model("htdemucs").to(_device()).eval()
+        _load()
         audio = AudioFile(str(source)).read(streams=0, samplerate=_model.samplerate, channels=_model.audio_channels)
         reference = audio.mean(0)
         mean, std = reference.mean(), reference.std().clamp_min(1e-8)
-        with torch.inference_mode():
-            stems = apply_model(_model, ((audio - mean) / std)[None], device=_device(), shifts=1, split=True, overlap=0.25, progress=False)[0].cpu()
+        # Only this thread runs the model (the lock), so swapping demucs's progress bar is safe here.
+        bar, demucs.apply.tqdm = demucs.apply.tqdm, _Chunks(progress) if progress else demucs.apply.tqdm
+        try:
+            with torch.inference_mode():
+                stems = apply_model(_model, ((audio - mean) / std)[None], device=_device(), shifts=1, split=True, overlap=0.25, progress=bool(progress))[0].cpu()
+        finally:
+            demucs.apply.tqdm = bar
         stems = stems * std + mean
         index = _model.sources.index("vocals")
         vocals = stems[index]

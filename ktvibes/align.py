@@ -39,8 +39,15 @@ def _load():
         import torch
         from torchaudio.pipelines import MMS_FA
         _bundle = MMS_FA
-        _model = MMS_FA.get_model().to("cuda" if torch.cuda.is_available() else "cpu").eval()
+        # Apple's GPU runs the speech model about twice as fast as the CPU, with the same timings.
+        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+        _model = MMS_FA.get_model().to(device).eval()
     return _bundle, _model
+
+def warm():
+    """Load the model ahead of the first song, so its preparation doesn't wait on it."""
+    with _lock:
+        _load()
 
 def runs(lines: list[dict], words: dict[int, list[str]], longest: float = 30) -> list[list[int]]:
     """Consecutive lines to align together, so the sung audio (not the LRC stamps) decides where one
@@ -62,8 +69,9 @@ def runs(lines: list[dict], words: dict[int, list[str]], longest: float = 30) ->
         current.append(index)
     return groups + ([current] if current else [])
 
-def align(lines: list[dict], samples, rate: int, pad: float = 0.4) -> set[int]:
-    """Time units for every line the aligner is confident about. Returns aligned line indexes."""
+def align(lines: list[dict], samples, rate: int, pad: float = 0.4, progress=None) -> set[int]:
+    """Time units for every line the aligner is confident about. Returns aligned line indexes.
+    progress(fraction) is called after each run of lines."""
     import torch
     import torchaudio.functional as F
     with _lock:
@@ -91,6 +99,8 @@ def align(lines: list[dict], samples, rate: int, pad: float = 0.4) -> set[int]:
                 return
             with torch.inference_mode():
                 emission, _ = model(clip[None].to(device))
+            if device.type == "mps":
+                emission = emission.cpu()  # the aligner itself runs only on the CPU or CUDA
             try:
                 spans = iter(aligner(emission[0], tokenizer([w for index in group for w in words[index]])))
             except Exception:
@@ -114,8 +124,10 @@ def align(lines: list[dict], samples, rate: int, pad: float = 0.4) -> set[int]:
                 lines[index]["units"] = result
                 aligned.add(index)
 
-        previous = []
-        for group in runs(lines, words):
+        previous, groups = [], runs(lines, words)
+        for done, group in enumerate(groups):
+            if progress:
+                progress(done / len(groups))
             # A run split only for length re-aligns the line before it as context (its timing is kept from
             # the earlier run), so the first line of this run can't be pulled back over the end of that one.
             context = previous[-1:] if previous and previous[-1] + 1 == group[0] and not echo(lines[group[0]]) else []

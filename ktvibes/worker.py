@@ -14,10 +14,10 @@ GUIDES_VERSION = 1  # bump when guide output changes: cached timing keeps, and o
 LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
 STARTED = time.time()  # energy-only timing (aligner failed) cached before this run is retried once
 
-def separate(source, destination):
+def separate(source, destination, progress=None):
     # Keep model imports off the server startup path.
     from .separate import separate as separate_audio
-    return separate_audio(source, destination)
+    return separate_audio(source, destination, progress)
 
 def reporter(state, item, step):
     """Progress callback for worker threads: while `step` is the one on show, record the fraction; broadcast at most twice a second."""
@@ -60,7 +60,7 @@ def save_timed(folder: Path, key: str, aligned: bool, lines: list[dict]):
     temporary.write_text(json.dumps({"key": key, "aligned": aligned, "guides": GUIDES_VERSION, "lines": lines}, ensure_ascii=False), encoding="utf-8")
     temporary.replace(folder / "timed.json")
 
-def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) -> list[dict]:
+def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict], progress=None) -> list[dict]:
     """Word timing and guides for these lyrics, reused from timed.json when the LRC text is unchanged."""
     key = f"{TIMING_VERSION}:{hashlib.sha256(raw.encode()).hexdigest()}"
     try:
@@ -90,7 +90,7 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
     aligned = True
     try:
         # Forced alignment on the vocals; lines it cannot place keep the energy estimate.
-        align.align(lines, samples, rate)
+        align.align(lines, samples, rate, progress=progress)
     except Exception:
         log.exception("Forced alignment unavailable for %s", folder.name)
         aligned = False
@@ -105,7 +105,17 @@ class Removed(Exception):
 # Video downloads still running, by video id: a song queued again reuses its download instead of starting a second.
 videos = {}
 
+def warm_models():
+    """Both models take seconds to load; load them while the server starts, not when the first song is queued."""
+    from . import separate as separation
+    for name, load in (("separation", separation.warm), ("alignment", align.warm)):
+        try:
+            load()
+        except Exception:
+            log.exception("Could not preload the %s model", name)
+
 async def run(state, cache: Path):
+    warming = asyncio.create_task(asyncio.to_thread(warm_models))  # noqa: F841 (held so the task isn't collected)
     while True:
         state.wake.clear()
         item = next((i for i in state.upcoming if i["status"] == "queued"), None)
@@ -136,9 +146,9 @@ async def run(state, cache: Path):
                         await state.broadcast()
                         meta.update(await asyncio.to_thread(youtube.download, item["id"], folder, reporter(state, item, "audio")))
                         check()
-                    item["status"], item["step"], item["progress"] = "separating", None, None
+                    item["status"], item["step"], item["progress"] = "separating", "vocals", 0.0
                     await state.broadcast()
-                    meta["separation_seconds"], gain = await asyncio.to_thread(separate, folder / "audio.m4a", folder)
+                    meta["separation_seconds"], gain = await asyncio.to_thread(separate, folder / "audio.m4a", folder, reporter(state, item, "vocals"))
                 meta["stem_gain"] = gain
                 save_meta(folder, meta)  # the gain must survive even if a later step fails
             check()
@@ -192,8 +202,10 @@ async def run(state, cache: Path):
                     log.exception("Lyrics unavailable for %s", item["id"])
                     item["lyrics_warning"] = "Lyrics unavailable; audio is ready."
             if item["lyrics"]:
+                item["step"], item["progress"] = "timing", 0.0
+                await state.broadcast()
                 try:
-                    item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, stems.path(folder, "vocals"), item["lyrics"])
+                    item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, stems.path(folder, "vocals"), item["lyrics"], reporter(state, item, "timing"))
                     lyrics.line_starts(item["lyrics"])  # cheap, so kept out of the timing cache
                 except Exception:
                     log.exception("Word timing unavailable for %s", item["id"])

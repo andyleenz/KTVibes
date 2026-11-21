@@ -29,8 +29,10 @@ export const clock = seconds => `${Math.floor((seconds||0)/60)}:${String(Math.fl
 // Sliders fire many input events; send at most one every `ms`, always ending on the final value.
 export function throttle(fn, ms=120){let last=0,timer;return value=>{clearTimeout(timer);const wait=last+ms-Date.now();if(wait<=0){last=Date.now();fn(value);}else timer=setTimeout(()=>{last=Date.now();fn(value);},wait);};}
 // Preparation status, as both screens describe it.
-const STEPS={queued:'Waiting to download',downloading:'Downloading',separating:'Separating vocals',syncing:'Finding lyrics',ready:'Ready',error:'Failed'};
-export function prepLabel(item){const percent=item.progress?Math.round(item.progress*100):null;return {percent,text:`${STEPS[item.status]||item.status}${item.step?` ${item.step}`:''}${percent==null?'':` · ${percent}%`}`};}
+// The step a song is on, by status and then step (the server's names for them).
+const STEPS={queued:'Waiting',downloading:'Downloading',separating:'Separating vocals',syncing:'Finding lyrics',ready:'Ready',error:'Error preparing'};
+const SUBSTEPS={video:'Downloading video',timing:'Timing lyrics'};
+export function prepLabel(item){const percent=item.progress?Math.round(item.progress*100):null;return {percent,text:SUBSTEPS[item.step]||STEPS[item.status]||'Preparing'};}
 // Sliders paint their own filled track from --v (0–1); call after setting a value in code.
 export function syncRanges(){for(const range of document.querySelectorAll('input[type=range]'))range.style.setProperty('--v',(range.value-range.min)/((range.max-range.min)||1));}
 document.addEventListener('input',e=>{if(e.target.type==='range')syncRanges();});
@@ -39,6 +41,6 @@ export function newSongs(songs,now=Date.now()/1000){const week=songs.filter(s=>n
 // Pronunciation guides: the glyph on the TV's badge and the Classic handset's key, and the badge's label.
 export const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],jyutping:['粵','Jyutping'],hangul:['가','한글'],kana:['あ','Japanese kana']};
 // The wording for a song that isn't ready yet, shared by the TV and the remote.
-export function prepStatus(item){if(item.status==='error')return 'Error preparing';const {percent}=prepLabel(item);return percent==null?'Preparing':`Preparing ${percent}%`;}
+export function prepStatus(item){const {percent,text}=prepLabel(item);return percent==null||item.status==='error'?text:`${text} ${percent}%`;}
 // Where the TV is in the song now: its last report, run forward at the song's speed while playing.
 export function livePosition(s){const c=s.current;if(!c)return 0;const run=s.playing&&s.position>0?(Date.now()/1000-s.received)*(s.speed||1):0;return Math.min(s.position+run,c.duration||Infinity);}
