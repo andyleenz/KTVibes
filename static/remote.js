@@ -25,7 +25,8 @@ function render(next){
  $('tv-lost').hidden=tv||!state.current;$('tv-mute').hidden=!tv||state.player_audio;
  document.body.dataset.theme=state.theme||'default';showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
- if(ready!==readyKeys){readyKeys=ready;loadRecent();classicUi?.loadBook();}
+ if(ready!==readyKeys){readyKeys=ready;loadRecent();loadLibrary();classicUi?.loadBook();}
+ markQueued();
 }
 // Now playing: a card at the top, handing over to the dock once scrolled away.
 function showNow(first){
@@ -355,6 +356,148 @@ async function loadRecent(){
   if(!songs.length)$('recent').append(emptyNote('♪','아직 부른 노래가 없어요','Nothing sung yet.'));
  }catch{}
 }
+// "Added · #N" with Undo (which takes the song back out), or "singing now" if it went straight on stage.
+function addedToast(item,path){
+ if(state.current?.key===item?.key)return toast('Added · singing now');
+ const at=state.upcoming.findIndex(i=>i.key===item?.key);
+ toast(`Added · #${at>=0?at+1:path.endsWith('next')?1:state.upcoming.length+1}`,{label:'Undo',run:()=>send({action:'remove',key:item.key})});
+}
+// Default song rows, one builder for home, the library and both halves of search. A song already queued trades
+// its + for "In queue · N" (and "Preparing" while it gets ready); ••• opens Play next, lyrics and Delete download.
+const PLUS='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',MORE='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+function songRow(song){
+ const row=el('div',undefined,'song-row'),art=el('img',undefined,'art'),text=el('div',undefined,'t'),sub=el('span');
+ row.dataset.id=song.id;art.loading='lazy';art.alt='';art.src=song.thumbnail||thumbnail(song.id);
+ sub.textContent=song.sub??[song.artist,song.duration?clock(song.duration):''].filter(Boolean).join(' · ');
+ text.append(el('b',song.title),sub);
+ const add=el('button',undefined,'ib add'),tag=el('span',undefined,'tag'),more=el('button',undefined,'ib dots');
+ add.innerHTML=PLUS;add.setAttribute('aria-label',`Add ${song.title}`);more.innerHTML=MORE;more.setAttribute('aria-label',`More for ${song.title}`);tag.hidden=true;
+ row.append(art,text,add,tag,more);row.song=song;row.plain=sub.textContent;
+ const queue=async path=>{
+  if(add.disabled)return;add.disabled=true;
+  try{const item=await post(path,{id:song.id,...song.parsed});haptic([10,40,10]);flyToQueue(art);addedToast(item,path);}
+  catch(error){toast(error.message,undefined,'err');}finally{add.disabled=false;}
+ };
+ add.onclick=()=>queue('/api/queue');text.onclick=art.onclick=()=>{if(add.hidden)return songSheet(song,queue);queue('/api/queue');};
+ more.onclick=()=>{haptic(6);songSheet(song,queue);};
+ markRow(row);
+ return row;
+}
+// Where each song sits on stage or in the queue, refreshed whenever the queue changes.
+let placed=new Map(),placedShape;
+function markQueued(){
+ const shape=JSON.stringify([state.current?.id,...state.upcoming.map(i=>[i.id,i.status])]);if(shape===placedShape)return;placedShape=shape;
+ placed=new Map(state.upcoming.map((item,n)=>[item.id,{n:n+1,item}]));if(state.current)placed.set(state.current.id,{n:0,item:state.current});
+ for(const row of document.querySelectorAll('.song-row'))markRow(row);
+}
+function markRow(row){
+ const at=placed.get(row.dataset.id),[,text,add,tag]=row.children,sub=text.lastChild;
+ add.hidden=!!at;tag.hidden=!at;tag.textContent=at?(at.n?`In queue · ${at.n}`:'Singing'):'';
+ if(at&&at.item.status!=='ready'){sub.replaceChildren(`${row.song.artist||row.plain} · `,el('em',at.item.status==='error'?'Error preparing':'Preparing'));}
+ else if(sub.textContent!==row.plain)sub.textContent=row.plain;
+}
+function songSheet(song,queue){
+ const {panel,shut}=bottomSheet(),head=el('div',undefined,'menu-song'),art=el('img',undefined,'art'),text=el('div');
+ art.src=song.thumbnail||thumbnail(song.id);art.alt='';text.append(el('b',song.title),el('small',song.artist||song.sub||''));head.append(art,text);
+ const actions=el('div',undefined,'menu-actions');actions.setAttribute('role','menu');
+ const action=(icon,label,run,cls)=>{const b=el('button',undefined,cls);b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[icon]}</svg>`;b.append(label);b.setAttribute('role','menuitem');b.onclick=()=>{haptic(8);shut();run();};actions.append(b);};
+ action('next','Play next',()=>queue('/api/queue/next'));
+ // Only a prepared song has lyrics to swap and a download to delete.
+ if(song.prepared||song.cached){
+  action('lyrics','Wrong lyrics or language',()=>pickLyrics(song));
+  action('remove','Delete download',async()=>{
+   try{await api(`/api/songs/${song.id}`,{method:'DELETE'});toast(`Deleted ${song.title}`);library=library.filter(s=>s.id!==song.id);for(const row of document.querySelectorAll(`.song-row[data-id="${song.id}"]`))row.remove();libraryRows.delete(song.id);showReady();showLibrary();showLocal();}
+   catch(error){toast(error.message,undefined,'err');}
+  },'dim');
+ }
+ panel.append(head,actions);
+}
+// The library: every prepared song (the songbook), fetched again whenever a song turns ready.
+let library=[],libraryRows=new Map(),homeSort='recent',librarySort='recent';
+const recency=s=>Math.max(s.played||0,s.prepared||0);
+// A–Z groups: a letter for Latin titles (accents folded), one group for Hangul, one for kana and CJK, # for the rest.
+const LETTERS=[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ','가','あ','#'];
+function letterOf(title){
+ const t=title.normalize('NFD').replace(/^[\s\p{P}\p{S}\p{M}]+/u,''),c=t.codePointAt(0)??0,ch=t[0]?.toUpperCase()??'';
+ if(/[A-Z]/.test(ch))return ch;
+ if(c>=0xAC00&&c<=0xD7A3||c>=0x1100&&c<=0x11FF||c>=0x3130&&c<=0x318F)return '가';
+ if(c>=0x3040&&c<=0x30FF||c>=0x3400&&c<=0x9FFF||c>=0xF900&&c<=0xFAFF)return 'あ';
+ return '#';
+}
+const collator=new Intl.Collator(undefined,{sensitivity:'base',numeric:true});
+function sorted(sort){
+ if(sort==='az')return [...library].sort((a,b)=>LETTERS.indexOf(a.letter)-LETTERS.indexOf(b.letter)||collator.compare(a.title,b.title));
+ return [...library].sort((a,b)=>recency(b)-recency(a));
+}
+async function loadLibrary(){
+ let songs;try{songs=await api('/api/songbook');}catch{return;}
+ library=songs.map(s=>({...s,parsed:{artist:s.artist,title:s.title},letter:letterOf(s.title),find:`${s.title} ${s.artist}`.toLowerCase()}));
+ libraryRows=new Map();showReady();showLibrary();showLocal();
+}
+function showReady(){
+ const n=library.length;$('ready-block').hidden=!n;$('ready-count').textContent=n===1?'1 song':`${n} songs`;
+ $('ready').replaceChildren(...sorted(homeSort).slice(0,5).map(songRow));
+ $('ready-all').hidden=n<=5;$('ready-all').textContent=`See all ${n}`;
+}
+function chips(box,pick){for(const b of box.querySelectorAll('button'))b.onclick=()=>{haptic(6);for(const o of box.children)o.setAttribute('aria-pressed',o===b);pick(b.dataset.sort);};}
+chips($('ready-chips'),sort=>{homeSort=sort;showReady();});
+chips($('library-chips'),sort=>{librarySort=sort;showLibrary();$('library').scrollTop=0;});
+// Rows are built once per songbook and only moved or hidden after that, so a thousand songs stay quick.
+function showLibrary(){
+ if($('library').hidden)return;
+ const n=library.length,list=$('library-list'),az=librarySort==='az',frag=document.createDocumentFragment();
+ $('library-count').textContent=n===1?'1 song':`${n} songs`;$('library-filter').placeholder=`Filter ${n} songs`;
+ let letter;
+ for(const song of sorted(librarySort)){
+  if(az&&song.letter!==letter){letter=song.letter;const h=el('div',letter,'letter');h.dataset.letter=letter;frag.append(h);}
+  let row=libraryRows.get(song.id);if(!row){row=songRow(song);libraryRows.set(song.id,row);}frag.append(row);
+ }
+ list.replaceChildren(frag);filterLibrary();
+}
+function filterLibrary(){
+ const words=$('library-filter').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+ for(const [id,row] of libraryRows)row.hidden=!words.every(w=>row.song.find.includes(w));
+ const letters=[];
+ for(const h of $('library-list').querySelectorAll('.letter')){
+  let next=h.nextElementSibling,any=false;while(next&&!next.classList.contains('letter')){if(!next.hidden){any=true;break;}next=next.nextElementSibling;}
+  h.hidden=!any;if(any)letters.push(h.dataset.letter);
+ }
+ $('library-rail').replaceChildren(...letters.map(l=>{const b=el('button',l);b.dataset.letter=l;b.tabIndex=-1;return b;}));
+ $('library-rail').hidden=librarySort!=='az'||letters.length<2;
+}
+$('library-filter').oninput=filterLibrary;
+// Slide a finger down the rail to scrub through the letters, as in Contacts.
+{
+ const rail=$('library-rail');let last;
+ const jump=e=>{const b=document.elementFromPoint(e.clientX,e.clientY)?.closest('#library-rail button');if(!b||b===last)return;last?.classList.remove('on');last=b;b.classList.add('on');haptic(4);
+  const h=$('library-list').querySelector(`.letter[data-letter="${CSS.escape(b.dataset.letter)}"]`);// A stuck header reports where it sticks, so measure from the first row under it.
+  const row=h?.nextElementSibling;if(row)$('library').scrollTop=row.offsetTop-h.offsetHeight;};
+ rail.addEventListener('pointerdown',e=>{try{rail.setPointerCapture(e.pointerId);}catch{}jump(e);});
+ rail.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType!=='mouse')jump(e);});
+ const done=()=>{last?.classList.remove('on');last=null;};rail.addEventListener('pointerup',done);rail.addEventListener('pointercancel',done);
+}
+// The library opens as its own history entry, so the phone's Back button closes it.
+function openLibrary(){
+ $('library').hidden=false;document.body.classList.add('library-open');history.pushState({library:true},'');
+ for(const o of $('library-chips').children)o.setAttribute('aria-pressed',o.dataset.sort===librarySort);
+ showLibrary();$('library').scrollTop=0;
+ if(!REDUCED.matches)$('library').animate([{opacity:0,transform:'translateY(24px)'},{opacity:1,transform:'none'}],{duration:320,easing:'cubic-bezier(.2,0,0,1)'});
+}
+function closeLibrary(){$('library').hidden=true;document.body.classList.remove('library-open');}
+$('ready-all').onclick=openLibrary;
+$('library-back').onclick=()=>history.state?.library?history.back():closeLibrary();
+addEventListener('popstate',()=>{if(!$('library').hidden)closeLibrary();});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('library').hidden&&!document.querySelector('.lyric-sheet'))$('library-back').click();});
+// Search: songs already prepared that match, filtered here as you type, sit above YouTube's results.
+function showLocal(){
+ const q=$('query').value.trim().toLowerCase(),on=!!q&&document.body.dataset.theme!=='classic';
+ $('local-block').hidden=!on;if(!on)return;
+ const words=q.split(/\s+/),hits=library.filter(s=>words.every(w=>s.find.includes(w))).sort((a,b)=>recency(b)-recency(a));
+ $('local-count').textContent=hits.length||'';
+ $('local').replaceChildren(...(hits.length?hits.slice(0,5).map(songRow):[el('div','No matches','empty2')]));
+ if(hits.length>5){const all=el('button',`See all ${hits.length}`,'seeall');all.onclick=()=>{$('library-filter').value=$('query').value;librarySort='recent';openLibrary();};$('local').append(all);}
+}
+$('query').addEventListener('input',showLocal);
 // Search in pages of 10; "More results" appends the next page.
 let search={query:'',page:0,seen:new Set()},searchRun=0;
 const post=(path,song)=>api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,artist:song.artist,title:song.title})});
@@ -376,8 +519,7 @@ function showResult(song,list=$('results'),wrap=pick,index=-1){
   try{
    const item=await post(path,{id:song.id,...song.parsed});icon(status,'added');mark('added',...said);haptic([10,40,10]);flyToQueue(image);
    // Default: where it landed in the queue, with Undo. Classic keeps its own wording (classic-remote.js reads it).
-   if(document.body.dataset.theme==='classic')toast(message);
-   else{const at=state.upcoming.findIndex(i=>i.key===item?.key);if(state.current?.key===item?.key)toast('Added · singing now');else toast(`Added · #${at>=0?at+1:path.endsWith('next')?1:state.upcoming.length+1}`,{label:'Undo',run:()=>send({action:'remove',key:item.key})});}
+   if(document.body.dataset.theme==='classic')toast(message);else addedToast(item,path);
   }
   catch(error){icon(status,'failed');mark('failed',"Couldn't add. Try again");toast(error.message,undefined,'err');}finally{button.disabled=false;}
  };
@@ -524,17 +666,22 @@ async function loadPage(){
  const run=++searchRun,first=!search.page;
  $('more').disabled=true;if(first){$('results').dataset.state='loading';$('results-end').hidden=true;}
  // Placeholder rows hold the space while YouTube answers.
- if(first)$('results').replaceChildren(...Array.from({length:5},()=>{const row=el('div',undefined,'skeleton');row.setAttribute('aria-hidden','true');row.innerHTML='<i></i><div><i></i><i></i></div>';return row;}));
+ $('more-head').hidden=document.body.dataset.theme==='classic';
+ if(first)$('results').replaceChildren(...Array.from({length:3},()=>{const row=el('div',undefined,'skeleton');row.setAttribute('aria-hidden','true');row.innerHTML='<i></i><div><i></i><i></i></div>';return row;}));
  try{
   const results=(await api(`/api/search?q=${encodeURIComponent(search.query)}&page=${search.page}`)).filter(s=>!search.seen.has(s.id));
   if(run!==searchRun)return;
   if(first)$('results').replaceChildren();
-  results.forEach((s,i)=>{search.seen.add(s.id);showResult(s,$('results'),undefined,i);});
+  const classic=document.body.dataset.theme==='classic';
+  results.forEach((s,i)=>{search.seen.add(s.id);if(classic)showResult(s,$('results'),undefined,i);else $('results').append(songRow({...s,artist:s.parsed?.artist,sub:`${s.channel} · ${clock(s.duration)}`}));});
   $('more').hidden=results.length===0||search.page>=9;$('results').dataset.state=search.seen.size?'':'none';
   $('results-end').hidden=!$('more').hidden||!search.seen.size;
-  if(!search.seen.size)$('results').append(emptyNote('없음','검색 결과가 없어요','No songs found. Try the title in its original language, or just the artist.'));
+  if(!search.seen.size)$('results').append(classic?emptyNote('없음','검색 결과가 없어요','No songs found. Try the title in its original language, or just the artist.'):el('div','No matches','empty2'));
   if(first)showResults();
- }catch(error){if(run!==searchRun)return;if(first){$('results').replaceChildren();$('results').dataset.state='';}toast(error.message,undefined,'err');}finally{$('more').disabled=false;}
+ }catch(error){
+  if(run!==searchRun)return;if(first){$('results').replaceChildren();$('results').dataset.state='';}
+  if(first&&document.body.dataset.theme!=='classic')$('results').append(el('div','Search unavailable · offline','empty2 warn'));else toast(error.message,undefined,'err');
+ }finally{$('more').disabled=false;}
 }
 // Autocomplete from YouTube's search box: type to see completions, tap or arrow+Enter to search one.
 let suggestTimer,suggestRun=0,suggestIndex=-1;
@@ -558,7 +705,7 @@ $('query').onkeydown=e=>{
  else if(e.key==='Escape')hideSuggestions();
 };
 $('query').onblur=()=>setTimeout(hideSuggestions,100);
-$('clear').onclick=()=>{$('query').value='';$('clear').hidden=true;searchRun++;$('results').replaceChildren();$('more').hidden=$('results-end').hidden=true;$('query').focus();};
+$('clear').onclick=()=>{$('query').value='';$('clear').hidden=true;searchRun++;$('results').replaceChildren();$('more').hidden=$('results-end').hidden=$('more-head').hidden=true;showLocal();$('query').focus();};
 $('search-form').onsubmit=e=>{
  e.preventDefault();suggestRun++;hideSuggestions();search={query:$('query').value.trim(),page:0,seen:new Set()};$('more').hidden=true;loadPage();
  $('query').blur();showResults();  // drop the keyboard so results have the screen

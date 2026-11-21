@@ -107,6 +107,10 @@ class APITests(unittest.TestCase):
         songs = self.client.get('/api/songbook').json()
         self.assertEqual([(s['number'], s['id']) for s in songs], [(10001, 'bbbbbbbbbbb'), (10002, 'aaaaaaaaaaa')])
         self.assertIsInstance(songs[0]['prepared'], float)
+        # When each was last sung, so the remote's Recent sorts by the later of sung and prepared.
+        self.main.state.played = {'aaaaaaaaaaa': 5.0}
+        songs = {s['id']: s for s in self.client.get('/api/songbook').json()}
+        self.assertEqual((songs['aaaaaaaaaaa']['played'], songs['bbbbbbbbbbb']['played']), (5.0, None))
 
     def test_delete_song_removes_download_and_history(self):
         import json

@@ -341,3 +341,34 @@ body[data-theme=classic] .lyric-sheet .handle{display:none}
 /* Default rows say one thing under the title: the artist once ready, otherwise where it got to. The × lives in the menu. */
 body:not([data-theme=classic]) #queue .row.ready :is(.status,.sep),body:not([data-theme=classic]) #queue .row:not(.ready) :is(.who,.sep){display:none}
 body:not([data-theme=classic]) #queue .row-button:not(.grip){display:none}
+/* Ready to sing: song rows shared by home, the library and search. Tap a row or + to queue it; ••• for more. */
+body:not([data-theme=classic]) :is(#recent-heading,#recent){display:none}
+.heading h2 small{margin-left:6px;font:500 15px 'DM Sans',sans-serif;color:var(--muted)}
+.songs{display:grid}
+.song-row{display:flex;align-items:center;gap:12px;padding:8px 0;cursor:pointer}
+.song-row .art{width:52px;height:52px;border-radius:10px}
+.song-row .t{flex:1;min-width:0;display:grid;gap:2px}
+.song-row .t b{font-size:16px;line-height:1.25;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.song-row .t span{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.song-row .t em{font-style:normal;color:#ffd29e}
+.ib{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;transition:transform .3s var(--bouncy),background .2s}.ib:active{transform:scale(.9)}
+.ib svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ib.add{background:#d7fc701f;color:var(--lime)}.ib.dots{color:var(--muted)}.ib.dots svg{fill:currentColor;stroke:none}
+.tag{flex:none;padding:6px 10px;border-radius:999px;background:#d7fc7014;color:var(--lime);font-size:13px;font-weight:700;white-space:nowrap}
+.chips{display:flex;gap:6px;margin:-2px 0 6px}
+.chips button{padding:7px 13px;border-radius:999px;background:#ffffff0d;color:var(--muted);font-size:14px;transition:background .2s,color .2s}
+.chips button[aria-pressed=true]{background:#ffffff26;color:var(--ink);font-weight:700}
+.empty2{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:#ffffff08;color:var(--muted);font-size:15px}
+.empty2.warn{background:#ffd29e14;color:#ffd29e}
+#local-block .heading,#more-head{margin:20px 0 6px}
+/* Search skeletons in Default: rows, not cards. */
+body:not([data-theme=classic]) .skeleton{padding:8px 0;border:0;background:none}body:not([data-theme=classic]) .skeleton>i{width:52px;height:52px;border-radius:10px}
+/* The library: a full-screen layer over home, the dock still below it; the phone's Back closes it. */
+.library{position:fixed;inset:0;z-index:19;overflow-y:auto;overscroll-behavior:contain;padding:calc(10px + env(safe-area-inset-top)) 34px calc(var(--dock) + 24px) 18px;background:var(--bg)}
+body.library-open{overflow:hidden}
+.library>*{max-width:560px;margin-left:auto;margin-right:auto}
+.lib-top{display:flex;align-items:center;gap:6px;margin-bottom:10px}.lib-top .round{margin-left:-8px;width:40px;height:40px;flex:none}.lib-top svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.lib-top h1{font-size:28px;letter-spacing:-.6px}.lib-top small{font:500 15px 'DM Sans',sans-serif;color:var(--muted);margin-left:4px}
+.lib-filter{display:block;width:100%;height:48px;margin-bottom:12px;padding:0 16px;border-radius:24px;border:1px solid var(--line);background:var(--panel);font-size:16px;outline:none}.lib-filter:focus{border-color:#d7fc7066}
+.letter{position:sticky;top:calc(-10px - env(safe-area-inset-top));z-index:1;padding:10px 0 2px;background:var(--bg);color:var(--lime);font:700 15px 'Space Grotesk',sans-serif}
+.rail{position:fixed;right:2px;top:50%;translate:0 -50%;z-index:2;display:flex;flex-direction:column;padding:4px 2px;touch-action:none;user-select:none}
+.rail button{width:26px;padding:1px 0;font-size:11px;font-weight:700;color:var(--muted);line-height:1.3}.rail button.on{color:var(--lime)}

@@ -132,8 +132,10 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
 
 @app.get("/api/songbook")
 async def songbook_list():
-    """Prepared songs by songbook number, for the remote's keypad and songbook (with when each was prepared, for 신곡)."""
-    return sorted((s for s in prepared_songs().values() if s.get("number")), key=lambda s: s["number"])
+    """Prepared songs by songbook number, for the remote's keypad and library (with when each was prepared, for 신곡,
+    and last sung, for Recent)."""
+    return sorted(({**s, "played": state.played.get(s["id"])} for s in prepared_songs().values() if s.get("number")),
+                  key=lambda s: s["number"])
 
 @app.get("/api/ambient")
 async def ambient():
