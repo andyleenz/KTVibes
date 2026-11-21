@@ -76,10 +76,58 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  release:
-    # Only on a pushed v* tag. The only job with write access.
-    if: github.ref_type == 'tag'
+  smoke-test:
+    # Install the build the way a person would (silently here), let it set itself up, start it with the
+    # Start menu launcher, and check the TV page, the remote and the API answer. No GPU, and no song is
+    # prepared: YouTube often refuses CI machines.
     needs: build
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: KTVibes-Windows-x64-Installer
+
+      - name: Install silently
+        shell: pwsh
+        run: |
+          $setup = Start-Process -FilePath .\KTVibes-Setup-x64.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$env:RUNNER_TEMP\inno.log" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "The installer exited with $($setup.ExitCode)." }
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\KTVibes'
+          foreach ($path in 'KTVibes.cmd', 'tools\uv\uv.exe', 'tools\ffmpeg\bin\ffmpeg.exe', 'tools\node\node.exe', '.venv') {
+            if (-not (Test-Path (Join-Path $app $path))) { throw "Missing after install: $path" }
+          }
+          "APP_DIR=$app" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Start KTVibes and check its pages
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'ktvibes.log'
+          Start-Process -FilePath (Join-Path $env:APP_DIR 'KTVibes.cmd') -WorkingDirectory $env:APP_DIR -RedirectStandardOutput $log -RedirectStandardError "$log.err" -WindowStyle Hidden
+          $deadline = (Get-Date).AddMinutes(10)
+          while ($true) {
+            try { Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8765/api/state' -TimeoutSec 5 | Out-Null; break }
+            catch { if ((Get-Date) -gt $deadline) { throw 'KTVibes did not answer on port 8765 within 10 minutes.' }; Start-Sleep -Seconds 3 }
+          }
+          $checks = @{ '/' = 'KTVibes Stage'; '/tv' = 'KTVibes Stage'; '/remote' = 'KTVibes Remote'; '/api/state' = '"upcoming"'; '/api/qr.svg' = '<svg' }
+          foreach ($path in $checks.Keys) {
+            $page = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8765$path" -TimeoutSec 30
+            if ($page.StatusCode -ne 200 -or -not $page.Content.Contains($checks[$path])) { throw "$path did not return what it should." }
+            Write-Host "OK $path"
+          }
+
+      - name: Show the logs
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($file in "$env:APP_DIR\setup.log", "$env:RUNNER_TEMP\ktvibes.log", "$env:RUNNER_TEMP\ktvibes.log.err") {
+            if (Test-Path $file) { Write-Host "::group::$file"; Get-Content $file -Tail 80; Write-Host '::endgroup::' }
+          }
+
+  release:
+    # Only on a pushed v* tag, once the installer has passed its smoke test. The only job with write access.
+    if: github.ref_type == 'tag'
+    needs: [build, smoke-test]
     permissions:
       contents: write
     uses: ./.github/workflows/attach-release.yml
