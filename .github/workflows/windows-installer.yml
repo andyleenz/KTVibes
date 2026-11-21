@@ -89,16 +89,19 @@ jobs:
           name: KTVibes-Windows-x64-Installer
 
       - name: Install silently
+        # From cmd, as Explorer would start it: launched from PowerShell 7, the installer's Windows PowerShell
+        # helper inherits PowerShell 7's module path and can't find its own commands (Get-FileHash).
+        shell: cmd
+        run: |
+          echo APP_DIR=%LOCALAPPDATA%\Programs\KTVibes>> "%GITHUB_ENV%"
+          KTVibes-Setup-x64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG="%RUNNER_TEMP%\inno.log"
+
+      - name: Check the install
+        # A failed setup step still lets the installer exit 0, so look for what it should have put in place.
         shell: pwsh
         run: |
-          $app = Join-Path $env:LOCALAPPDATA 'Programs\KTVibes'
-          "APP_DIR=$app" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          $started = Get-Date
-          $setup = Start-Process -FilePath .\KTVibes-Setup-x64.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$env:RUNNER_TEMP\inno.log" -Wait -PassThru
-          Write-Host "The installer took $([int]((Get-Date) - $started).TotalSeconds) s and exited with $($setup.ExitCode)."
-          if ($setup.ExitCode -ne 0) { throw "The installer exited with $($setup.ExitCode)." }
           foreach ($path in 'KTVibes.cmd', 'tools\uv\uv.exe', 'tools\ffmpeg\bin\ffmpeg.exe', 'tools\node\node.exe', '.venv') {
-            if (-not (Test-Path (Join-Path $app $path))) { throw "Missing after install: $path" }
+            if (-not (Test-Path (Join-Path $env:APP_DIR $path))) { throw "Missing after install: $path" }
           }
 
       - name: Start KTVibes and check its pages
