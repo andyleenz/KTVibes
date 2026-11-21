@@ -17,10 +17,26 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 /* Header */
 .top{display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px}
 .brand{font-size:24px;font-weight:700;letter-spacing:-1px}.brand span{color:var(--lime)}
-.connection{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:7px}
-.connection::before{content:'';width:8px;height:8px;border-radius:50%;background:#bd8172}
-.connection.online::before{background:var(--lime);animation:ping 2.4s infinite}.connection.online.warn::before{background:var(--amber);animation:none}
-@keyframes ping{0%{box-shadow:0 0 0 0 #d7fc7088}70%{box-shadow:0 0 0 8px #d7fc7000}}
+.connection{font-size:14px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:7px}
+.connection::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.connection.online::before{background:#8fdc6a}.connection:is(.online.off,.lost){color:#ff9f8f}.connection:is(.online.off,.lost)::before{background:#ff9f8f}
+/* Default: a small tonal pill, like the app's chips; the dot glows green when the TV is there, red-tinted when it isn't. */
+body:not([data-theme=classic]) .connection{gap:8px;height:32px;padding:0 13px 0 11px;border-radius:16px;background:#ffffff0f;color:var(--ink);font-size:13px;font-weight:500;transition:background .3s,color .3s}
+body:not([data-theme=classic]) .connection::before{transition:background .3s,box-shadow .3s}
+body:not([data-theme=classic]) .connection.online::before{box-shadow:0 0 0 3px #8fdc6a33,0 0 8px #8fdc6a}
+body:not([data-theme=classic]) .connection:is(.online.off,.lost){background:#ff9f8f1a;color:#ffb8ad}
+body:not([data-theme=classic]) .connection:is(.online.off,.lost)::before{box-shadow:0 0 0 3px #ff9f8f2b}
+/* Banners under the header: the TV (or this phone's link) is lost, or the TV's sound is still off. */
+/* Banners under the header: a tinted card with an icon, what's wrong in bold and, if there's something to do, how. */
+.banner{display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 12px;border-radius:24px;background:#352c1e;color:#ffd29e;animation:rise .45s var(--spring-soft) both}
+.banner .b-icon{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:14px;background:#ffd29e;color:#352c1e}
+.banner svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.banner .b-text{display:grid;gap:1px;min-width:0}.banner b{font-size:16px;color:var(--ink)}.banner small{font-size:14px;opacity:.9}
+.banner.off{background:#3d2421;color:#ffb4a8}.banner.off .b-icon{background:#ffb4a8;color:#3d2421;animation:pulse-icon 1.6s ease-in-out infinite}
+@keyframes pulse-icon{50%{opacity:.55}}@media(prefers-reduced-motion:reduce){.banner.off .b-icon{animation:none}}
+.banner button{margin-left:auto;flex:none;height:36px;padding:0 16px;border-radius:18px;background:#ffffff1f;color:var(--ink);font-weight:700;font-size:14px;transition:transform .3s var(--bouncy)}.banner button:active{transform:scale(.94)}
+/* The socket itself is down: the TV is out of reach too, whatever the last state said. */
+body:not([data-theme=classic]):has(#connection.lost) #tv-lost{display:flex!important}body:has(#connection.lost) #tv-mute{display:none!important}
 
 /* Search: stays in reach while scrolling; the ring hides content passing behind it. */
 .searchbar{position:sticky;top:calc(8px + env(safe-area-inset-top));z-index:5;display:flex;gap:6px;padding:4px;margin-top:6px;border-radius:24px;background:var(--panel);border:1px solid var(--line);box-shadow:0 0 0 8px var(--bg);transition:border-color .2s}
@@ -48,7 +64,13 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .result-icon.failed{color:var(--red)}
 @keyframes pop{from{transform:scale(.3) rotate(-30deg);opacity:0}}
 /* New results rise in one after another. */
-.result.enter{animation:rise .5s var(--spring-soft) both;animation-delay:calc(var(--i) * 45ms)}
+.result.enter,.result.enter~.play-next{animation:rise .5s var(--spring-soft) both;animation-delay:calc(var(--i) * 45ms)}
+/* Play next: a key beside the add mark (and before Recent's ⋯) queues the song at the front. */
+.pick{position:relative}.pick .result{padding-right:52px}
+.play-next{position:absolute;top:0;bottom:0;right:8px;z-index:2;display:grid;place-items:center;width:36px;height:36px;margin:auto 0;border:1px solid var(--line);border-radius:18px;color:var(--lime);transition:opacity .2s,background .2s,border-radius .3s var(--bouncy)}
+.play-next svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.play-next:hover{background:#d7fc7018}.play-next:not(:disabled):active{border-radius:10px}
+.swipe .play-next{right:48px}.swipe:has(.play-next) .result{padding-right:90px}
 @keyframes rise{from{opacity:0;transform:translateY(16px) scale(.97)}}
 /* Placeholder rows while YouTube answers. */
 .skeleton{display:flex;gap:12px;align-items:center;padding:8px;border-radius:16px;background:var(--panel);border:1px solid var(--line)}
@@ -71,30 +93,30 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .bump{animation:bump .5s var(--bouncy)}
 @keyframes bump{35%{transform:scale(1.45);background:var(--lime);color:var(--on-lime)}}
 
-/* Now playing: the song's own thumbnail, blurred, tints the card. */
-.hero{position:relative;margin-top:16px;padding:16px;border-radius:28px;overflow:hidden;isolation:isolate;background:var(--panel)}
-.hero .glow{position:absolute;inset:-40px;z-index:-1;width:calc(100% + 80px);height:calc(100% + 80px);object-fit:cover;filter:blur(40px) saturate(1.6);opacity:.7}
-.hero::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(#0003,#000b)}
+/* Now singing: a frosted card over the song's own thumbnail, blurred. */
+.hero{position:relative;margin-top:12px;padding:16px;border-radius:24px;overflow:hidden;isolation:isolate;background:var(--panel);transition:opacity .3s,filter .3s}
+.hero .glow{position:absolute;inset:-30px;z-index:-1;width:calc(100% + 60px);height:calc(100% + 60px);object-fit:cover;filter:blur(30px) brightness(.7) saturate(1.4)}
+.hero::after{content:'';position:absolute;inset:0;z-index:-1;border:1px solid #ffffff26;border-radius:inherit;background:linear-gradient(160deg,#ffffff1f,#0000 45%,#00000040)}
+/* The TV can't hear this card while it is offline. */
+.hero.offline,body:not([data-theme=classic]):has(#connection.lost) :is(.hero,#cheers){opacity:.45;filter:grayscale(.6)}
 .hero-top{display:flex;gap:14px;align-items:center}
-.hero .art{width:88px;height:88px;border-radius:20px;box-shadow:0 10px 30px #0008}
+.hero .art{width:72px;height:72px;border-radius:14px;box-shadow:0 8px 20px #0006}
 .hero-text{min-width:0}
-.eyebrow{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--lime)}
-.eq{display:inline-flex;gap:2px;align-items:flex-end;height:12px}.eq b{width:3px;background:var(--lime);border-radius:1px;animation:eq .9s ease-in-out infinite alternate}
-.eq b:nth-child(2){animation-delay:-.3s}.eq b:nth-child(3){animation-delay:-.6s}
-@keyframes eq{from{height:20%}to{height:100%}}
-.hero.paused .eq b{animation-play-state:paused}
-.hero h1{margin-top:6px;font-size:24px;line-height:1.15;letter-spacing:-.5px;text-wrap:balance;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.hero p{margin-top:4px;color:#fffc;font-size:14px}
-.hero-time{display:flex;align-items:center;gap:10px;margin-top:18px;font-size:12px;color:#fffb;font-variant-numeric:tabular-nums}
+.eyebrow{font-size:14px;color:#ffffffb3}
+.hero h1{margin-top:2px;font-size:24px;line-height:1.1;letter-spacing:-.5px;text-wrap:balance;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.hero p{margin-top:3px;color:#ffffffb3;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero-time{display:flex;align-items:center;gap:10px;margin:16px 0 12px;font-size:13px;color:#ffffffb3;font-variant-numeric:tabular-nums}
 .bar{position:relative;flex:1;height:6px;border-radius:3px;background:#ffffff2a;cursor:pointer}
 .bar i{position:absolute;inset:0 auto 0 0;width:calc(var(--p,0)*100%);border-radius:3px;background:var(--lime);transition:width .5s linear}
 .hero .bar::before{content:'';position:absolute;inset:-12px 0}  /* a taller touch target than the bar itself */
-.hero .bar i::after{content:'';position:absolute;right:-7px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--lime);box-shadow:0 2px 8px #0008}
-.hero-actions{display:flex;align-items:center;gap:10px;margin-top:14px}
-.spacer{flex:1}
-/* Play morphs: circle when paused, rounded square when playing. */
-.play{display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:28px;background:var(--lime);color:var(--on-lime);transition:border-radius .4s var(--bouncy),transform .3s var(--bouncy)}
-.play.playing{border-radius:16px}.play:not(:disabled):active{border-radius:8px;transform:scale(.94)}
+.hero .bar{height:5px;background:#ffffff33}
+/* Play, skip, settings and lyrics in one row; the cheers sit in their own row under the card. */
+.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+body:not([data-theme=classic]) .hero-actions{justify-content:space-between}body:not([data-theme=classic]) .hero-actions .ghost.round{width:48px;height:48px}  /* spread across the card, in step with the cheers row below */
+/* Play stays a circle; its icon turns between play and pause. */
+.play{display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:28px;background:var(--lime);color:var(--on-lime);transition:transform .3s var(--bouncy)}
+.play:not(:disabled):active{transform:scale(.94)}
+body:not([data-theme=classic]) .play{aspect-ratio:1;border-radius:50%}body:not([data-theme=classic]) .hero .play{width:52px;height:52px}
 .play svg{width:26px;height:26px;fill:currentColor;overflow:visible}
 .play .icon-play,.play .icon-pause{transform-origin:12px 12px;transform-box:view-box;transition:transform .4s var(--bouncy),opacity .15s}
 .play .icon-pause{opacity:0;transform:rotate(-90deg) scale(.5)}
@@ -102,10 +124,16 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .ghost{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border:1px solid #ffffff2a;border-radius:22px;background:#0004;font-size:14px;font-weight:500;transition:border-radius .3s var(--bouncy),transform .3s var(--bouncy)}
 .ghost:not(:disabled):active{border-radius:10px;transform:scale(.95)}.ghost svg{width:18px;height:18px;fill:currentColor}
 .ghost.icon{width:44px;padding:0;justify-content:center}
+body:not([data-theme=classic]) .ghost.round{flex:none;width:40px;height:40px;aspect-ratio:1;border:0;border-radius:50%;background:#ffffff1f}
+.ghost.round svg{width:22px;height:22px}
 
 /* Reactions float up here and on the TV. */
-.reactions{display:flex;gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid #ffffff1a}
+.reactions{display:flex;gap:4px}
 .react{width:44px;height:44px;border-radius:22px;background:#ffffff14;font-size:22px;transition:transform .3s var(--bouncy),border-radius .3s var(--bouncy)}
+/* Cheers sit in their own row under the now-singing card: anyone in the room taps them, often. */
+#cheers{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;transition:opacity .3s,filter .3s}#cheers[hidden]{display:none}
+#cheers .react{width:auto;height:52px;border-radius:26px;background:var(--panel);font-size:22px}#cheers .react:active{border-radius:14px}
+#cheers.offline{opacity:.45;filter:grayscale(.6)}
 .react:active{transform:scale(.85);border-radius:12px}
 .float{position:fixed;z-index:50;pointer-events:none;font-size:30px;will-change:transform,opacity}
 
@@ -137,6 +165,25 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .row.lifted{z-index:10;border-radius:18px;background:var(--panel2);border-top-color:transparent;box-shadow:0 18px 40px #000c,0 0 0 1px #d7fc7044;cursor:grabbing}
 .row.lifted+.row{border-top-color:transparent}
 .row.shifting{transition:transform .35s var(--spring-soft)}
+/* Default: numbered rows, two-line titles, a status line, the grip on the right; a tap opens the song's menu.
+   (Classic keeps its own machine rows: ×, 우선 and the progress ring.) */
+body:not([data-theme=classic]) #queue-heading{margin:26px 0 6px}
+body:not([data-theme=classic]) #queue-heading h2{display:flex;align-items:baseline;gap:8px;font-size:21px;letter-spacing:-.4px}
+#queue-songs{font:500 15px 'DM Sans',sans-serif;color:var(--muted)}
+body:not([data-theme=classic]) #queue .row{gap:12px;padding:8px 0;border-top:0;cursor:pointer}
+body:not([data-theme=classic]) #queue .num{width:18px;font-size:15px;font-weight:700;color:var(--lime)}
+body:not([data-theme=classic]) #queue .thumb .art{width:52px;height:52px;margin:0;border-radius:10px}
+body:not([data-theme=classic]) #queue .ring{display:none}
+body:not([data-theme=classic]) #queue h3{font:700 16px/1.25 'DM Sans','Noto Sans CJK SC','Noto Sans CJK KR',sans-serif;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+body:not([data-theme=classic]) #queue p{font-size:14px}
+body:not([data-theme=classic]) #queue .status{color:#ffd29e}body:not([data-theme=classic]) #queue .row.ready .status{color:inherit}body:not([data-theme=classic]) #queue .row.error .status{color:#ff9f8f}
+body:not([data-theme=classic]) #queue .row.error .error{display:none}
+body:not([data-theme=classic]) #queue .retry{flex:none;height:36px;margin:0;padding:0 14px;border:0;border-radius:18px;background:#ffffff14;font-size:14px;font-weight:700}
+body:not([data-theme=classic]) #queue .row.error .grip{display:none}
+body:not([data-theme=classic]) #queue .grip{width:32px;color:#ffffff59}body:not([data-theme=classic]) #queue .grip svg{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+body:not([data-theme=classic]) #queue .row.lifted{padding:8px;margin:0 -8px}
+.seeall{width:100%;margin-top:8px;padding:13px;border-radius:14px;background:#ffffff0d;font-size:15px;font-weight:700;transition:transform .3s var(--bouncy)}
+.seeall:active{transform:scale(.98)}
 
 /* Recent: swipe a row left to reveal Delete; ⋯ opens more actions. */
 .swipe{position:relative}
@@ -146,14 +193,14 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .swipe:has(.swipe-delete:focus-visible) .result{transform:translateX(-96px)}
 .song-more{position:absolute;top:0;bottom:0;right:8px;z-index:2;width:36px;height:36px;margin:auto 0;border-radius:18px;color:var(--muted);font-size:20px;line-height:1;transition:opacity .2s}
 .song-more:hover{color:var(--ink);background:#ffffff14}
-.swipe.open .song-more,.swipe.dragging .song-more{opacity:0;pointer-events:none}
+.swipe:is(.open,.dragging) :is(.song-more,.play-next){opacity:0;pointer-events:none}
 .song-menu{position:absolute;top:calc(50% + 20px);right:8px;z-index:6;display:flex;flex-direction:column;min-width:190px;padding:6px;background:var(--panel2);border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 40px #000a;transform-origin:100% 0;animation:menu-in .25s var(--spring)}
 .song-menu button{padding:12px 14px;border-radius:10px;text-align:left;font-size:14px}
 .song-menu button:hover{background:#ffffff12}.song-menu .danger{color:var(--red)}
 @keyframes menu-in{from{opacity:0;transform:scale(.85)}}
 
 /* Dock: tucked away while the now-playing card is on screen. */
-.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px max(16px,calc(50% - 264px)) calc(12px + env(safe-area-inset-bottom));background:#1b1e1df0;backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border-top:1px solid var(--line);transition:transform .5s var(--spring-soft)}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px max(16px,calc(50% - 264px)) calc(12px + env(safe-area-inset-bottom));background:#1b1f1d;border-top:1px solid var(--line);transition:transform .5s var(--spring-soft)}
 .dock.away{transform:translateY(calc(100% + 8px))}
 .dock .bar{position:absolute;top:-3px;left:0;right:0;height:3px;border-radius:0;background:transparent;cursor:default}
 .dock-row{display:flex;align-items:center;gap:10px}.dock .ghost.icon,.dock .qchip{border-color:transparent;background:none}.dock .ghost.icon{flex:none;width:40px}.dock .qchip{padding:0 6px;margin-left:-6px}
@@ -161,7 +208,7 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .dock .art{width:44px;height:44px;border-radius:12px}
 .dock .info{min-width:0}.dock .info strong,.dock .info small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dock .info strong{font:700 15px 'Space Grotesk','Noto Sans CJK SC',sans-serif}.dock .info small{font-size:12px;color:var(--muted);margin-top:2px}
-.dock .play{width:48px;height:48px;border-radius:24px}.dock .play.playing{border-radius:14px}.dock .play svg{width:22px;height:22px}
+.dock .play{width:48px;height:48px;border-radius:24px}.dock .play svg{width:22px;height:22px}
 .qchip{display:inline-flex;align-items:center;gap:6px;height:44px;flex:none;padding:0 12px;border:1px solid var(--line);border-radius:22px;font-size:13px;font-weight:700}
 .qchip svg{width:18px;height:18px}.qchip b{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ffffff1a;font-size:12px}
 
@@ -210,19 +257,52 @@ input[type=range]:disabled{opacity:.4;cursor:default}
 .offset{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px}.offset span{flex:1}.offset b{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
 .offset button{height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:var(--panel2);font-size:13px;transition:border-radius .3s var(--bouncy)}
 .offset button:not(:disabled):active{border-radius:8px}
+/* Default: Sound and Screen tabs; sentence-case headings; round slider thumbs; the presets, key and timing
+   as the spike draws them. Classic shows every group on its 설정 page and keeps its own controls. */
+.tabs2{display:flex;gap:6px;margin:14px 0 4px}
+.tabs2 button{height:38px;padding:0 16px;border-radius:19px;background:#ffffff10;color:var(--muted);font-size:15px;transition:background .2s,color .2s}
+.tabs2 button[aria-selected=true]{background:var(--ink);color:#111;font-weight:700}
+/* Sound, Screen and Lyrics tabs: groups (or single rows) carry the pane they belong to. Display's heading is redundant under the tabs. */
+body:not([data-theme=classic]) .sheet:not([data-pane=sound]) [data-pane=sound]:not([role=tab]),body:not([data-theme=classic]) .sheet:not([data-pane=screen]) [data-pane=screen]:not([role=tab]),body:not([data-theme=classic]) .sheet:not([data-pane=lyrics]) [data-pane=lyrics]:not([role=tab]),body:not([data-theme=classic]) #sg-display h4{display:none}
+body:not([data-theme=classic]) :is(#sg-position,#sg-mix>h4,#sg-display>h4,.row-end){display:none}
+body:not([data-theme=classic]) .sheet{background:#1d2220;border-color:transparent;border-radius:26px 26px 0 0;touch-action:pan-y}
+body:not([data-theme=classic]) .sheet .handle{width:40px;height:5px;margin:2px auto 14px;border-radius:3px;background:#ffffff40}
+body:not([data-theme=classic]) .sheet .now .art{display:none}body:not([data-theme=classic]) .sheet .now strong{font-size:20px}body:not([data-theme=classic]) .sheet .now small{font-size:14px}
+body:not([data-theme=classic]) .sheet h4{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 4px;font:700 17px 'Space Grotesk',sans-serif;letter-spacing:0;text-transform:none;color:var(--ink)}
+.link{color:var(--lime);font:700 14px 'DM Sans',sans-serif}
+body:not([data-theme=classic]) .sheet .slider-label{margin-top:14px;font-size:16px}
+body:not([data-theme=classic]) .sheet input[type=range]{--track:8px;--handle:28px;--pos:calc(var(--v)*(100% - 22px) + 11px)}
+body:not([data-theme=classic]) .sheet input[type=range]::-webkit-slider-runnable-track{border-radius:4px;background:linear-gradient(to right,var(--lime) var(--pos),#ffffff1f 0)}
+body:not([data-theme=classic]) .sheet input[type=range]::-moz-range-track{border-radius:4px;background:linear-gradient(to right,var(--lime) var(--pos),#ffffff1f 0)}
+body:not([data-theme=classic]) .sheet input[type=range]::-webkit-slider-thumb{width:22px;height:22px;margin-top:-7px;border-radius:50%;background:#fff;box-shadow:0 2px 6px #0007}
+body:not([data-theme=classic]) .sheet input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 6px #0007}
+body:not([data-theme=classic]) .presets{flex-wrap:nowrap;gap:2px;margin-top:16px;padding:4px;border-radius:14px;background:#ffffff12}
+body:not([data-theme=classic]) .presets button{flex:1 1 auto;height:auto;min-height:40px;padding:4px 6px;border:0;border-radius:10px;font-size:14px;line-height:1.15}
+body:not([data-theme=classic]) .presets button[aria-pressed=true]{background:#ffffff26;color:var(--ink);font-weight:700}
+body:not([data-theme=classic]) .stepper{gap:12px;margin-top:6px;padding:0;border:0;background:none}
+body:not([data-theme=classic]) .stepper button{width:52px;height:52px;border-radius:26px;background:#ffffff14;font-size:24px}
+body:not([data-theme=classic]) .roll{height:44px;font-size:34px;line-height:44px;letter-spacing:-1px}body:not([data-theme=classic]) .stepper small{font-size:14px}
+body:not([data-theme=classic]) .sheet .sg>.seg-row{margin:0;padding:12px 0;border-top:1px solid #ffffff1a;font-size:16px}body:not([data-theme=classic]) .sheet .sg>h4+.seg-row,body:not([data-theme=classic]) #sg-display>.seg-row:nth-child(2){border-top:0}
+body:not([data-theme=classic]) .seg{border:0;background:#ffffff12}body:not([data-theme=classic]) .seg .pill{border-radius:10px;background:#ffffff26}
+body:not([data-theme=classic]) .seg button{font-size:15px}body:not([data-theme=classic]) .seg button[aria-pressed=true]{color:var(--ink)}
+body:not([data-theme=classic]) .offset{gap:12px;margin:6px 0 14px}body:not([data-theme=classic]) .offset span{order:1;text-align:center}body:not([data-theme=classic]) #later{order:2}
+body:not([data-theme=classic]) .offset button{width:52px;height:52px;padding:0;border:0;border-radius:26px;background:#ffffff14;font-size:15px}
+body:not([data-theme=classic]) .offset b{display:block;font:700 28px 'Space Grotesk',sans-serif;color:var(--ink)}body:not([data-theme=classic]) .offset small{font-size:14px;color:var(--muted)}
 
 /* Toast: above the dock; drops in from the top while the sheet covers the bottom. */
 .toast{position:fixed;left:50%;bottom:calc(var(--dock) + 16px);z-index:40;display:flex;align-items:center;gap:12px;width:max-content;max-width:calc(100% - 32px);padding:8px 8px 8px 18px;min-height:44px;border-radius:16px;background:#262b27f2;border:1px solid var(--line);font-size:14px;box-shadow:0 8px 30px #0008;transform:translate(-50%,20px);opacity:0;pointer-events:none;transition:transform .45s var(--spring),opacity .2s}
 .toast.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
 .toast span{min-width:0;padding-right:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toast button{height:32px;padding:0 14px;border-radius:16px;background:var(--lime);color:var(--on-lime);font-weight:700;font-size:13px}
+/* Default: a light slip across the bottom; Undo is a word, not a button shape. */
+body:not([data-theme=classic]) .toast{width:calc(100% - 32px);max-width:528px;min-height:48px;padding:6px 6px 6px 16px;border:0;background:#f2f3e8;color:#111;font-size:15px}
+body:not([data-theme=classic]) .toast button{margin-left:auto;padding:0 10px;background:none;color:#111;font-size:15px}
 .dock.away~.toast{bottom:calc(24px + env(safe-area-inset-bottom))}
 body.sheet-open .toast.toast{bottom:auto;top:calc(16px + env(safe-area-inset-top));transform:translate(-50%,-20px)}
 body.sheet-open .toast.on{transform:translate(-50%,0)}
 
 /* Lyrics picker: every LRCLIB version of the song. */
 .lyric-sheet{position:fixed;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center;background:#000a;animation:fade-in .2s both}
-.lyric-sheet.out{animation:fade-out .2s both}.lyric-sheet.out .lyric-sheet-panel{animation:sheet-out .2s both}
 .lyric-sheet-panel{width:min(100%,640px);max-height:80vh;display:flex;flex-direction:column;padding:16px 16px calc(16px + env(safe-area-inset-bottom));background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;animation:sheet-in .45s cubic-bezier(.34,1.3,.64,1) both}
 .lyric-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .lyric-sheet-head strong{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -241,9 +321,135 @@ body.sheet-open .toast.on{transform:translate(-50%,0)}
 .lyric-option small.count{font-size:11px;color:var(--muted)}
 .lyric-option.current{border-color:var(--lime)}.lyric-option.busy{opacity:.6}
 .lyric-all{padding:12px;color:var(--muted);font-size:13px}
-@keyframes sheet-in{from{transform:translateY(100%)}}@keyframes sheet-out{to{transform:translateY(100%)}}
-@keyframes fade-in{from{opacity:0}}@keyframes fade-out{to{opacity:0}}
+/* A queued song's menu: the song, then its actions, in the same bottom sheet as the lyrics picker. */
+body:not([data-theme=classic]) .lyric-sheet .handle{display:block;flex:none;width:40px;height:5px;margin:-4px auto 14px;border-radius:3px;background:#ffffff40}
+.lyric-sheet-panel{touch-action:pan-y;transition:transform .45s var(--spring-soft)}
+.menu-song{display:flex;align-items:center;gap:12px;padding-bottom:8px}.menu-song .art{width:52px;height:52px;border-radius:10px}
+.menu-song div{min-width:0}.menu-song b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:16px;line-height:1.25}.menu-song small{display:block;margin-top:2px;font-size:14px;color:var(--muted)}
+.menu-actions button{display:flex;align-items:center;gap:14px;width:100%;padding:15px 4px;border-top:1px solid #ffffff1a;font-size:17px;text-align:left}
+.menu-actions svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--lime);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.menu-actions .dim{color:var(--muted)}.menu-actions .dim svg{stroke:var(--muted)}
+@keyframes sheet-in{from{transform:translateY(100%)}}
+@keyframes fade-in{from{opacity:0}}
 
+/* Wider screens. From 600px (foldables, tablets): two columns, search and Ready to sing on the left, the
+   now-singing card and the queue on the right. From 1000px (laptops): settings become a third column, always open,
+   and the dock goes. The column wrappers vanish from layout on phones. Classic keeps its one-column handset. */
+.browse-column,.play-column,.recent-column{display:contents}
+@media(min-width:600px){
+ body:not([data-theme=classic]) .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,1fr);grid-template-rows:auto auto auto auto minmax(0,1fr);grid-template-areas:"top top" ". lost" ". mute" "browse play" "recent play";column-gap:28px;max-width:none;padding:0 24px;align-content:start}
+ body:not([data-theme=classic]) .top{grid-area:top}body:not([data-theme=classic]) #tv-lost{grid-area:lost}body:not([data-theme=classic]) #tv-mute{grid-area:mute}  /* TV news sits over the TV's column */
+ body:not([data-theme=classic]) :is(.browse-column,.play-column,.recent-column){display:flex;flex-direction:column;min-width:0}
+ body:not([data-theme=classic]) .browse-column{grid-area:browse}
+ body:not([data-theme=classic]) .play-column{grid-area:play;align-self:start;position:sticky;top:12px}
+ body:not([data-theme=classic]) .recent-column{grid-area:recent}
+ body:not([data-theme=classic]) .searchbar{position:relative;top:auto;box-shadow:none}  /* sticky would only hold within its own column */
+ body:not([data-theme=classic]) .hero{margin-top:6px}
+ body:not([data-theme=classic]) #queue-heading{margin-top:20px}
+ /* The library covers the left column only, so the queue stays in view beside it. */
+ .library{--lib-w:50vw;right:auto;width:var(--lib-w);padding-right:24px;padding-left:24px;border-right:1px solid var(--line)}
+ .library .rail{right:calc(100vw - var(--lib-w) + 2px)}
+}
+@media(min-width:1000px){
+ body:not([data-theme=classic]){--side:380px;--dock:0px;padding-bottom:24px}
+ body:not([data-theme=classic]) .dock{display:none}
+ body.sheet-inline{padding-right:var(--side)}
+ body.sheet-inline .scrim{display:none}
+ body.sheet-inline .sheet{top:0;bottom:0;left:auto;right:0;width:var(--side);max-width:none;max-height:none;margin:0;border:0;border-left:1px solid var(--line);border-radius:0;transform:none;transition:none;padding-top:calc(20px + env(safe-area-inset-top))}
+ body.sheet-inline .sheet .handle{display:none}
+ body.sheet-inline .toast.toast{top:auto;bottom:24px;transform:translate(-50%,20px)}body.sheet-inline .toast.on{transform:translate(-50%,0)}
+ body.sheet-inline .library{--lib-w:calc((100vw - var(--side))/2)}
+}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 /* Classic theme: room time. */
 .room-add{display:flex;gap:8px}
+/* Past five songs the rest fold behind "Show N more". */
+body:not([data-theme=classic]) #queue .row.folded{display:none}
+/* Classic draws its own grabber on its sheets. */
+.menu-actions button:disabled{opacity:.45}
+/* Default rows say one thing under the title: the artist once ready, otherwise where it got to. The × lives in the menu. */
+body:not([data-theme=classic]) #queue .row.ready .status,body:not([data-theme=classic]) #queue .row:not(.ready) .who{display:none}
+/* Ready to sing: song rows shared by home, the library and search. Tap a row or + to queue it; ••• for more. */
+body:not([data-theme=classic]) :is(#recent-heading,#recent){display:none}
+.heading h2 small{margin-left:6px;font:500 15px 'DM Sans',sans-serif;color:var(--muted)}
+.songs{display:grid}
+.song-row{display:flex;align-items:center;gap:12px;padding:8px 0;cursor:pointer}
+.song-row .art{width:52px;height:52px;border-radius:10px}
+.song-row .t{flex:1;min-width:0;display:grid;gap:2px}
+.song-row .t b{font-size:16px;line-height:1.25;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.song-row .t span{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.song-row .t em{font-style:normal;color:#ffd29e}
+.ib{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;transition:transform .3s var(--bouncy),background .2s}.ib:active{transform:scale(.9)}
+.ib svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ib.add{background:#d7fc701f;color:var(--lime)}.ib.dots{color:var(--muted)}.ib.dots svg{fill:currentColor;stroke:none}
+.tag{flex:none;padding:6px 10px;border-radius:999px;background:#d7fc7014;color:var(--lime);font-size:13px;font-weight:700;white-space:nowrap}
+.chips{display:flex;gap:6px;margin:-2px 0 6px}
+.chips button{padding:7px 13px;border-radius:999px;background:#ffffff0d;color:var(--muted);font-size:14px;transition:background .2s,color .2s}
+.chips button[aria-pressed=true]{background:#ffffff26;color:var(--ink);font-weight:700}
+.empty2{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:#ffffff08;color:var(--muted);font-size:15px}
+.empty2.warn{background:#ffd29e14;color:#ffd29e}
+#local-block .heading,#more-head{margin:20px 0 6px}
+#local-block[hidden]+#more-head{display:none}  /* nothing ready matches: YouTube results need no "More" */
+/* Search skeletons in Default: rows, not cards. */
+body:not([data-theme=classic]) .skeleton{padding:8px 0;border:0;background:none}body:not([data-theme=classic]) .skeleton>i{width:52px;height:52px;border-radius:10px}
+/* The library: a full-screen layer over home, the dock still below it; the phone's Back closes it. */
+.library{position:fixed;inset:0;z-index:19;overflow-y:auto;overscroll-behavior:contain;padding:calc(10px + env(safe-area-inset-top)) 34px calc(var(--dock) + 24px) 18px;background:var(--bg)}
+body.library-open{overflow:hidden}
+.library>*{max-width:560px;margin-left:auto;margin-right:auto}
+.lib-top{display:flex;align-items:center;gap:6px;margin-bottom:10px}.lib-top .round{margin-left:-8px;width:40px;height:40px;flex:none}.lib-top svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.lib-top h1{font-size:28px;letter-spacing:-.6px}.lib-top small{font:500 15px 'DM Sans',sans-serif;color:var(--muted);margin-left:4px}
+.lib-filter{display:block;width:100%;height:48px;margin-bottom:12px;padding:0 16px;border-radius:24px;border:1px solid var(--line);background:var(--panel);font-size:16px;outline:none}.lib-filter:focus{border-color:#d7fc7066}
+.letter{position:sticky;top:calc(-10px - env(safe-area-inset-top));z-index:1;padding:10px 0 2px;background:var(--bg);color:var(--lime);font:700 15px 'Space Grotesk',sans-serif}
+.rail{position:fixed;right:2px;top:50%;translate:0 -50%;z-index:2;display:flex;flex-direction:column;padding:4px 2px;touch-action:none;user-select:none}
+.rail button{width:26px;padding:1px 0;font-size:11px;font-weight:700;color:var(--muted);line-height:1.3}.rail button.on{color:var(--lime)}
+/* Song lengths on the thumbnail, YouTube-style; a muted second part on buttons and notes, never a dot. */
+.song-row .thumb{position:relative;flex:none;line-height:0}
+.song-row .len{position:absolute;right:3px;bottom:3px;padding:2px 4px;border-radius:5px;background:#000b;color:#fff;font-size:11px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+.seeall small{margin-left:8px;font-weight:500;color:var(--muted)}
+.empty2 b{color:inherit}.empty2 small{margin-left:auto;font-size:14px;opacity:.75}
+
+/* M3 Expressive surfaces: solid tonal containers, no frosted glass. The hero is a tinted container, not blurred art. */
+body:not([data-theme=classic]) .hero{background:#232a1e;border-radius:28px}
+body:not([data-theme=classic]) .hero .glow{display:none}
+body:not([data-theme=classic]) #cheers .react{background:#232a1e}
+
+/* Live lyrics: a full-screen layer on a solid surface, words filling left to right as they're sung. */
+.lyrics-view{position:fixed;inset:0;z-index:25;display:flex;flex-direction:column;background:#141815;color:var(--ink);animation:lv-in .45s var(--spring-soft)}
+.lyrics-view[hidden]{display:none}body.lyrics-open{overflow:hidden}
+@keyframes lv-in{from{transform:translateY(40px);opacity:0}}
+.lv-top{display:flex;align-items:center;gap:12px;padding:calc(16px + env(safe-area-inset-top)) 20px 12px}
+.lv-top img{width:48px;height:48px;border-radius:14px;object-fit:cover;background:var(--panel)}
+.lv-name{min-width:0;flex:1}.lv-name b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lv-name span{display:block;font-size:14px;color:var(--muted)}
+.lv-ib{display:grid;place-items:center;flex:none;width:48px;height:48px;border-radius:24px;background:#2a302c;color:var(--ink);transition:border-radius .4s var(--spring),transform .4s var(--spring)}
+.lv-ib:hover{border-radius:16px}.lv-ib:active{border-radius:12px;transform:scale(.92)}
+.lv-ib svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.lv-ib svg.fill{fill:currentColor;stroke:none}
+.lv-scroll{position:relative;flex:1;overflow:hidden;touch-action:none;-webkit-mask-image:linear-gradient(transparent,#000 40px);mask-image:linear-gradient(transparent,#000 40px)}
+.lv-lines{padding:0 24px 50vh;font:700 30px/1.25 'DM Sans','Noto Sans KR','Noto Sans CJK SC',sans-serif;letter-spacing:-.02em;transition:transform .6s cubic-bezier(.3,.8,.3,1);will-change:transform}
+.lv-lines.dragging,.lv-lines.still{transition:none}
+.lv-lines p{margin:0 0 22px;color:#ffffff4d;cursor:pointer;transition:color .4s}  /* colour only: a size change would rewrap lines mid-song */
+.lv-lines p.past{color:#ffffff40}.lv-lines p.next{color:#ffffff73}.lv-lines p.now{color:#ffffff59}
+.lv-lines p:not(.now) .w{color:inherit}
+.lv-lines p.now .w.sung{color:var(--lime)}  /* lime like the TV's wipe */
+.lv-lines p.now .w.cur{background:linear-gradient(90deg,var(--lime) var(--f,0%),#ffffff59 var(--f,0%));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lv-lines .lv-none{display:grid;justify-items:center;gap:16px;margin-top:20vh;cursor:auto}.lv-none p{margin:0;font-size:20px;color:var(--muted);cursor:auto}
+.lv-find{height:48px;padding:0 24px;border-radius:24px;background:#323a2b;color:var(--lime);font:700 16px/1 inherit;transition:border-radius .4s var(--spring),transform .4s var(--spring)}.lv-find:active{border-radius:14px;transform:scale(.94)}
+.lv-foot{padding:16px 20px calc(18px + env(safe-area-inset-bottom));background:#1d2220;border-radius:28px 28px 0 0}
+.lv-prog{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lv-track{flex:1;height:6px;border-radius:3px;background:#ffffff1f;overflow:hidden}.lv-track i{display:block;height:100%;border-radius:3px;background:var(--lime)}
+.lv-acts{display:flex;align-items:center;justify-content:center;gap:24px;margin-top:14px}
+.lv-play{display:grid;place-items:center;width:72px;height:72px;border-radius:36px;background:var(--lime);color:#111313;transition:border-radius .4s var(--spring),transform .4s var(--spring)}
+.lv-play.playing{border-radius:22px}.lv-play:active{transform:scale(.92)}
+.lv-play svg{width:30px;height:30px;fill:currentColor}.lv-play .i-pause,.lv-play.playing .i-play{display:none}.lv-play.playing .i-pause{display:block}
+/* Unfolded phones and tablets: one centred column (header, lines, controls) instead of a phone layout stretched edge to edge; bigger words. */
+@media(min-width:600px){
+ .lyrics-view{--lv-pad:max(32px,calc(50% - 320px))}
+ .lv-top{padding-inline:var(--lv-pad);padding-top:calc(24px + env(safe-area-inset-top))}
+ .lv-lines{padding-inline:var(--lv-pad);font-size:clamp(32px,4.4vw,42px)}
+ .lv-lines p{margin-bottom:26px}
+ .lv-foot{padding-inline:var(--lv-pad)}
+}
+@media(min-width:1000px){body.sheet-inline .lyrics-view{right:var(--side)}}
+/* First visit: one line under the search bar, pointing up at it, and no dock until there's something to play. */
+.welcome{padding:36px 4px 0;animation:rise .5s var(--spring-soft) both}
+.welcome svg{display:block;width:44px;height:44px;margin-bottom:18px;fill:none;stroke:var(--lime);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.welcome p{font:700 40px/1.08 'Space Grotesk',sans-serif;letter-spacing:-.6px;text-wrap:balance;color:var(--ink)}
+body.bare .dock{display:none}

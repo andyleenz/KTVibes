@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans+KR:wght@700&family=Share+Tech+Mono&family=Black+Han+Sans&family=Russo+One&family=Noto+Sans+KR:wght@900&display=swap');
 :root{color-scheme:dark;--bg:#111313;--panel:#1b1e1d;--line:#343a36;--ink:#f2f3e8;--muted:#9aaba0;--lime:#d7fc70;font-family:'DM Sans','Noto Sans CJK SC','Noto Sans CJK KR',sans-serif;background:var(--bg);color:var(--ink)}*{box-sizing:border-box}html{touch-action:manipulation;-webkit-text-size-adjust:100%}body{margin:0}button,input{font:inherit}button,a,input{ -webkit-tap-highlight-color:transparent}button{border:1px solid var(--line);background:#292e2a;color:var(--ink);padding:12px 18px;border-radius:10px;cursor:pointer}button:hover{border-color:var(--lime)}button:disabled{opacity:.4;cursor:wait}button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--lime);outline-offset:3px}a{color:var(--ink);text-decoration:none}h1,h2,h3,p{margin-top:0}h1,h2,h3,.brand{font-family:'Space Grotesk','Noto Sans CJK SC','Noto Sans CJK KR',sans-serif}h1{font-size:clamp(44px,8vw,76px);line-height:1.02;letter-spacing:-3px;margin-bottom:22px}h2{font-size:22px}h3{font-size:20px;margin-bottom:6px}em{font-style:normal;color:var(--lime)}p{color:var(--muted);line-height:1.55}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:30px 0;border-bottom:1px solid var(--line)}.brand{font-size:30px;font-weight:700;letter-spacing:-1.5px}.brand span{color:var(--lime)}.connection{font-size:11px;color:var(--muted);white-space:nowrap}.connection:before{content:'●';margin-right:7px;color:#bd8172}.eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--lime);margin-bottom:18px}.primary{background:var(--lime);color:#1a2215;font-weight:700;border:0;white-space:nowrap}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px}input[type=range]{width:100%;accent-color:var(--lime);margin:17px 0;cursor:pointer;min-height:20px}/* Corner inset follows the screen's height, so on wide screens the header and controls stay in the corners. */
-.tv{--edge:max(24px,3.5vh);--qr:clamp(110px,8.5vw,180px);min-height:100vh;background:radial-gradient(ellipse at 65% 30%,#293426 0%,#141916 40%,#111313 75%);overflow:hidden}.tv header{padding:25px var(--edge);border:0}.tv-tools{display:flex;align-items:center;gap:24px}.tv-tools button{background:transparent;font-size:12px}.stage{height:calc(100vh - 210px*var(--ui,1));min-height:380px;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px 5vw}.tv h1{font-size:clamp(50px,6.5vw,110px);letter-spacing:-4px}.tv .eyebrow{font-size:12px}.join{display:flex;align-items:center;justify-content:center;gap:36px;margin-top:40px;text-align:left}.join img{width:min(260px,30vh);height:auto;aspect-ratio:1;background:white;padding:14px;border-radius:22px}  /* the stage's one call to action: big enough to scan from the sofa */.join strong{font-size:24px}.join p{margin:10px 0;font-size:20px;color:var(--lime)}.join small{font-size:16px;color:var(--muted)}.tv-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:30px;padding:25px var(--edge);border-top:1px solid var(--line)}.tv-bottom .eyebrow{font-size:9px}.tv-bottom p{font-size:12px;margin:8px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tv-bottom label{width:160px;font-size:11px;color:var(--muted)}.tv-bottom input{margin:7px 0}.time{display:flex;align-items:center;gap:12px;width:32%;font-size:11px;color:var(--muted)}.track{height:3px;background:var(--line);flex:1}#progress{height:100%;background:var(--lime);width:0}#performance{width:100%;max-width:max(1100px,57vw)}#song-title{font-size:22px;color:var(--muted);margin-bottom:25px}#song-artist{margin-bottom:8px}#lyrics{height:min(62vh,calc(42vh + (max(1,var(--lyric-scale,1)) - 1)*40vh));overflow:auto;scrollbar-width:none;position:relative;mask-image:linear-gradient(transparent,black 12%,black 88%,transparent);padding:max(4vh,calc(14vh - (max(1,var(--lyric-scale,1)) - 1)*20vh)) 0}#lyrics .lyric{font-size:clamp(24px,3.2vw,54px);font-weight:700;line-height:1.45;margin:18px 0;color:#829080;transition:color .2s,opacity .2s;word-break:keep-all;overflow-wrap:anywhere}#lyrics .lyric.active{color:var(--lime)}#lyrics .lyric.past{opacity:.4}#no-lyrics{font-size:25px;padding:50px 0}.enable{position:fixed;inset:0;background:#071008c9;backdrop-filter:blur(12px);display:grid;place-items:center;z-index:5;padding:20px}.enable .panel{max-width:450px;text-align:center}.enable h2{font-size:34px}.enable p{font-size:14px}.prep-track{height:3px;background:var(--line);border-radius:2px;overflow:hidden;position:relative}.prep-bar{height:100%;background:var(--lime);width:0;transition:width .4s}.prep-track.busy .prep-bar{position:absolute;width:30%;animation:slide 1.2s ease-in-out infinite}@keyframes slide{from{left:-30%}to{left:100%}}#tv-error{position:fixed;bottom:110px;left:5%;color:#ffaaa2;font-size:13px;z-index:6}[hidden]{display:none!important}@media(max-width:520px){header{padding:24px 0}h1{font-size:53px}.panel{padding:20px}.tv-bottom{gap:15px}.tv-bottom label{display:none}.time{width:48%}.tv h1{font-size:47px}.join{gap:12px}.join img{width:140px}.join p{font-size:12px}.join strong{font-size:14px}.join small{font-size:10px}.tv-tools{gap:10px}.tv-tools button{padding:8px}.tv header .brand{font-size:24px}}
+.tv{--edge:max(24px,3.5vh);--qr:clamp(110px,8.5vw,180px);min-height:100vh;background:radial-gradient(ellipse at 65% 30%,#293426 0%,#141916 40%,#111313 75%);overflow:hidden}.tv header{padding:25px var(--edge);border:0}.tv-tools{display:flex;align-items:center;gap:24px}.tv-tools button{background:transparent;font-size:12px}.stage{height:calc(100vh - 210px*var(--ui,1));min-height:380px;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px 5vw}.tv h1{font-size:clamp(50px,6.5vw,110px);letter-spacing:-4px}.tv .eyebrow{font-size:12px}.join{display:flex;align-items:center;justify-content:center;gap:36px;margin-top:40px;text-align:left}.join img{width:min(260px,30vh);height:auto;aspect-ratio:1;background:white;padding:14px;border-radius:22px}  /* the stage's one call to action: big enough to scan from the sofa */.join strong{font-size:24px}.join p{margin:10px 0;font-size:20px;color:var(--lime)}.join small{font-size:16px;color:var(--muted)}.tv-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:30px;padding:25px var(--edge);border-top:1px solid var(--line)}.tv-bottom .eyebrow{font-size:9px}.tv-bottom p{font-size:12px;margin:8px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tv-bottom label{width:160px;font-size:11px;color:var(--muted)}.tv-bottom input{margin:7px 0}.time{display:flex;align-items:center;gap:12px;width:32%;font-size:11px;color:var(--muted)}.track{height:3px;background:var(--line);flex:1}#progress{height:100%;background:var(--lime);width:0}#performance{width:100%;max-width:max(1100px,57vw)}#song-title{font-size:22px;color:var(--muted);margin-bottom:25px}#song-artist{margin-bottom:8px}#lyrics{height:min(62vh,calc(42vh + (max(1,var(--lyric-scale,1)) - 1)*40vh));overflow:auto;scrollbar-width:none;position:relative;mask-image:linear-gradient(transparent,black 12%,black 88%,transparent);padding:max(4vh,calc(14vh - (max(1,var(--lyric-scale,1)) - 1)*20vh)) 0}#lyrics .lyric{font-size:clamp(24px,3.2vw,54px);font-weight:700;line-height:1.45;margin:18px 0;color:#829080;transition:color .2s,opacity .2s;word-break:keep-all;overflow-wrap:anywhere}#lyrics .lyric.active{color:var(--lime)}#lyrics .lyric.past{opacity:.4}#no-lyrics{font-size:25px;padding:50px 0}.enable{position:fixed;inset:0;z-index:5;display:flex;align-items:flex-end;justify-content:center;padding:0 20px 64px;cursor:pointer;background:linear-gradient(transparent 60%,#0710088c)}.enable:focus-visible{outline:none}.enable:focus-visible .start-pill{outline:3px solid var(--ink);outline-offset:4px}.tv:not([data-theme=classic]) .start-pill{display:inline-flex;align-items:center;gap:12px;padding:18px 36px;border-radius:999px;background:var(--lime);color:#111313;font:700 22px "DM Sans",sans-serif;box-shadow:0 0 0 10px #d7fc7012}.tv:not([data-theme=classic]) .start-pill::before{content:"";width:0;height:0;border-style:solid;border-width:8px 0 8px 13px;border-color:transparent transparent transparent currentColor}.enable .panel{max-width:none;padding:0;background:none;border:0;text-align:center}.enable p{font-size:15px;margin:16px 0 0}.enable #audio-error{color:var(--ink);margin-top:6px}.enable #audio-error:empty{display:none}.prep-track{height:3px;background:var(--line);border-radius:2px;overflow:hidden;position:relative}.prep-bar{height:100%;background:var(--lime);width:0;transition:width .4s}.prep-track.busy .prep-bar{position:absolute;width:30%;animation:slide 1.2s ease-in-out infinite}@keyframes slide{from{left:-30%}to{left:100%}}#tv-error{position:fixed;bottom:110px;left:5%;color:#ffaaa2;font-size:13px;z-index:6}[hidden]{display:none!important}@media(max-width:520px){header{padding:24px 0}h1{font-size:53px}.panel{padding:20px}.tv-bottom{gap:15px}.tv-bottom label{display:none}.time{width:48%}.tv h1{font-size:47px}.join{gap:12px}.join img{width:140px}.join p{font-size:12px}.join strong{font-size:14px}.join small{font-size:10px}.tv-tools{gap:10px}.tv-tools button{padding:8px}.tv header .brand{font-size:24px}}
 
 #backdrop{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000;z-index:-2}#ambient{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:.3;filter:saturate(.8)}
 #video-shade{position:fixed;inset:0;background:linear-gradient(#0009,transparent 25%,transparent 40%,#0009 70%,#000e);z-index:-1}.tv{isolation:isolate}.tv.has-video{background:#000}.tv.has-video #performance{align-self:flex-end;padding-bottom:0}.tv.has-video .stage{height:calc(100vh - 150px*var(--ui,1))}  /* the bottom bar floats over the video and fades out, so the lyrics only clear it */.tv.has-video #lyrics{height:min(50vh,calc(25vh*max(1,var(--lyric-scale,1))));padding:7vh 0;mask-image:linear-gradient(transparent,black 18%,black 82%,transparent)}.tv.has-video #lyrics .lyric{font-size:clamp(26px,3.1vw,52px);color:#fff9;text-shadow:0 2px 5px #000,0 0 20px #000}.tv.has-video #lyrics .lyric.active{color:var(--lime)}.tv.has-video #song-title{margin-bottom:0;font-size:16px;color:#fffc}.tv.has-video #song-artist{font-size:10px;margin-bottom:4px}.tv.has-video .tv-bottom{background:#0007;border-top-color:#ffffff20}
@@ -113,6 +113,9 @@ body.intro .title-card :is(h1,p),body.intro .title-card::after{opacity:1;transfo
 .tv-controls label input{margin:0}
 
 [data-guide=jyutping] #lyrics rt:has(.jyutping:not(:empty)){display:revert}[data-guide=jyutping] #lyrics rt .jyutping{display:inline}[data-guide=jyutping] #lyrics .lyric{line-height:1.8}
+[data-guide=kana] #lyrics rt:has(.kana:not(:empty)){display:revert}[data-guide=kana] #lyrics rt .kana{display:inline}[data-guide=kana] #lyrics .lyric{line-height:1.8}
+/* A kanji word's kana spans its units rather than sitting inside one, so the reading wipes by itself (tv.js sets its --p). */
+#lyrics ruby.kana-group{ruby-align:center}#lyrics .lyric.active .kana-group rt{--p:0}#lyrics .lyric.active .kana-group rt>span{background:linear-gradient(90deg,var(--lime) calc(var(--p)*100%),#fff calc(var(--p)*100%));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
 /* Room display settings. Blur suits lyric videos, whose own lyrics clash with ours; the slight zoom hides blurred edges. */
 .tv[data-video=blur] #backdrop{filter:blur(28px) brightness(.7);scale:1.12}
 .tv[data-lyrics=off] #lyrics,.tv[data-lyrics=off] #no-lyrics{visibility:hidden}
@@ -124,7 +127,7 @@ body.intro .title-card :is(h1,p),body.intro .title-card::after{opacity:1;transfo
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="0"]{grid-row:1;justify-self:start;text-align:left;transform-origin:left center}
 .tv[data-lyrics=two] #lyrics .lyric[data-slot="1"]{grid-row:2;justify-self:end;text-align:right;transform-origin:right center}
 .tv[data-lyrics=two] #lyrics .lyric.past{color:var(--lime);opacity:1} /* a sung line stays lit until the next line takes its slot */
-.tv[data-lyrics=two]:is([data-guide=latin],[data-guide=jyutping],[data-guide=hangul]) #lyrics .lyric::after{content:"";display:inline-block;width:0;height:1.56em;vertical-align:text-bottom} /* a line with no guide is as tall as one with, so the lines don't jump */
+.tv[data-lyrics=two][data-guide]:not([data-guide=off]) #lyrics .lyric::after{content:"";display:inline-block;width:0;height:1.56em;vertical-align:text-bottom} /* a line with no guide is as tall as one with, so the lines don't jump */
 .tv[data-lyrics=two] #lyrics .lyric[data-fit=squeeze]{max-width:none;scale:var(--squeeze) 1}
 .tv[data-lyrics=two] #lyrics .lyric[data-fit=wrap]{white-space:normal;text-wrap:balance}
 .tv[data-lyrics=two] #lyrics.measuring .lyric{display:block;position:absolute;left:0;visibility:hidden;animation:none}
@@ -145,9 +148,103 @@ body.still :is(.tv-tools,.tv-bottom,.open-remote){opacity:0;pointer-events:none}
 #fullscreen svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #fullscreen .icon-exit,#fullscreen.full .icon-enter{display:none}#fullscreen.full .icon-exit{display:inline}
 /* Theme picker on the Enable sound panel: quiet pills under a hairline. */
-.theme-pick{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:20px;padding-top:18px;border-top:1px solid #ffffff10;font-size:14px;color:#7d877f}
-.theme-pick .pills{display:inline-flex;padding:3px;border-radius:999px;background:#0c100f;box-shadow:inset 0 0 0 1px #ffffff14}
-.theme-pick button{display:flex;align-items:center;gap:6px;padding:6px 14px;border:0;border-radius:999px;background:none;color:#9aa59c;font:600 14px 'DM Sans',sans-serif}
-.theme-pick button i{display:none}
-.theme-pick button[aria-pressed=true]{background:#ffffff12;color:var(--lime)}
-.theme-pick button[aria-pressed=true] i{display:block;width:7px;height:7px;border-radius:50%;background:var(--lime)}
+
+
+
+
+
+
+
+body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:600px){.enable{padding-bottom:28px}}
+
+/* Default theme: frosted glass cards over the stage, sentence-case labels, one Queue card top right, one floating control bar.
+   Scoped away from Classic, which shares this markup. :where keeps the glass easy to override per card. */
+/* --glass is a solid tonal surface (M3 Expressive, no frosted blur); the name stays so the rules using it don't churn. */
+.tv{--glass:#1c211ebf;--glass-line:#ffffff17;--glass-shadow:0 12px 32px #0008;--mut:#ffffffa6;--bar-in:max(var(--edge),calc(50% - 590px));--queue-w:clamp(220px,19vw,340px)}
+.tv:not([data-theme=classic]) :where(#idle .join,.next-card,.peek,.osd,.tv-bottom,#reconnecting,#no-lyrics){background:var(--glass);border:0;border-radius:22px;box-shadow:var(--glass-shadow);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}  /* frosted, so the video reads through */
+.tv:not([data-theme=classic]) :is(#peek-1,#peek-2){background:var(--glass)}  /* beat the ids' solid fills */
+/* Labels: sentence case, muted, directly above what they label. */
+.tv:not([data-theme=classic]) .eyebrow{font-size:17px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--mut);margin-bottom:8px}
+.tv:not([data-theme=classic]) #up-next .eyebrow{font-size:21px}
+/* Header, one line: the small logo, then title and artist after a divider, sharing a centre line. One drop shadow covers
+   the group; a text-shadow on the title would be cropped by its ellipsis. */
+.tv:not([data-theme=classic]) header .brand{font-size:19px;line-height:26px;letter-spacing:-1px}
+.tv:not([data-theme=classic]) .now-playing{height:40px;align-items:center;gap:18px;filter:drop-shadow(0 1px 2px #000a) drop-shadow(0 2px 10px #0008)}
+.tv:not([data-theme=classic]) #now-card:not([hidden]){display:flex;align-items:baseline;gap:10px;padding-left:18px;border-left:1px solid #ffffff33;white-space:nowrap;font-size:inherit;line-height:26px;max-width:min(640px,calc(100vw - var(--queue-w) - 3*var(--edge) - 140px))}
+.tv:not([data-theme=classic]) #now-card #song-title{font:700 clamp(17px,1.3vw,22px)/26px 'Space Grotesk','Noto Sans KR',sans-serif;letter-spacing:-.02em;text-shadow:none}
+.tv:not([data-theme=classic]) #now-card #song-artist{font:400 clamp(15px,1.1vw,19px)/26px 'DM Sans','Noto Sans KR',sans-serif;letter-spacing:0;color:var(--mut);text-shadow:none}
+.tv:not([data-theme=classic]) #now-card #song-artist::before{content:none}
+/* Top right: one line of text (Next, the title, +N) mirroring the header, and the QR under it. The line keeps its slot
+   while a song plays even with nothing queued, so the QR never moves. Classic keeps its numbered Queue card. */
+.tv:not([data-theme=classic]) .tv-stack{margin-top:2px;width:var(--queue-w);max-width:none;gap:10px}
+.tv:not([data-theme=classic]) .tv-side .top-queue{display:flex;align-items:center;width:fit-content;max-width:100%;height:36px;filter:drop-shadow(0 1px 2px #000a) drop-shadow(0 2px 10px #0008)}
+.tv:not([data-theme=classic]) .q-full{display:none}
+.tv:not([data-theme=classic]) .top-queue.empty{visibility:hidden}
+.q-pill{display:flex;align-items:baseline;gap:8px;min-width:0;min-height:20px;line-height:20px;white-space:nowrap;font-size:15px}
+.q-pill small{color:var(--lime);font-weight:700;font-size:13px}.q-pill b{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:600}.q-pill span{color:var(--mut)}
+.tv:not([data-theme=classic]) .corner-join img{display:block;width:clamp(80px,5.4vw,108px);padding:6px;border-radius:12px;background:#fff;box-shadow:0 6px 20px #0007}
+/* Empty stage: the join card. While a song is being prepared, the QR under the Next line takes over joining. */
+.tv:not([data-theme=classic]) #idle:has(#idle-prep:not([hidden])) .join{display:none}
+.tv:not([data-theme=classic]) #idle .join{display:inline-flex;gap:26px;padding:20px 30px 20px 20px}
+.tv:not([data-theme=classic]) .join img{width:min(200px,24vh);padding:9px;border-radius:14px}
+.tv:not([data-theme=classic]) .join strong{font-size:28px}.tv:not([data-theme=classic]) .join p{margin:8px 0 0;font-size:21px}.tv:not([data-theme=classic]) .join small{display:block;margin-top:8px;font-size:17px;color:var(--mut)}
+/* Ambient videos play behind the empty stage, some with bright burned-in lyric panels: a soft dark pool
+   (blurred, darkened) behind the headline keeps it legible over any frame, with no edge of its own. */
+.tv:not([data-theme=classic]) :is(#idle-hero,#idle-prep){position:relative;isolation:isolate}
+.tv:not([data-theme=classic]) :is(#idle-hero,#idle-prep)::before{content:'';position:absolute;inset:-14vh -18vw;z-index:-1;pointer-events:none;background:radial-gradient(closest-side,#000000c8,#0000009c 45%,#00000040 75%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);-webkit-mask-image:radial-gradient(closest-side,#000 50%,transparent);mask-image:radial-gradient(closest-side,#000 50%,transparent)}  /* the blur softens burned-in text behind; the mask fades it out */
+.tv:not([data-theme=classic]) :is(#idle-hero h1,#idle-prep h1,#idle-prep .eyebrow){text-shadow:0 2px 12px #000c}
+/* Preparing on an empty stage: title, then the bar, then "Preparing 42%" under it. */
+.tv:not([data-theme=classic]) .idle-prep{display:flex;flex-direction:column;align-items:center}
+.tv:not([data-theme=classic]) .idle-prep .prep-track{order:1;width:min(560px,calc(100vw - 2*(var(--queue-w) + var(--edge) + 24px)))}  /* clear of the Queue card in small windows */
+.tv:not([data-theme=classic]) .idle-prep .eyebrow{order:2;margin:16px 0 0;font-size:19px;color:#ffffffcc;text-transform:none}
+/* While singing: one floating glass pill, play and skip, the time, then guide and mix, then fullscreen and the remote.
+   The two launchers stay page-level buttons (they also show on an empty stage), so the pill keeps room at its right end and they sit in it. */
+.tv:not([data-theme=classic]) .tv-bottom{position:fixed;left:var(--bar-in);right:var(--bar-in);bottom:22px;gap:12px;padding:8px 136px 8px 10px;border-radius:999px}
+.tv.has-video:not([data-theme=classic]) .tv-bottom{background:var(--glass);border-color:var(--glass-line)}
+.tv:not([data-theme=classic]) .tv-controls{display:contents}
+.tv:not([data-theme=classic]) #tv-play{order:1}.tv:not([data-theme=classic]) #tv-skip{order:2}.tv:not([data-theme=classic]) .tv-bottom .time{order:3}.tv:not([data-theme=classic]) #tv-guide{order:4}.tv:not([data-theme=classic]) .tv-controls label{order:5}
+.tv:not([data-theme=classic]) .tv-bottom .time{height:28px;padding:0 18px 0 6px;border-right:1px solid var(--glass-line);font-size:15px;color:var(--mut);font-variant-numeric:tabular-nums}
+.tv:not([data-theme=classic]) .tv-bottom::after{content:'';position:absolute;right:122px;top:50%;width:1px;height:28px;translate:0 -50%;background:var(--glass-line)}
+.tv:not([data-theme=classic]) .tv-controls label{margin-left:6px;font-size:15px;color:var(--mut)}
+@media(max-width:1200px){.tv:not([data-theme=classic]) .tv-controls label input{width:72px}}  /* small windows: the progress track keeps the room */
+/* Narrower still: the mix sliders lose their words (still their accessible names), then go entirely (the phone remote has them),
+   so play, skip, the progress track and the guide never spill past the bar or under the corner buttons. */
+@media(max-width:1000px){.tv:not([data-theme=classic]) .tv-controls label{gap:0;margin-left:0;font-size:0}}
+@media(max-width:760px){.tv:not([data-theme=classic]) .tv-controls label{display:none}}
+.tv:not([data-theme=classic]) :is(.tv-icon,.tv-guide){width:44px;min-width:44px;height:44px;border-radius:22px;background:transparent;font-size:17px}
+.tv:not([data-theme=classic]) .tv-icon svg{width:22px;height:22px}
+.tv:not([data-theme=classic]) #tv-play{background:var(--lime)}
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) .open-remote{bottom:30px;width:44px;height:44px;border-radius:22px;background:transparent}
+.tv:not([data-theme=classic]):not(.still):has(#tv-bottom:not([hidden])) .open-remote{opacity:1}
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) #open-remote{right:calc(var(--bar-in) + 10px)}
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) #fullscreen{right:calc(var(--bar-in) + 64px)}
+/* Notices (volume, guide, queue changes): a glass pill, top centre, label in sentence case. */
+.tv:not([data-theme=classic]) .osd{gap:14px;padding:12px 26px 12px 14px;border-radius:999px;box-shadow:var(--glass-shadow)}
+.tv:not([data-theme=classic]) .osd-icon{width:44px;height:44px;border-radius:50%;font-size:20px}
+.tv:not([data-theme=classic]) .osd-text small{font-size:16px;letter-spacing:0;text-transform:none;color:var(--mut)}
+.tv:not([data-theme=classic]) .osd-text span{font-size:24px}
+/* Problems: one small glass toast, bottom left. It rises above the control bar while that shows.
+   shared.js writes a bare state word into .connection (the remote shares it); the TV shows its own sentence instead, while that says it's offline. */
+#reconnecting{display:none}.tv:not([data-theme=classic]) .connection{display:none}
+.tv:not([data-theme=classic]):has(.connection:not(.online)) #reconnecting{display:flex}
+.tv:not([data-theme=classic]) :is(#reconnecting,#no-lyrics){position:fixed;left:var(--edge);bottom:36px;z-index:6;align-items:center;margin:0;padding:10px 20px 10px 12px;border-radius:999px;background:var(--glass);color:var(--ink);font-size:18px;line-height:1.3;transition:bottom .4s}
+.tv:not([data-theme=classic]) :is(#reconnecting,#no-lyrics)::before{content:'↻';display:grid;place-items:center;width:34px;height:34px;margin:0 12px 0 0;border-radius:50%;background:#ffd29e;color:#111313;font:700 20px/1 'DM Sans',sans-serif}
+.tv:not([data-theme=classic]) #no-lyrics{display:flex}.tv:not([data-theme=classic]) #no-lyrics::before{content:'♪';background:var(--lime)}
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])):not(.still) :is(#reconnecting,#no-lyrics){bottom:96px}
+.tv:not([data-theme=classic]):has(.connection:not(.online)) #no-lyrics{bottom:100px}
+.tv:not([data-theme=classic]):has(.connection:not(.online)):has(#tv-bottom:not([hidden])):not(.still) #no-lyrics{bottom:176px}
+.tv:not([data-theme=classic]) .join strong{display:block}
+/* Corner buttons (remote, fullscreen), Material 3 Expressive: tonal frosted containers that morph from a circle to a
+   rounded square under the pointer and squash on press, on an overshooting spring. Classic keeps its labelled keys. */
+.tv:not([data-theme=classic]) .open-remote{width:48px;height:48px;border:0;border-radius:24px;background:#2a302c;color:#fff;opacity:.75;transition:opacity .5s,background .2s,border-radius .45s cubic-bezier(.34,1.56,.64,1),transform .45s cubic-bezier(.34,1.56,.64,1)}
+.tv:not([data-theme=classic]) #fullscreen{right:calc(var(--edge) + 60px)}
+.tv:not([data-theme=classic]) .open-remote:hover{border-radius:16px;background:#353c37;opacity:1}
+.tv:not([data-theme=classic]) .open-remote:active{border-radius:12px;transform:scale(.92)}
+.tv:not([data-theme=classic]) .open-remote svg{width:22px;height:22px;transition:transform .45s cubic-bezier(.34,1.56,.64,1)}
+.tv:not([data-theme=classic]) .open-remote:active svg{transform:scale(.88)}
+.tv:not([data-theme=classic]) .open-remote:focus-visible{outline:3px solid var(--lime);outline-offset:3px;border-radius:16px;opacity:1}
+/* Inside the glass bar they sit flush and take the tint only under the pointer. */
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) .open-remote:hover{background:#2a302c}
+/* When the bar tucks away after 3s still, the remote and fullscreen buttons go with it (this outranks the 0.75 above). */
+.tv:not([data-theme=classic]).still .open-remote{opacity:0;pointer-events:none}
+.tv:not([data-theme=classic]) .peek small{margin-left:.8em;font-size:.85em;font-weight:500;color:#ffffff99}

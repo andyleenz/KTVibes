@@ -1,0 +1,38 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch or PR replaces the run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # macOS on arm64 on purpose: pyproject.toml pulls PyTorch from the CUDA index on every
+    # platform except darwin, so the lock file resolves the small CPU wheels there. A Linux or
+    # Windows runner would download several GB of CUDA libraries for tests that never use a GPU.
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # setup-uv publishes no floating major tag, so pin the full version.
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: uv run --locked pytest

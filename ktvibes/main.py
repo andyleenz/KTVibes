@@ -71,6 +71,13 @@ async def remote():
 async def get_state():
     return state.snapshot()
 
+@app.get("/api/current/lyrics")
+async def current_lyrics():
+    """The playing song's timed lyrics, for a remote (its broadcasts leave them out; only the TV gets them)."""
+    song = state.current
+    return {"key": song and song["key"], "lyrics_rev": song.get("lyrics_rev", 0) if song else 0,
+            "offset": state.offset, "lines": song and song.get("lyrics")}
+
 @app.get("/api/suggest")
 async def suggest(q: str = Query(min_length=1, max_length=200)):
     try:
@@ -125,8 +132,10 @@ async def recent(limit: int = Query(20, ge=1, le=50)):
 
 @app.get("/api/songbook")
 async def songbook_list():
-    """Prepared songs by songbook number, for the remote's keypad and songbook (with when each was prepared, for 신곡)."""
-    return sorted((s for s in prepared_songs().values() if s.get("number")), key=lambda s: s["number"])
+    """Prepared songs by songbook number, for the remote's keypad and library (with when each was prepared, for 신곡,
+    and last sung, for Recent)."""
+    return sorted(({**s, "played": state.played.get(s["id"])} for s in prepared_songs().values() if s.get("number")),
+                  key=lambda s: s["number"])
 
 @app.get("/api/ambient")
 async def ambient():
@@ -143,6 +152,21 @@ def song_meta(video_id: str) -> tuple[Path, dict]:
         raise HTTPException(409, "This song isn't fully prepared yet")
     return folder, meta
 
+def lrclib_failed(exc: Exception) -> HTTPException:
+    """LRCLIB's rate limit (429) and busy (503) answers pass through with how long to wait, so the remote
+    can hold off instead of being refused again; anything else is a plain lookup failure."""
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status_code", None)
+    if status not in (429, 503):
+        return HTTPException(502, f"Lyrics lookup failed: {exc}")
+    try:
+        wait = max(1, min(60, math.ceil(float(response.headers.get("Retry-After")))))
+    except (TypeError, ValueError, OverflowError):  # missing, or an HTTP date
+        wait = 5 if status == 429 else 1
+    reason = "LRCLIB is limiting lyric lookups" if status == 429 else "LRCLIB is busy"
+    return HTTPException(status, f"{reason}. Please wait {wait} second{'s' if wait > 1 else ''}, then try again.",
+                         headers={"Retry-After": str(wait)})
+
 @app.get("/api/songs/{video_id}/lyrics")
 async def lyric_options(video_id: str, q: str = Query("", max_length=200)):
     """Every LRCLIB version that fits the song, best first, so the remote can pick a language or edition.
@@ -153,7 +177,7 @@ async def lyric_options(video_id: str, q: str = Query("", max_length=200)):
         found = await (lyrics.search(q.strip(), meta["duration"]) if q.strip() else
                        lyrics.candidates(meta["artist"], meta["title"], meta["duration"], (meta.get("source_title") or "",), exhaustive=True))
     except Exception as exc:
-        raise HTTPException(502, f"Lyrics lookup failed: {exc}") from exc
+        raise lrclib_failed(exc) from exc
     options = []
     for c in found:
         raw = c.get("syncedLyrics") or ""
@@ -174,7 +198,7 @@ async def choose_lyrics(video_id: str, choice: LyricChoice):
     try:
         chosen = await lyrics.record(choice.id)
     except Exception as exc:
-        raise HTTPException(502, f"Lyrics lookup failed: {exc}") from exc
+        raise lrclib_failed(exc) from exc
     if not chosen or not lyrics.STAMP.search(chosen.get("syncedLyrics") or ""):
         raise HTTPException(404, "That lyrics version is no longer available")
     if state.current and state.current["id"] == video_id:
@@ -211,10 +235,16 @@ async def delete_song(video_id: str):
 
 @app.post("/api/queue", status_code=201)
 async def enqueue(song: Song):
-    if len(state.upcoming) >= 100:
-        raise HTTPException(409, "Queue is full")
     try:
         return await state.add(song.id, song.artist, song.title)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+@app.post("/api/queue/next")
+async def enqueue_next(song: Song):
+    """Sing a song next, from Search or Recent: queued at the front, or moved there if it is already waiting."""
+    try:
+        return await state.add_next(song.id, song.artist, song.title)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
 
@@ -303,14 +333,43 @@ def update():
     after = git("rev-parse", "--short", "HEAD").stdout.strip()
     print("Already up to date." if before == after else f"Updated {before} -> {after}. Stop KTVibes if it is running, then start it again: ktvibes")
 
+def open_browser():
+    """KTVIBES_OPEN_BROWSER=1: the desktop apps set it, having no terminal to read the address from.
+    Waits until KTVibes itself answers, however long a large song cache takes to load. Another program
+    on the port doesn't count: KTVibes then can't listen and exits, and this daemon thread goes with it."""
+    import time
+    import urllib.request
+    import webbrowser
+    while True:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/state", timeout=1) as response:
+                data = json.loads(response.read())
+                if isinstance(data, dict) and "upcoming" in data:
+                    return webbrowser.open(f"http://127.0.0.1:{PORT}")
+        except (OSError, ValueError):
+            pass
+        time.sleep(0.25)
+
 def run():
     """`uv run ktvibes`: one process only, since queue state and the model live in memory."""
     import sys
     if sys.argv[1:] == ["update"]:
         return update()
     import uvicorn
+    try:
+        socket.create_connection(("127.0.0.1", PORT), timeout=1).close()
+    except OSError:
+        pass  # nothing there, as expected
+    else:
+        # Something already answers here (another KTVibes, or an old dev server); uvicorn would only fail later.
+        sys.exit(f"Port {PORT} is already in use by another program. Quit it, or start KTVibes with "
+                 f"KTVIBES_PORT set to a free port (for example KTVIBES_PORT={PORT + 1}).")
+    if os.environ.get("KTVIBES_OPEN_BROWSER") == "1":
+        import threading
+        threading.Thread(target=open_browser, daemon=True).start()
     if missing := worker.missing_tools():
         # Common right after installing: the terminal predates the install and has a stale PATH.
         print(f"WARNING: {', '.join(missing)} not found on PATH. Songs can't be prepared until it is installed.\n"
               "If you just installed it, open a new terminal and run ktvibes again.", flush=True)
+    print(f"Phone remote: {remote_url()}", flush=True)
     uvicorn.run(app, host="0.0.0.0", port=PORT)

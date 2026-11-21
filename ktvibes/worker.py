@@ -8,14 +8,16 @@ import soundfile as sf
 from . import align, guides, songbook, stems, youtube, lyrics
 
 log = logging.getLogger(__name__)
-TIMING_VERSION = 10  # bump when alignment or guide output changes, so cached timing is rebuilt
+TIMING_VERSION = 10  # bump when alignment changes, so cached timing is rebuilt
+GUIDES_VERSION = 1  # bump when guide output changes: cached timing keeps, and only the guides are redone
+# (Korean romanization keeps a reading it already has, so changing it needs a TIMING_VERSION bump.)
 LYRICS_RECHECK = 7 * 86400  # a song LRCLIB had no lyrics for is looked up again after this long
 STARTED = time.time()  # energy-only timing (aligner failed) cached before this run is retried once
 
-def separate(source, destination):
+def separate(source, destination, progress=None):
     # Keep model imports off the server startup path.
     from .separate import separate as separate_audio
-    return separate_audio(source, destination)
+    return separate_audio(source, destination, progress)
 
 def reporter(state, item, step):
     """Progress callback for worker threads: while `step` is the one on show, record the fraction; broadcast at most twice a second."""
@@ -49,16 +51,35 @@ def fetch_video(video_id, folder, progress):
         log.exception("Video unavailable for %s", video_id)
         return "Video unavailable; using the stage background."
 
-def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) -> list[dict]:
+def add_guides(lines: list[dict]) -> list[dict]:
+    """Every pronunciation guide; each writes only its own unit slots, so cached lines can be redone."""
+    return lyrics.add_kana(lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines))))))
+
+def save_timed(folder: Path, key: str, aligned: bool, lines: list[dict]):
+    temporary = folder / "timed.tmp"
+    temporary.write_text(json.dumps({"key": key, "aligned": aligned, "guides": GUIDES_VERSION, "lines": lines}, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(folder / "timed.json")
+
+def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict], progress=None) -> list[dict]:
     """Word timing and guides for these lyrics, reused from timed.json when the LRC text is unchanged."""
     key = f"{TIMING_VERSION}:{hashlib.sha256(raw.encode()).hexdigest()}"
     try:
         cached = json.loads((folder / "timed.json").read_text(encoding="utf-8"))
         # Energy-only timing (the aligner failed) is retried once per run, not on every play.
-        if cached.get("key") == key and (cached.get("aligned", True) or (folder / "timed.json").stat().st_mtime >= STARTED):
-            return cached["lines"]
-    except (OSError, ValueError, KeyError):
-        pass
+        usable = cached.get("key") == key and (cached.get("aligned", True) or (folder / "timed.json").stat().st_mtime >= STARTED)
+        lines_cached = cached["lines"] if usable else None
+    except (OSError, ValueError, KeyError, AttributeError):
+        lines_cached = None
+    if lines_cached is not None:
+        if cached.get("guides") != GUIDES_VERSION:
+            # Guides are quick to redo: songs cached before a guide changed get them without aligning again.
+            # Failing that (say, a read-only cache) still leaves the timing, which is the slow part.
+            try:
+                add_guides(lines_cached)
+                save_timed(folder, key, cached.get("aligned", True), lines_cached)
+            except Exception:
+                log.exception("Could not refresh the guides for %s", folder.name)
+        return lines_cached
     samples, rate = sf.read(samples_path, dtype="float32")
     energy = lyrics.envelope(samples, rate)
     if shift := lyrics.find_shift(lines, energy):
@@ -69,15 +90,13 @@ def timed_lyrics(folder: Path, raw: str, samples_path: Path, lines: list[dict]) 
     aligned = True
     try:
         # Forced alignment on the vocals; lines it cannot place keep the energy estimate.
-        align.align(lines, samples, rate)
+        align.align(lines, samples, rate, progress=progress)
     except Exception:
         log.exception("Forced alignment unavailable for %s", folder.name)
         aligned = False
     lyrics.time_units(lines, energy)
-    lines = lyrics.add_jyutping(guides.add_hangul(lyrics.add_korean_romanization(lyrics.add_pinyin(lyrics.add_romaji(lines)))))
-    temporary = folder / "timed.tmp"
-    temporary.write_text(json.dumps({"key": key, "aligned": aligned, "lines": lines}, ensure_ascii=False), encoding="utf-8")
-    temporary.replace(folder / "timed.json")
+    lines = add_guides(lines)
+    save_timed(folder, key, aligned, lines)
     return lines
 
 class Removed(Exception):
@@ -86,7 +105,17 @@ class Removed(Exception):
 # Video downloads still running, by video id: a song queued again reuses its download instead of starting a second.
 videos = {}
 
+def warm_models():
+    """Both models take seconds to load; load them while the server starts, not when the first song is queued."""
+    from . import separate as separation
+    for name, load in (("separation", separation.warm), ("alignment", align.warm)):
+        try:
+            load()
+        except Exception:
+            log.exception("Could not preload the %s model", name)
+
 async def run(state, cache: Path):
+    warming = asyncio.create_task(asyncio.to_thread(warm_models))  # noqa: F841 (held so the task isn't collected)
     while True:
         state.wake.clear()
         item = next((i for i in state.upcoming if i["status"] == "queued"), None)
@@ -101,10 +130,7 @@ async def run(state, cache: Path):
         try:
             folder.mkdir(parents=True, exist_ok=True)
             meta_path = folder / "meta.json"
-            try:
-                meta = json.loads(meta_path.read_text())
-            except (OSError, ValueError):
-                meta = {}
+            meta = songbook.read(meta_path) or {}
             # The (larger, optional) video downloads while the audio is fetched and separated.
             video = None
             if not (folder / "video.mp4").is_file():
@@ -120,9 +146,9 @@ async def run(state, cache: Path):
                         await state.broadcast()
                         meta.update(await asyncio.to_thread(youtube.download, item["id"], folder, reporter(state, item, "audio")))
                         check()
-                    item["status"], item["step"], item["progress"] = "separating", None, None
+                    item["status"], item["step"], item["progress"] = "separating", "vocals", 0.0
                     await state.broadcast()
-                    meta["separation_seconds"], gain = await asyncio.to_thread(separate, folder / "audio.m4a", folder)
+                    meta["separation_seconds"], gain = await asyncio.to_thread(separate, folder / "audio.m4a", folder, reporter(state, item, "vocals"))
                 meta["stem_gain"] = gain
                 save_meta(folder, meta)  # the gain must survive even if a later step fails
             check()
@@ -162,19 +188,24 @@ async def run(state, cache: Path):
                 try:
                     result = await lyrics.fetch(*identity, item["duration"], (meta.get("source_title") or "",))
                     raw, item["lyrics"] = result["raw"], result["lines"]
-                    # A miss is remembered for a week, so a later LRCLIB addition is still picked up.
-                    meta["lyrics_identity"], meta["lyrics_checked"] = identity, time.time()
-                    meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
-                    if result["raw"]:
-                        (folder / "lyrics.lrc").write_text(result["raw"], encoding="utf-8")
+                    if result.get("partial"):
+                        pass  # LRCLIB cut the search short: sing what it found, but don't keep it as the answer
                     else:
-                        (folder / "lyrics.lrc").unlink(missing_ok=True)
+                        # A miss is remembered for a week, so a later LRCLIB addition is still picked up.
+                        meta["lyrics_identity"], meta["lyrics_checked"] = identity, time.time()
+                        meta.pop("lyric_offset", None)  # a nudge for other lyrics no longer fits
+                        if result["raw"]:
+                            (folder / "lyrics.lrc").write_text(result["raw"], encoding="utf-8")
+                        else:
+                            (folder / "lyrics.lrc").unlink(missing_ok=True)
                 except Exception:
                     log.exception("Lyrics unavailable for %s", item["id"])
                     item["lyrics_warning"] = "Lyrics unavailable; audio is ready."
             if item["lyrics"]:
+                item["step"], item["progress"] = "timing", 0.0
+                await state.broadcast()
                 try:
-                    item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, stems.path(folder, "vocals"), item["lyrics"])
+                    item["lyrics"] = await asyncio.to_thread(timed_lyrics, folder, raw, stems.path(folder, "vocals"), item["lyrics"], reporter(state, item, "timing"))
                     lyrics.line_starts(item["lyrics"])  # cheap, so kept out of the timing cache
                 except Exception:
                     log.exception("Word timing unavailable for %s", item["id"])

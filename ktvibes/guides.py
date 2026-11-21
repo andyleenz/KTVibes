@@ -6,6 +6,7 @@ dictionary lacks get no guide. Chinese goes pinyin -> Hangul with the standard
 Korean table for Chinese sounds (晴天 -> 칭톈, 周杰伦 -> 저우제룬).
 """
 import re
+from .lyrics import put
 
 CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
 JUNG = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"
@@ -151,7 +152,5 @@ def add_hangul(lines: list[dict]) -> list[dict]:
                 reading = english_hangul(unit[0])
             else:
                 reading = ""
-            while len(unit) < 4:
-                unit.append("")
-            unit[4:] = [reading]
+            put(unit, 4, reading)
     return lines

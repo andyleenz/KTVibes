@@ -19,7 +19,9 @@ export async function api(path, options){
   const response=await fetch(path,options);let data;
   // A proxy or crash can answer with plain text; report the status rather than a JSON parse error.
   try{data=await response.json();}catch{throw new Error(`Server error (${response.status}). Please try again.`);}
-  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Please check the song details.');return data;
+  // retryAfter (seconds, from Retry-After) lets a caller wait out a busy or rate-limited service.
+  if(!response.ok)throw Object.assign(new Error(typeof data.detail==='string'?data.detail:'Please check the song details.'),{retryAfter:Number(response.headers.get('Retry-After'))||0});
+  return data;
 }
 export const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 export const thumbnail = (id, size='mqdefault') => `https://i.ytimg.com/vi/${id}/${size}.jpg`;
@@ -27,10 +29,18 @@ export const clock = seconds => `${Math.floor((seconds||0)/60)}:${String(Math.fl
 // Sliders fire many input events; send at most one every `ms`, always ending on the final value.
 export function throttle(fn, ms=120){let last=0,timer;return value=>{clearTimeout(timer);const wait=last+ms-Date.now();if(wait<=0){last=Date.now();fn(value);}else timer=setTimeout(()=>{last=Date.now();fn(value);},wait);};}
 // Preparation status, as both screens describe it.
-const STEPS={queued:'Waiting to download',downloading:'Downloading',separating:'Separating vocals',syncing:'Finding lyrics',ready:'Ready',error:'Failed'};
-export function prepLabel(item){const percent=item.progress?Math.round(item.progress*100):null;return {percent,text:`${STEPS[item.status]||item.status}${item.step?` ${item.step}`:''}${percent==null?'':` · ${percent}%`}`};}
+// The step a song is on, by status and then step (the server's names for them).
+const STEPS={queued:'Waiting',downloading:'Downloading',separating:'Separating vocals',syncing:'Finding lyrics',ready:'Ready',error:'Error preparing'};
+const SUBSTEPS={video:'Downloading video',timing:'Timing lyrics'};
+export function prepLabel(item){const percent=item.progress?Math.round(item.progress*100):null;return {percent,text:SUBSTEPS[item.step]||STEPS[item.status]||'Preparing'};}
 // Sliders paint their own filled track from --v (0–1); call after setting a value in code.
 export function syncRanges(){for(const range of document.querySelectorAll('input[type=range]'))range.style.setProperty('--v',(range.value-range.min)/((range.max-range.min)||1));}
 document.addEventListener('input',e=>{if(e.target.type==='range')syncRanges();});
 // 신곡: songs prepared in the last week, newest first; the newest numbers when none are that recent.
 export function newSongs(songs,now=Date.now()/1000){const week=songs.filter(s=>now-s.prepared<7*86400).sort((a,b)=>b.prepared-a.prepared);return (week.length?week:[...songs].sort((a,b)=>b.number-a.number)).slice(0,10);}
+// Pronunciation guides: the glyph on the TV's badge and the Classic handset's key, and the badge's label.
+export const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],jyutping:['粵','Jyutping'],hangul:['가','한글'],kana:['あ','Japanese kana']};
+// The wording for a song that isn't ready yet, shared by the TV and the remote.
+export function prepStatus(item){const {percent,text}=prepLabel(item);return percent==null||item.status==='error'?text:`${text} ${percent}%`;}
+// Where the TV is in the song now: its last report, run forward at the song's speed while playing.
+export function livePosition(s){const c=s.current;if(!c)return 0;const run=s.playing&&s.position>0?(Date.now()/1000-s.received)*(s.speed||1):0;return Math.min(s.position+run,c.duration||Infinity);}

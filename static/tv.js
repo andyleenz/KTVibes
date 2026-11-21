@@ -1,4 +1,4 @@
-import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs,GUIDE_BADGES,prepStatus} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0,shownPair='',fitKey='';
@@ -54,19 +54,30 @@ const send=connect('tv',render,error,()=>{restoring=true;send({action:'audio',va
 function saved(){try{return JSON.parse(localStorage.getItem(SETTINGS))||{};}catch{return {};}}
 function remember(s){try{localStorage.setItem(SETTINGS,JSON.stringify(Object.fromEntries(SETTING_KEYS.map(k=>[k,s[k]]))));}catch{}}
 function restore(s){const mine=saved();for(const action of SETTING_KEYS){const value=mine[action];if(value!==undefined&&value!==s[action])send({action,value});}}
-api('/api/config').then(c=>$('remote-url').textContent=$('sticker-url').textContent=c.remote_url).catch(e=>error(e.message));
+api('/api/config').then(c=>$('sticker-url').textContent=c.remote_url).catch(e=>error(e.message));
 function render(next){
- state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';for(const b of document.querySelectorAll('[data-theme-pick]'))b.setAttribute('aria-pressed',b.dataset.themePick===document.body.dataset.theme);showClassicBar(state);showSpecs(state);showBoot();roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
+ state=next;if(restoring){restoring=false;restore(state);}else remember(state);if(state.guide!==guide){if(guide!==undefined)showGuideBadge(state.guide);guide=state.guide;document.body.dataset.guide=guide;}showChanges(state);showQueueChange(state);document.body.style.setProperty('--lyric-scale',state.lyric_scale??1.5);document.body.dataset.video=state.video_mode||'show';document.body.dataset.lyrics=state.lyric_mode||'two';document.body.dataset.theme=state.theme||'default';showClassicBar(state);showSpecs(state);roomClock();serverSkew=state.server_time-Date.now()/1000;$('vocal').value=state.vocal;if(document.activeElement!==$('tv-music'))$('tv-music').value=state.music??1;$('tv-play').classList.toggle('paused',!state.playing);$('tv-play').setAttribute('aria-label',state.playing?'Pause':'Play');$('tv-guide').textContent=GUIDE_BADGES[state.guide]?.[0]??'Aa';$('tv-guide').hidden=(state.guides||[]).length<2;syncRanges();applyGain();
  const queued=state.upcoming.filter(i=>i.status!=='error');
- $('on-deck').replaceChildren(...queued.slice(0,3).map(i=>{const row=el('li');row.append(el('b',i.title),el('span',` ${i.artist}`),...(i.status==='ready'?[]:[el('small',` ${prepLabel(i).text}`)]));return row;}));
- if(queued.length>3)$('on-deck').append(el('li',`+${queued.length-3} more`,'more'));
- if(!queued.length)$('on-deck').append(el('li','Nothing queued','more'));
+ // The Queue card lists failed songs too, so a song that won't play doesn't just vanish: title over artist, the artist line carrying its status.
+ // On an empty stage the song being prepared is the headline, so the card lists the songs "Up next" after it.
+ const prepping=state.current?null:queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
+ const listed=state.upcoming.map((item,n)=>({item,n})).filter(({item})=>item!==prepping);
+ $('top-queue').querySelector('.eyebrow').textContent=prepping?'Up next':'Queue';
+ // The artist line shows the status instead while a song isn't ready.
+ $('on-deck').replaceChildren(...listed.slice(0,3).map(({item:i,n})=>{const artist=el('span');artist.append(i.status==='ready'?i.artist:el('em',prepStatus(i)));const text=el('div');text.append(el('b',i.title),artist);const row=el('li');row.append(el('i',String(n+1)),text);return row;}));
+ if(listed.length>3)$('on-deck').append(el('li',`+${listed.length-3} more`,'more'));
+ // Default shows only a one-line pill (what's next, and how many after it); Classic keeps the list.
+ const first=listed[0]?.item;$('q-pill').replaceChildren(...first?[el('small','Next'),el('b',first.title),...listed.length>1?[el('span',`+${listed.length-1}`)]:[]]:[]);
+ // An empty stage says "Pick a song." beside the big QR; an empty card would only repeat it. While a song is
+ // being prepared the big QR steps aside, so the card stays as the way to join, even with nothing else queued.
+ // Classic hides an idle card. Default keeps the pill's slot while a song plays, invisible when nothing is queued, so the QR under it never moves.
+ $('top-queue').hidden=!state.current&&!prepping&&!listed.length;$('top-queue').classList.toggle('empty',!listed.length);
  // The two songs after the next one peek out from under its card between songs.
- [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),`${item.title} · ${item.artist}`);peek.replaceChildren(line);}});
- showPrep(queued);showBoard(state,queued);setAmbient(!state.current);
+ [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),item.title,el('small',item.artist));peek.replaceChildren(line);}});
+ showPrep(prepping);showBoard(state,queued);setAmbient(!state.current);
  $('now-card').hidden=!state.current;
- // The idle screen already shows a large QR code.
- $('corner-join').hidden=$('qr-mini').hidden=!state.current;
+ // The idle screen already shows a large QR code (Default hides it while a song is being prepared).
+ $('qr-mini').hidden=!state.current;$('corner-join').hidden=!state.current&&!prepping;
  $('tv-bottom').hidden=!state.current;
  if((state.current?.key||null)!==currentKey){
   endScore();  // skipped: the score stays through the breather
@@ -94,7 +105,7 @@ function render(next){
  if(!state.playing){music.pause();voice.pause();video.pause();}
 }
 // Lyrics for the song on stage; a remote can swap in another version mid-song (lyrics_rev).
-let lyricsRev=0,songLyrics=[],splitDone=false,slots=[],counting=null,still=false;  // counting: the line showing count-in dots; still: place the next lines without animating (after a resize)
+let lyricsRev=0,songLyrics=[],splitDone=false,slots=[],wipes=[],counting=null,still=false;  // counting: the line showing count-in dots; still: place the next lines without animating (after a resize)
 const showVideo=()=>!!state?.current?.video&&state.video_mode!=='hide';
 // Place the lyrics from scratch (new song or lyrics, layout, size, guide or window change).
 function relayout(){shownPair='';lyricsPositioned=false;splitDone=false;if(lyrics!==songLyrics){activeLine=-1;placeLyrics(songLyrics);}}
@@ -173,7 +184,7 @@ function splitLong(){
  const container=$('lyrics'),parts=[],index=[],room=lyricRoom()+1;let split=false;
  container.classList.add('measuring');
  [...container.children].forEach((line,i)=>{
-  const source=lyrics[i],units=source.units,spans=line.children;
+  const source=lyrics[i],units=source.units,spans=line.querySelectorAll('.unit');  // a kana group's units sit inside its ruby
   index.push(parts.length);
   if(!source.text){split=true;return;}  // an empty "♪" line only marks a break, which the screen clearing shows
   if(!units||units.length<2||line.scrollWidth<=room||spans.length!==units.length){parts.push(source);return;}
@@ -181,13 +192,14 @@ function splitLong(){
   const width=(a,b)=>right[b-1]-left[a];
   const cut=(a,b)=>{
    if(b-a<2||width(a,b)<=room)return [[a,b]];
-   let best=a+1,score=Infinity;
+   let best=null,score=Infinity;
    for(let k=a+1;k<b;k++){
+    if(units[k][7]!=null&&units[k][7]===units[k-1][7])continue;  // never inside a kanji word's ruby
     const w1=width(a,k),w2=width(k,b),text=units[k-1][0];
     const value=Math.abs(w1-w2)/width(a,b)-(/[,，、;；:：!！?？。]\s*$/.test(text)?0.3:0)-(/\s$/.test(text)?0.1:0)+(w1>room||w2>room?1:0);
     if(value<score){score=value;best=k;}
    }
-   return [...cut(a,best),...cut(best,b)];
+   return best?[...cut(a,best),...cut(best,b)]:[[a,b]];
   };
   const ranges=cut(0,units.length);if(ranges.length>1)split=true;
   ranges.forEach(([a,b],n)=>{const part=units.slice(a,b);part[part.length-1]=[part.at(-1)[0].trimEnd(),...part.at(-1).slice(1)];parts.push({...source,units:part,text:part.map(unit=>unit[0]).join('').trim(),...n?{t:part[0][1],start:part[0][1],continues:true}:{}});});
@@ -205,7 +217,7 @@ function showLyrics(item){
 // Classic theme: the noraebang top strip and the room's clock, which counts down between broadcasts.
 const classic=()=>document.body.dataset.theme==='classic';
 function showClassicBar(s){$('cb-number').textContent=s.current?.number??'';$('cb-title').textContent=s.current?`${s.current.title} - ${s.current.artist}`:s.time_up?'이용해 주셔서 감사합니다':'노래를 선택해 주세요 · Pick a song';$('cb-title').classList.toggle('idle',!s.current);$('cb-reserved').textContent=String(s.upcoming.length).padStart(2,'0');}
-const SPEC_GUIDE={off:'끔',latin:'로마자 Aa',jyutping:'粵拼',hangul:'한글 가'};
+const SPEC_GUIDE={off:'끔',latin:'로마자 Aa',jyutping:'粵拼',hangul:'한글 가',kana:'가나 あ'};
 function showSpecs(s){$('spec-key').textContent=!s.key?'원키':`${s.key>0?'♯':'♭'}${Math.abs(s.key)}`;$('spec-tempo').textContent=`${Math.round((s.speed??1)*100)}%`;$('spec-guide').textContent=SPEC_GUIDE[s.guide]??'—';}
 // Between songs Classic shows the reservation table: the next song (already on stage) first, then the queue.
 const lcdSpan=(text,ghost)=>{const span=el('span',text,'lcd');span.dataset.ghost=ghost;return span;};
@@ -224,11 +236,8 @@ function roomClock(){
 }
 setInterval(roomClock,1000);
 // The attract screen's ticker lists the newest songbook entries; the boot screen counts the book.
-let songbookCount=0;
-function loadSongbook(){api('/api/songbook').then(songs=>{songbookCount=songs.length;$('ticker-track').replaceChildren(...[0,1].flatMap(()=>newSongs(songs).map(s=>{const row=el('span');row.append(el('span',String(s.number),'lcd'),s.title,el('em',s.artist));return row;})));showBoot();}).catch(()=>{});}
+function loadSongbook(){api('/api/songbook').then(songs=>{$('ticker-track').replaceChildren(...[0,1].flatMap(()=>newSongs(songs).map(s=>{const row=el('span');row.append(el('span',String(s.number),'lcd'),s.title,el('em',s.artist));return row;})));}).catch(()=>{});}
 // The boot screen's status line, like a machine's self-check.
-function showBoot(){if(!state)return;const left=state.room_ends==null?null:Math.max(0,state.room_ends-(Date.now()/1000+serverSkew)),item=(label,value,cls)=>{const s=el('span',`${label} `);s.append(el('b',value,cls));return s;};
- $('boot-status').replaceChildren(item('SONGBOOK',`${songbookCount}곡`),...(left==null?[]:[item('ROOM',`${String(Math.ceil(left/60)).padStart(3,'0')}분`)]),item('SOUND','OFF','off'));}
 loadSongbook();
 // The big LCD fills in as someone dials: lit digits, a blinking cursor, blank digits after it.
 function showAttractDial(digits){$('attract-dial').replaceChildren(digits,...(digits.length<5?[el('span','8','blink')]:[]),'!'.repeat(Math.max(0,4-digits.length)));}
@@ -255,16 +264,34 @@ function dial(digits){
 function reserved(){$('cb-dial').hidden=true;showAttractDial('');}
 function placeLyrics(list){
  lyrics=list;firstLine=lyrics.findIndex(line=>line.text);$('lyrics').replaceChildren();
- slots=[];let slot=0;lyrics.forEach((line,i)=>{if(breakAfter(i-1))slot=0;slots[i]=slot;slot^=1;});
- lyrics.forEach((line,i)=>{const p=el('p',line.units?undefined:line.text||'♪','lyric');p.dir='auto';p.dataset.slot=slots[i];for(const [text,,,latin,hangul,jyutping] of line.units||[]){const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word),rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'));ruby.append(rt);span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}}$('lyrics').append(p);});$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
+ slots=[];wipes=[];let slot=0;lyrics.forEach((line,i)=>{if(breakAfter(i-1))slot=0;slots[i]=slot;slot^=1;});
+ const readings=(latin,hangul,jyutping,kana)=>{const rt=el('rt');rt.append(el('span',latin||'','latin'),el('span',jyutping||'','jyutping'),el('span',hangul||'','hangul'),el('span',kana||'','kana'));return rt;};
+ lyrics.forEach((line,i)=>{
+  const p=el('p',line.units?undefined:line.text||'♪','lyric'),units=line.units||[],rts=[];p.dir='auto';p.dataset.slot=slots[i];
+  for(let n=0;n<units.length;n++){
+   const [text,from,,latin,hangul,jyutping,kana,group]=units[n];
+   // A kanji word's kana (unit[7] names its group) is one ruby over all its units, and wipes over the whole word.
+   if(group!=null){
+    let end=n;while(units[end+1]?.[7]===group)end++;
+    const ruby=el('ruby',undefined,'kana-group'),rt=readings(latin,hangul,jyutping,kana),last=units[end][0],word=last.trimEnd();
+    ruby.append(...units.slice(n,end).map(unit=>el('span',unit[0],'unit')),el('span',word,'unit'),rt);
+    rts.push([rt,from,units[end][2]]);p.append(ruby,last.slice(word.length));n=end;continue;
+   }
+   const span=el('span',undefined,latin||hangul||jyutping?'unit ruby':'unit');
+   if(latin||hangul||jyutping){const word=text.trimEnd(),ruby=el('ruby',word);ruby.append(readings(latin,hangul,jyutping));span.append(ruby);p.append(span,text.slice(word.length));}else{span.textContent=text;p.append(span);}
+  }
+  wipes[i]={spans:[...p.querySelectorAll('.unit')],rts};  // what frame() fills, found once here rather than every frame
+  $('lyrics').append(p);
+ });$('no-lyrics').hidden=!!lyrics.length;$('lyrics').hidden=!lyrics.length;
 }
 // Stems are stored scaled down to fit FLAC; the gain restores their original level.
 // Speed changes tempo only (the browser keeps pitch); the key shift is applied by the worklet.
 function applyTempo(){const speed=state?.speed??1;for(const media of [music,voice,video]){media.defaultPlaybackRate=speed;if(media.playbackRate!==speed)media.playbackRate=speed;}if(shifter)shifter.parameters.get('ratio').value=2**((state?.key??0)/12);}
 function applyGain(){applyTempo();if(!musicGain)return;musicGain.gain.value=(state?.music??1)*stemGain;voiceGain.gain.value=(state?.vocal??0.1)*stemGain;}
 // The theme can be picked before sound is on; it switches the whole room (TV and phones).
-for(const b of document.querySelectorAll('[data-theme-pick]'))b.onclick=()=>send({action:'theme',value:b.dataset.themePick});
-$('enable-button').onclick=async()=>{
+// The whole start screen is the button: one click (or Enter) anywhere unlocks sound.
+$('enable').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('enable').click();}};
+$('enable').onclick=async()=>{
  try{
   if(!context){
    context=new AudioContext();musicGain=context.createGain();voiceGain=context.createGain();
@@ -305,7 +332,7 @@ async function start(){
   if(token===generation&&!state?.playing){music.pause();voice.pause();video.pause();}
  }catch(e){
   console.warn('Playback start failed',e.name,e.message);
-  if(token===generation&&e.name==='NotAllowedError'){music.pause();voice.pause();enabled=false;send({action:'audio',value:false});$('enable').hidden=false;$('audio-error').textContent='Tap Enable sound to resume playback.';}
+  if(token===generation&&e.name==='NotAllowedError'){music.pause();voice.pause();enabled=false;send({action:'audio',value:false});$('enable').hidden=false;$('audio-error').textContent='Click anywhere to turn sound back on.';}
  }finally{if(token===generation)starting=false;}
 }
 const COUNT_IN=4;  // seconds before the first line that the lyrics appear
@@ -368,8 +395,10 @@ function frame(now){
    counting=dotted;
    // KTV wipe: each character/word fills left to right over its sung interval.
    for(const n of echoing?[leadLine,index]:[index]){
-    const units=lines[n]?.units,spans=$('lyrics').children[n]?.children;
-    if(units&&spans)units.forEach(([,from,to],i)=>spans[i]?.style.setProperty('--p',Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)))));
+    const units=lines[n]?.units,wipe=wipes[n],fill=(from,to)=>Math.max(0,Math.min(1,(time-from)/Math.max(.05,to-from)));
+    if(!units||!wipe)continue;
+    units.forEach(([,from,to],i)=>wipe.spans[i]?.style.setProperty('--p',fill(from,to)));
+    for(const [rt,from,to] of wipe.rts)rt.style.setProperty('--p',fill(from,to));
    }
    $('elapsed').textContent=clock(music.currentTime);$('progress').parentElement.style.setProperty('--p',Math.min(1,music.currentTime/(state.current.duration||1)));
    if(classic()&&state.current.music_end&&!music.paused&&music.currentTime>=state.current.music_end)finish();
@@ -384,7 +413,6 @@ document.querySelector('.track').onclick=e=>{
  const box=e.currentTarget.getBoundingClientRect();
  send({action:'seek',position:(e.clientX-box.left)/box.width*state.current.duration});
 };
-const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],jyutping:['粵','Jyutping'],hangul:['가','한글']};
 let badgeTimer;
 function showGuideBadge(mode){const [icon,label]=GUIDE_BADGES[mode];showBadge(icon,'Pronunciation',label);}
 // Any adjustment from a remote flashes on screen, so the room sees what changed.
@@ -458,15 +486,15 @@ function cheer(emoji){
 }
 // "G" on a keyboard or remote also flips the guide.
 addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',value:'cycle'});});
+// One matter-of-fact status for every step (download, separation, lyrics): the guests only need to know it's coming.
 // Songs download and separate one at a time; show the one in progress so a wait never looks like a hang.
 // On an empty stage the song being prepared is the headline. During a song, preparation shows
-// only as small status text in the "Up next" list, so it never covers the lyrics.
-function showPrep(queued){
- const item=state.current?null:queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
+// only as small status text in the Queue card, so it never covers the lyrics.
+function showPrep(item){
  $('idle-prep').hidden=!item;$('idle-hero').hidden=!!item;
  if(!item)return;
- const {percent,text}=prepLabel(item);  // no percent while yt-dlp is still extracting
- $('idle-prep-step').textContent=text;$('idle-prep-title').textContent=item.title;
+ const {percent}=prepLabel(item);  // no percent while yt-dlp is still extracting
+ $('idle-prep-step').textContent=prepStatus(item);$('idle-prep-title').textContent=item.title;
  const bar=$('idle-prep-bar');bar.parentElement.classList.toggle('busy',percent==null);bar.parentElement.style.setProperty('--p',percent==null?0:percent/100);
 }
 // A floating remote for whoever sits at the TV computer: an always-on-top Picture-in-Picture window

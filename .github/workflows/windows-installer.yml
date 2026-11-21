@@ -1,0 +1,88 @@
+name: Windows installer
+
+# Pushes to main and manual runs keep the installer as an Actions artifact (14 days).
+# A pushed v* tag also attaches it to the GitHub Release for that tag.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    # Only what goes into the build (tag pushes ignore this filter and always build).
+    paths:
+      - "ktvibes/**"
+      - "static/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "installer/windows/**"
+      - ".github/workflows/windows-installer.yml"
+      - ".github/workflows/attach-release.yml"
+  pull_request:
+    paths:
+      - "installer/windows/**"
+      - ".github/workflows/windows-installer.yml"
+      - ".github/workflows/attach-release.yml"
+
+# A newer push to the same branch or PR replaces the run in progress; a release build always finishes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the project version
+        shell: pwsh
+        run: |
+          $match = Select-String -Path pyproject.toml -Pattern '^version = "([^"]+)"' | Select-Object -First 1
+          if (-not $match) { throw 'Could not read the version from pyproject.toml.' }
+          $version = $match.Matches[0].Groups[1].Value
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw "Tag $env:GITHUB_REF_NAME does not match pyproject.toml version $version."
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Validate PowerShell bootstrap syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'installer/windows/bootstrap.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) { throw "Inno Setup compiler not found: $compiler" }
+          & $compiler "/DAppVersion=$env:VERSION" 'installer/windows/KTVibes.iss'
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: KTVibes-Windows-x64-Installer
+          path: dist/KTVibes-Setup-x64.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    # Only on a pushed v* tag. The only job with write access.
+    if: github.ref_type == 'tag'
+    needs: build
+    permissions:
+      contents: write
+    uses: ./.github/workflows/attach-release.yml
+    with:
+      artifact: KTVibes-Windows-x64-Installer
+      file: KTVibes-Setup-x64.exe

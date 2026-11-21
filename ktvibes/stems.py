@@ -39,10 +39,14 @@ def write(folder: Path, vocals, instrumental, rate: int) -> float:
     """Save (frames, channels) float stems; returns the playback gain that undoes the scaling."""
     peak = max(float(np.abs(vocals).max(initial=0)), float(np.abs(instrumental).max(initial=0)))
     scale = min(1.0, HEADROOM / peak) if peak else 1.0
-    for name, data in zip(NAMES, (vocals, instrumental)):
+    def save(name, data):
         temporary = folder / f"{name}.tmp.opus"
         sf.write(temporary, resample(data * scale, rate), RATE, format="OGG", subtype="OPUS", compression_level=QUALITY)
         temporary.replace(folder / f"{name}.opus")
+    # Opus encoding takes about 10 s a stem and runs outside the GIL, so the two encode side by side.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(len(NAMES)) as pool:
+        list(pool.map(save, NAMES, (vocals, instrumental)))
     return 1 / scale
 
 def migrate(folder: Path, gain: float | None) -> float | None:

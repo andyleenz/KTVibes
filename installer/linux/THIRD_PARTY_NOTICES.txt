@@ -1,0 +1,26 @@
+KTVibes uses the FFmpeg, FFprobe and Node.js already installed on the computer when they are
+suitable. Otherwise it downloads them on first start, together with uv when uv is not installed.
+
+FFmpeg
+FFmpeg and FFprobe are downloaded from the static Linux builds by BtbN:
+https://github.com/BtbN/FFmpeg-Builds
+
+These are GPL builds compiled from FFmpeg and include third-party codec and library components.
+Build scripts, source links and licensing information are published by the build maintainer:
+https://github.com/BtbN/FFmpeg-Builds
+https://ffmpeg.org/legal.html
+
+Node.js and uv
+Node.js is downloaded from nodejs.org and uv from the astral-sh/uv GitHub releases.
+
+These downloads go to ~/.local/share/KTVibes/tools and are not included in the AppImage. Each
+download keeps its license file there.
+
+AppImage runtime
+The AppImage starts through the AppImage type2-runtime (MIT License), which includes squashfuse,
+libfuse and zstd under their own licenses:
+https://github.com/AppImage/type2-runtime
+
+Installer
+The Linux AppImage follows the design of the macOS app that Jeff Shih contributed to KTVibes
+(https://github.com/JeffShih-wiwynn/KTVibes) under the MIT License of this project.

@@ -4,8 +4,40 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-21
+
+Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwynn), brought over from [his fork](https://github.com/JeffShih-wiwynn/KTVibes) and adapted here. Entries marked *(Jeff Shih)* are his; thank you, Jeff.
+
+### Added
+- Japanese songs get a kana pronunciation guide: furigana over the kanji, one reading per word, filling in as it is sung, in both themes. Long lines are never split in the middle of a word. *(Jeff Shih; readings now sit over the kanji only, leaving okurigana bare.)*
+- Search and Recent rows have a Play next button (우선 in Classic) that puts a song at the front of the queue, or moves it up if it is already waiting. Classic's 우선예약 by number now also moves up a song that is already reserved. *(Jeff Shih)*
+- On a tablet or laptop (960px and wider) the remote uses two columns: search and Recent on the left, Now singing and the queue on the right. *(Jeff Shih)*
+- Desktop apps, attached to each release from the next one. Each sets itself up on first start and opens the TV page.
+  - A Windows installer and an Apple Silicon Mac app. *(Jeff Shih)*
+  - A Linux AppImage, following the design of his Mac app.
+- `KTVIBES_OPEN_BROWSER=1` opens the TV page in the default browser when KTVibes starts. *(Jeff Shih)*
+- The tests run on every push and pull request. *(Jeff Shih)*
+- [CONTRIBUTING.md](CONTRIBUTING.md): how to send a change.
+- A redesigned Default look for the remote and the TV. Classic is unchanged and still in Settings.
+  - Home lists the songs ready to sing; See all opens the library, sorted by Recent or A–Z, with a filter and a letter rail.
+  - Tapping + shows where the song landed ("Added at #3") with Undo.
+  - Now singing has its own card with play, skip, settings and lyrics, and the cheers (👏 🔥 🎉 ❤️) sit in a row under it. Queue rows open a menu (Play next, lyrics, Remove); hold and drag to reorder. Long queues fold after five.
+  - Settings split into Sound, Lyrics and Screen tabs, and sheets close with a swipe down.
+  - Live lyrics on the phone, filled word by word in step with the TV. Tap a word to jump the song there. ••• fixes wrong lyrics or timing, and a song without lyrics offers Find lyrics.
+  - On a tablet the library and the player sit side by side; from 1000px wide the settings stay open as a column.
+  - The TV shows a small Queue card with the QR code and a control bar that tucks away, with its buttons, after 3 seconds.
+  - An empty remote shows one line, "Search for a song to get started", under the search bar.
+
 ### Changed
+- When LRCLIB is busy or limiting requests, the lyrics picker says how long to wait and its Search button counts down, instead of reporting a failed lookup or a missing version. The automatic lookup stops asking as soon as LRCLIB says to slow down. *(Jeff Shih)*
+- Classic's 가이드 key shows which pronunciation guide is on. *(Jeff Shih)*
+- New songs prepare in about half the time. The vocal separation and word timing models load when KTVibes starts, word timing runs on the GPU of Apple Silicon Macs, and the vocal and music tracks are saved side by side.
+- While a song prepares, the remote and the TV name the step and show its progress: Downloading, Separating vocals, Finding lyrics, Timing lyrics.
+- Songs without Korean lyrics no longer load the Korean pronunciation model, so they prepare faster. *(Jeff Shih)*
 - `http://localhost:8765` opens the TV, so someone on a laptop can start singing without a phone and open the remote from the TV's remote button. The phone remote moves to `/remote`; the QR code points there. `/tv` still works.
+
+### Fixed
+- On Windows, song details with Chinese, Japanese or Korean text are read correctly, so such songs keep their lyrics choice and volume level between plays. *(Jeff Shih)*
 
 ## [0.6.2] - 2026-10-10
 
@@ -114,7 +146,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/andyleenz/KTVibes/compare/v0.6.2...v0.9.0
 [0.6.2]: https://github.com/andyleenz/KTVibes/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/andyleenz/KTVibes/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/andyleenz/KTVibes/compare/v0.5.0...v0.6.0
