@@ -19,7 +19,7 @@ Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwy
 - A redesigned Default look for the remote and the TV. Classic is unchanged and still in Settings.
   - Home lists the songs ready to sing; See all opens the library, sorted by Recent or A–Z, with a filter and a letter rail.
   - Tapping + shows where the song landed ("Added at #3") with Undo.
-  - Now singing has its own card with play, skip, settings, lyrics and cheers. Queue rows open a menu (Play next, lyrics, Remove); hold and drag to reorder. Long queues fold after five.
+  - Now singing has its own card with play, skip, settings and lyrics, and the cheers (👏 🔥 🎉 ❤️) sit in a row under it. Queue rows open a menu (Play next, lyrics, Remove); hold and drag to reorder. Long queues fold after five.
   - Settings split into Sound, Lyrics and Screen tabs, and sheets close with a swipe down.
   - Live lyrics on the phone, filled word by word in step with the TV. Tap a word to jump the song there. ••• fixes wrong lyrics or timing, and a song without lyrics offers Find lyrics.
   - On a tablet the library and the player sit side by side; from 1000px wide the settings stay open as a column.

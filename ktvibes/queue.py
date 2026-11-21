@@ -15,7 +15,7 @@ def following(options, current):
     return options[(options.index(current) + 1) % len(options)]
 
 GUIDES = ("off", *GUIDE_SLOTS)
-REACTIONS = ("👏", "🔥", "🎉", "💚")  # cheers a remote can float up on the TV
+REACTIONS = ("👏", "🔥", "🎉", "❤️")  # cheers a remote can float up on the TV
 HISTORY = 200  # remembered plays, for the remote's "Recent" list
 QUEUE_LIMIT = 100  # songs waiting at once
 UNDO_SECONDS = 15  # how long a removal can be taken back

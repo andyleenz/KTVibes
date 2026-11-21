@@ -33,7 +33,7 @@ function render(next){
 // Now playing: a card at the top, handing over to the dock once scrolled away.
 function showNow(first){
  const c=state.current,art=c?thumbnail(c.id):'';
- showHero(!!c,first);$('hero').classList.toggle('paused',!state.playing);$('hero').classList.toggle('offline',!state.player_connected);$('hero-state').textContent=state.playing?'Now singing':'Paused';
+ showHero(!!c,first);$('hero').classList.toggle('paused',!state.playing);$('hero').classList.toggle('offline',!state.player_connected);$('cheers').classList.toggle('offline',!state.player_connected);$('hero-state').textContent=state.playing?'Now singing':'Paused';
  for(const id of ['hero-play','dock-play']){$(id).classList.toggle('playing',!!(c&&state.playing));$(id).setAttribute('aria-label',state.playing?'Pause':'Play');$(id).disabled=!c;}
  // The card keeps its last song while it folds away.
  for(const id of c?['hero-art','hero-glow','dock-art','sheet-art']:['dock-art','sheet-art'])showImage($(id),art);
@@ -45,7 +45,7 @@ function showNow(first){
 // height, padding and margin open with a soft spring while the card fades and scales up.
 let heroShown=false;
 function showHero(on,first){
- if(on===heroShown)return;heroShown=on;
+ if(on===heroShown)return;heroShown=on;$('cheers').hidden=!on;
  const hero=$('hero');for(const animation of hero.getAnimations())animation.cancel();
  if(first||REDUCED.matches){hero.hidden=!on;return;}
  hero.hidden=false;

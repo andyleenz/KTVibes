@@ -47,7 +47,7 @@ body[data-theme=classic] .wrap{padding:calc(12px + env(safe-area-inset-top)) 16p
 body[data-theme=classic]:not([data-tab=handset]) #handset,
 body[data-theme=classic]:not([data-tab=book]) .wrap :is(#book-head,#search-form,#results,#more,#results-end,#book-new,#recent-heading,#recent,#book-all,#book-request),
 body[data-theme=classic]:not([data-tab=queue]) .wrap :is(#hero,#queue-heading,#queue){display:none}
-body[data-theme=classic] #hero .reactions{display:none}
+body[data-theme=classic] #cheers{display:none}
 /* The LCD window. */
 .lcd-window{margin:10px 0 14px;padding:12px 14px 10px;background:var(--lcd);border-radius:12px;box-shadow:inset 0 0 0 2px #000,inset 0 0 0 4px #2b3c8e,inset 0 8px 18px #000a}
 .lcd-top{display:flex;justify-content:space-between;font:700 11px 'IBM Plex Sans KR',sans-serif;color:#7f9cff;letter-spacing:.12em}
