@@ -1,5 +1,6 @@
 import {classicRemote,toastParts,emptyNote,secondsLeft} from './classic-remote.js';
 import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail} from './shared.js';
+import {openLyrics,lyricsState} from './remote-lyrics.js';
 let state,classicUi;
 const SPRING='cubic-bezier(.38,1.21,.22,1)';
 const haptic=pattern=>{try{navigator.vibrate?.(pattern);}catch{}};
@@ -23,7 +24,7 @@ function render(next){
  $('connection').textContent=state.theme==='classic'?(!tv?'Open /tv on a device':state.player_audio?'Device ready':'Tap Enable sound on the device'):tv?'TV connected':'TV offline';
  $('connection').classList.toggle('warn',!state.player_audio);$('connection').classList.toggle('off',!tv);
  $('tv-lost').hidden=tv||!state.current;$('tv-mute').hidden=!tv||state.player_audio;
- document.body.dataset.theme=state.theme||'default';placeSheet();showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);
+ document.body.dataset.theme=state.theme||'default';placeSheet();showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);lyricsState(state);
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
  if(ready!==readyKeys){readyKeys=ready;loadRecent();loadLibrary();classicUi?.loadBook();}
  markQueued();
@@ -732,3 +733,4 @@ $('more').onclick=()=>{search.page++;loadPage();};
 // Keep the page's end clear of the dock, whatever its height.
 new ResizeObserver(()=>document.body.style.setProperty('--dock',`${$('dock').offsetHeight}px`)).observe($('dock'));
 classicUi=classicRemote({send,toast,haptic,swipeable});if(state)classicUi.render(state);
+$('open-lyrics').onclick=()=>openLyrics();
