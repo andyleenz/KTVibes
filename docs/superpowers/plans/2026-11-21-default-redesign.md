@@ -21,7 +21,7 @@
 ## Global Constraints
 
 - **Copy is matter of fact.** Use these exact strings:
-  - Status: "Preparing 42%", "Error preparing", "Queue empty", "No matches", "Search unavailable · offline", "Added · #N".
+  - Status: "Preparing 42%", "Error preparing", "No matches", "Search unavailable · offline", "Added · #N".
   - Banners: "Reconnecting to TV…" (button "Retry"), "TV sound off · click the TV to start".
 - **Names:**
   - The prepared-song list is "Ready to sing".
