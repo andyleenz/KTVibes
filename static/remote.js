@@ -281,7 +281,8 @@ function queueRow(item,index,justReady){
  const info=el('div',undefined,'info'),line=el('p');if(item.number)line.append(el('span',String(item.number),'qnum classic-only'),' ');line.append(el('span',item.artist,'who'),...(justReady&&item.status==='ready'?[el('em','준비 완료','ready-lamp classic-only')]:[]),el('span',' · ','sep classic-only'),el('span',statusKo(item,index),'status-ko classic-only'),el('span',statusText(item),'status'));info.append(el('h3',item.title),line);
  if(item.status!=='ready'&&item.status!=='error'){const bar=el('div',undefined,'prepbar classic-only');bar.append(el('i'));info.append(bar);}
  if(item.error){const retry=el('button','Retry','retry');retry.onclick=()=>send({action:'retry',key:item.key});info.append(el('p',item.error,'error'),retry);}
- const remove=el('button','×','row-button classic-only');  // Default removes from the row menuremove.setAttribute('aria-label',`Remove ${item.title}`);
+ const remove=el('button','×','row-button classic-only');  // Default removes from the row menu
+ remove.setAttribute('aria-label',`Remove ${item.title}`);
  remove.onclick=()=>{send({action:'remove',key:item.key});toast(`Removed ${item.title}`,{label:'Undo',run:()=>send({action:'undo'})});};
  const grip=el('button',undefined,'row-button grip');grip.innerHTML=GRIP;grip.setAttribute('aria-label',`Move ${item.title}. Arrow keys move it up or down.`);
  grip.onkeydown=e=>{const to=index+({ArrowUp:-1,ArrowDown:1}[e.key]||0);if(to!==index&&to>=0&&to<state.upcoming.length){e.preventDefault();move(index,to);}};
@@ -358,7 +359,7 @@ function endDrag(){
  const target=d.boxes[d.to].top-d.boxes[d.from].top+(d.to>d.from?d.boxes[d.to].height-d.height:0);
  const settle=d.row.animate([{translate:d.row.style.translate||'0 0'},{translate:`0 ${target}px`}],{duration:REDUCED.matches?1:260,easing:'cubic-bezier(.34,1.3,.64,1)',fill:'forwards'});
  settle.onfinish=()=>{
-  dragging=null;
+  dragging=null;delete d.row.dataset.dragged;  // a drag released off the row may never click
   if(d.to!==d.from){
    // Show the new order now; the server's answer then matches it, so nothing jumps.
    const order=state.upcoming.map(i=>i.key);order.splice(d.to,0,...order.splice(d.from,1));
@@ -380,11 +381,13 @@ async function loadRecent(){
   if(!songs.length)$('recent').append(emptyNote('♪','아직 부른 노래가 없어요','Nothing sung yet.'));
  }catch{}
 }
-// "Added at #N" with Undo (which takes the song back out), or "Singing now" if it went straight on stage.
-function addedToast(item,path){
+// "Added at #N" with Undo, or "Singing now" if it went straight on stage. Undo takes a new song back out; a song that was
+// already waiting (Play next moves it up) goes back to its old place. `before` is the queue order taken before the request.
+function addedToast(item,path,before){
  if(state.current?.key===item?.key)return toast('Singing now');
- const at=state.upcoming.findIndex(i=>i.key===item?.key);
- toast(`Added at #${at>=0?at+1:path.endsWith('next')?1:state.upcoming.length+1}`,{label:'Undo',run:()=>send({action:'remove',key:item.key})});
+ const at=state.upcoming.findIndex(i=>i.key===item?.key),moved=before?.includes(item?.key);
+ const undo=()=>moved?send({action:'reorder',keys:before.filter(k=>state.upcoming.some(i=>i.key===k))}):send({action:'remove',key:item.key});
+ toast(`Added at #${at>=0?at+1:path.endsWith('next')?1:state.upcoming.length+1}`,{label:'Undo',run:undo});
 }
 // Default song rows, one builder for home, the library and both halves of search. A song already queued trades
 // its + for "#N in queue" (and "Preparing" in place of the artist while it gets ready); ••• opens Play next, lyrics and Delete download.
@@ -401,7 +404,8 @@ function songRow(song){
  row.append(thumb,text,add,tag,more);row.song=song;row.plain=sub.textContent;
  const queue=async path=>{
   if(add.disabled)return;add.disabled=true;
-  try{const item=await post(path,{id:song.id,...song.parsed});haptic([10,40,10]);flyToQueue(art);addedToast(item,path);}
+  const before=state.upcoming.map(i=>i.key);
+  try{const item=await post(path,{id:song.id,...song.parsed});haptic([10,40,10]);flyToQueue(art);addedToast(item,path,before);}
   catch(error){toast(error.message,undefined,'err');}finally{add.disabled=false;}
  };
  add.onclick=()=>queue('/api/queue');text.onclick=art.onclick=()=>{if(add.hidden)return songSheet(song,queue);queue('/api/queue');};
@@ -515,7 +519,7 @@ function openLibrary(){
 function closeLibrary(){$('library').hidden=true;document.body.classList.remove('library-open');}
 $('ready-all').onclick=openLibrary;
 $('library-back').onclick=()=>history.state?.library?history.back():closeLibrary();
-addEventListener('popstate',()=>{if(!$('library').hidden)closeLibrary();});
+addEventListener('popstate',()=>{if(!$('library').hidden&&!history.state?.library)closeLibrary();});  // only when its own entry was popped
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('library').hidden&&!document.querySelector('.lyric-sheet'))$('library-back').click();});
 // Search: songs already prepared that match, filtered here as you type, sit above YouTube's results.
 function showLocal(){
@@ -543,11 +547,11 @@ function showResult(song,list=$('results'),wrap=pick,index=-1){
  // Classic swaps the channel line for what happened to the add.
  const mark=(name,...text)=>{b.classList.remove('added','failed');b.classList.add(name);note.replaceChildren(...text);};
  const add=async(button,path,said,message)=>{
-  button.disabled=true;
+  button.disabled=true;const before=state.upcoming.map(i=>i.key);
   try{
    const item=await post(path,{id:song.id,...song.parsed});icon(status,'added');mark('added',...said);haptic([10,40,10]);flyToQueue(image);
    // Default: where it landed in the queue, with Undo. Classic keeps its own wording (classic-remote.js reads it).
-   if(isClassic())toast(message);else addedToast(item,path);
+   if(isClassic())toast(message);else addedToast(item,path,before);
   }
   catch(error){icon(status,'failed');mark('failed',"Couldn't add. Try again");toast(error.message,undefined,'err');}finally{button.disabled=false;}
  };
@@ -600,7 +604,8 @@ async function pickLyrics(song){
  let hold;  // counts down a wait LRCLIB asked for
  const {panel,shut}=bottomSheet(()=>clearInterval(hold)),list=el('div',undefined,'lyric-options'),close=el('button','Close');
  close.onclick=shut;
- const head=el('div',undefined,'lyric-sheet-head'),name=el('strong');name.append(el('small','가사 선택 · LYRICS','classic-only'),...isClassic()?['Lyrics · ']:[],el('span',song.title));  // Default: no dot separatorshead.append(name,close);close.setAttribute('aria-label','Close');
+ const head=el('div',undefined,'lyric-sheet-head'),name=el('strong');name.append(el('small','가사 선택 · LYRICS','classic-only'),...isClassic()?['Lyrics · ']:[],el('span',song.title));  // Default: no dot separators
+ head.append(name,close);close.setAttribute('aria-label','Close');
  // Search LRCLIB by hand when the automatic lookup found nothing or the wrong song.
  const form=el('form',undefined,'lyric-search'),input=el('input'),go=el('button','Search');
  input.type='search';input.value=`${song.artist} ${song.title}`;input.placeholder='Artist and song title';input.setAttribute('aria-label','Search lyrics');go.type='submit';

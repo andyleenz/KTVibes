@@ -23,7 +23,7 @@ async function load(){
  const c=state?.current,want=c?`${c.key}:${c.lyrics_rev||0}`:'';
  if(want===loaded)return;loaded=want;
  if(!c){lines=[];build();return;}
- try{const body=await api('/api/current/lyrics');if(loaded!==want)return;lines=body.key===c.key&&body.lines||[];}catch{lines=[];}
+ try{const body=await api('/api/current/lyrics');if(loaded!==want)return;lines=body.key===c.key&&body.lines||[];}catch{if(loaded!==want)return;loaded='';lines=[];}  // '' retries on the next update
  build();
 }
 
@@ -94,6 +94,6 @@ $('lv-close').onclick=()=>closeLyrics();
 $('lv-play').onclick=()=>$('hero-play').click();
 $('lv-skip').onclick=()=>$('skip').click();
 $('lv-settings').onclick=()=>$('open-controls').click();
-addEventListener('popstate',()=>closeLyrics(true));
-addEventListener('keydown',e=>{if(e.key==='Escape'&&!view.hidden&&!document.body.classList.contains('sheet-open'))closeLyrics();});
+addEventListener('popstate',()=>{if(!history.state?.lyrics)closeLyrics(true);});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!view.hidden&&!document.body.classList.contains('sheet-open')&&!document.querySelector('.lyric-sheet'))closeLyrics();});
 if(REDUCED.matches)list.classList.add('still');
