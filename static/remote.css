@@ -432,9 +432,9 @@ body:not([data-theme=classic]) .hero .react{background:#323a2b}
 /* Unfolded phones and tablets: one centred column (header, lines, controls) instead of a phone layout stretched edge to edge; bigger words. */
 @media(min-width:600px){
  .lyrics-view{--lv-pad:max(32px,calc(50% - 320px))}
- .lv-top{padding-left:var(--lv-pad);padding-right:var(--lv-pad);padding-top:calc(24px + env(safe-area-inset-top))}
- .lv-lines{padding-left:var(--lv-pad);padding-right:var(--lv-pad);font-size:clamp(32px,4.4vw,42px)}
+ .lv-top{padding-inline:var(--lv-pad);padding-top:calc(24px + env(safe-area-inset-top))}
+ .lv-lines{padding-inline:var(--lv-pad);font-size:clamp(32px,4.4vw,42px)}
  .lv-lines p{margin-bottom:26px}
- .lv-foot{padding-left:var(--lv-pad);padding-right:var(--lv-pad)}
+ .lv-foot{padding-inline:var(--lv-pad)}
 }
 @media(min-width:1000px){body.sheet-inline .lyrics-view{right:var(--side)}}

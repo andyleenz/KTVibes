@@ -41,7 +41,9 @@ function tick(){
  if(c&&Math.floor(at)!==second){second=Math.floor(at);positionEl.textContent=clock(at);fillEl.style.width=`${c.duration?Math.min(100,at/c.duration*100):0}%`;}
  if(!lines.length)return;
  let place=-1;for(let i=0;i<lines.length;i++){if(startOf(i)<=time)place=i;else break;}
- const gap=place>=0&&time>endOf(place)&&startOf(place+1)>time+.5;  // between lines: nothing is "now", but keep our place
+ // A sung line stays lit through a pause until the next one starts; only an instrumental break (4s past its last
+ // word) dims it, and once dimmed it stays dim.
+ const gap=place>=0&&time>endOf(place)+4;
  if(shown!==`${place}${gap}`){
   shown=`${place}${gap}`;
   lineEls.forEach((p,i)=>{p.className=i===place&&!gap?'now':i<=place?'past':i===place+1?'next':'';});
