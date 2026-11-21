@@ -63,13 +63,13 @@ function render(next){
  const prepping=state.current?null:queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
  const listed=state.upcoming.map((item,n)=>({item,n})).filter(({item})=>item!==prepping);
  $('top-queue').querySelector('.eyebrow').textContent=prepping?'Up next':'Queue';
- $('on-deck').replaceChildren(...listed.slice(0,3).map(({item:i,n})=>{const artist=el('span');artist.append(i.status==='ready'?i.artist:el('em',prepStatus(i)));  // status in place of the artist, no separatorconst text=el('div');text.append(el('b',i.title),artist);const row=el('li');row.append(el('i',String(n+1)),text);return row;}));
+ // The artist line shows the status instead while a song isn't ready.
+ $('on-deck').replaceChildren(...listed.slice(0,3).map(({item:i,n})=>{const artist=el('span');artist.append(i.status==='ready'?i.artist:el('em',prepStatus(i)));const text=el('div');text.append(el('b',i.title),artist);const row=el('li');row.append(el('i',String(n+1)),text);return row;}));
  if(listed.length>3)$('on-deck').append(el('li',`+${listed.length-3} more`,'more'));
- if(!listed.length)$('on-deck').append(el('li','Queue empty','more'));
  // An empty stage says "Pick a song." beside the big QR; an empty card would only repeat it. While a song is
  // being prepared the big QR steps aside, so the card stays as the way to join, even with nothing else queued.
  $('top-queue').hidden=!state.current&&!prepping&&!listed.length;
- $('top-queue').classList.toggle('join-only',!!prepping&&!listed.length);
+ $('top-queue').classList.toggle('join-only',!listed.length);  // nothing queued: no Queue heading, just the way to join
  // The two songs after the next one peek out from under its card between songs.
  [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),item.title,el('small',item.artist));peek.replaceChildren(line);}});
  showPrep(prepping);showBoard(state,queued);setAmbient(!state.current);

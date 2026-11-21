@@ -159,8 +159,9 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 
 /* Default theme: frosted glass cards over the stage, sentence-case labels, one Queue card top right, one floating control bar.
    Scoped away from Classic, which shares this markup. :where keeps the glass easy to override per card. */
-.tv{--glass:linear-gradient(160deg,#ffffff1f,#ffffff08 40%,#0000001a),#1a1f1c59;--glass-line:#ffffff26;--glass-shadow:inset 0 1px 0 #ffffff2e,0 18px 50px #0006;--mut:#ffffffa6;--bar-in:max(var(--edge),calc(50% - 590px))}
-.tv:not([data-theme=classic]) :where(.top-queue,#idle .join,.next-card,.peek,.osd,.tv-bottom,#reconnecting,#no-lyrics){background:var(--glass);-webkit-backdrop-filter:blur(28px) saturate(1.6);backdrop-filter:blur(28px) saturate(1.6);border:1px solid var(--glass-line);border-radius:22px;box-shadow:var(--glass-shadow)}
+/* --glass is a solid tonal surface (M3 Expressive, no frosted blur); the name stays so the rules using it don't churn. */
+.tv{--glass:#1c211e;--glass-line:#ffffff17;--glass-shadow:0 12px 32px #0008;--mut:#ffffffa6;--bar-in:max(var(--edge),calc(50% - 590px))}
+.tv:not([data-theme=classic]) :where(.top-queue,#idle .join,.next-card,.peek,.osd,.tv-bottom,#reconnecting,#no-lyrics){background:var(--glass);border:0;border-radius:22px;box-shadow:var(--glass-shadow)}
 .tv:not([data-theme=classic]) :is(#peek-1,#peek-2){background:var(--glass)}  /* beat the ids' solid fills */
 /* Labels: sentence case, muted, directly above what they label. */
 .tv:not([data-theme=classic]) .eyebrow{font-size:17px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--mut);margin-bottom:8px}
@@ -240,13 +241,13 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]) .join strong{display:block}
 /* Corner buttons (remote, fullscreen), Material 3 Expressive: tonal frosted containers that morph from a circle to a
    rounded square under the pointer and squash on press, on an overshooting spring. Classic keeps its labelled keys. */
-.tv:not([data-theme=classic]) .open-remote{width:48px;height:48px;border:0;border-radius:24px;background:#ffffff1f;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#fff;opacity:.75;transition:opacity .5s,background .2s,border-radius .45s cubic-bezier(.34,1.56,.64,1),transform .45s cubic-bezier(.34,1.56,.64,1)}
+.tv:not([data-theme=classic]) .open-remote{width:48px;height:48px;border:0;border-radius:24px;background:#2a302c;color:#fff;opacity:.75;transition:opacity .5s,background .2s,border-radius .45s cubic-bezier(.34,1.56,.64,1),transform .45s cubic-bezier(.34,1.56,.64,1)}
 .tv:not([data-theme=classic]) #fullscreen{right:calc(var(--edge) + 60px)}
-.tv:not([data-theme=classic]) .open-remote:hover{border-radius:16px;background:#ffffff33;opacity:1}
+.tv:not([data-theme=classic]) .open-remote:hover{border-radius:16px;background:#353c37;opacity:1}
 .tv:not([data-theme=classic]) .open-remote:active{border-radius:12px;transform:scale(.92)}
 .tv:not([data-theme=classic]) .open-remote svg{width:22px;height:22px;transition:transform .45s cubic-bezier(.34,1.56,.64,1)}
 .tv:not([data-theme=classic]) .open-remote:active svg{transform:scale(.88)}
 .tv:not([data-theme=classic]) .open-remote:focus-visible{outline:3px solid var(--lime);outline-offset:3px;border-radius:16px;opacity:1}
 /* Inside the glass bar they sit flush and take the tint only under the pointer. */
-.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) .open-remote:hover{background:#ffffff1f}
+.tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) .open-remote:hover{background:#2a302c}
 .tv:not([data-theme=classic]) .peek small{margin-left:.8em;font-size:.85em;font-weight:500;color:#ffffff99}
