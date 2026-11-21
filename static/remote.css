@@ -322,19 +322,33 @@ body.sheet-open .toast.on{transform:translate(-50%,0)}
 @keyframes sheet-in{from{transform:translateY(100%)}}
 @keyframes fade-in{from{opacity:0}}
 
-/* Wide screens (a tablet or laptop): search and Recent on the left, now playing and the queue on the right.
-   The column wrappers vanish from layout on phones. Classic keeps its one-column handset. */
+/* Wider screens. From 600px (foldables, tablets): two columns, search and Ready to sing on the left, the
+   now-singing card and the queue on the right. From 1000px (laptops): settings become a third column, always open,
+   and the dock goes. The column wrappers vanish from layout on phones. Classic keeps its one-column handset. */
 .browse-column,.play-column,.recent-column{display:contents}
-@media(min-width:960px){
- body:not([data-theme=classic]) .wrap{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"top top" "browse play" "recent play";column-gap:32px;row-gap:12px;max-width:1320px;padding:0 28px;align-content:start}
- body:not([data-theme=classic]) .top{grid-area:top}
+@media(min-width:600px){
+ body:not([data-theme=classic]) .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,1fr);grid-template-rows:auto auto auto auto minmax(0,1fr);grid-template-areas:"top top" ". lost" ". mute" "browse play" "recent play";column-gap:28px;max-width:none;padding:0 24px;align-content:start}
+ body:not([data-theme=classic]) .top{grid-area:top}body:not([data-theme=classic]) #tv-lost{grid-area:lost}body:not([data-theme=classic]) #tv-mute{grid-area:mute}  /* TV news sits over the TV's column */
  body:not([data-theme=classic]) :is(.browse-column,.play-column,.recent-column){display:flex;flex-direction:column;min-width:0}
  body:not([data-theme=classic]) .browse-column{grid-area:browse}
- body:not([data-theme=classic]) .play-column{grid-area:play;align-self:start}
+ body:not([data-theme=classic]) .play-column{grid-area:play;align-self:start;position:sticky;top:12px}
  body:not([data-theme=classic]) .recent-column{grid-area:recent}
  body:not([data-theme=classic]) .searchbar{position:relative;top:auto;box-shadow:none}  /* sticky would only hold within its own column */
- body:not([data-theme=classic]) .hero{margin-top:0}
+ body:not([data-theme=classic]) .hero{margin-top:6px}
  body:not([data-theme=classic]) #queue-heading{margin-top:20px}
+ /* The library covers the left column only, so the queue stays in view beside it. */
+ .library{right:auto;width:50vw;padding-right:24px;padding-left:24px;border-right:1px solid var(--line)}
+ .library .rail{right:calc(50vw + 2px)}
+}
+@media(min-width:1000px){
+ body:not([data-theme=classic]){--side:380px;--dock:0px;padding-bottom:24px}
+ body:not([data-theme=classic]) .dock{display:none}
+ body.sheet-inline{padding-right:var(--side)}
+ body.sheet-inline .scrim{display:none}
+ body.sheet-inline .sheet{top:0;bottom:0;left:auto;right:0;width:var(--side);max-width:none;max-height:none;margin:0;border:0;border-left:1px solid var(--line);border-radius:0;transform:none!important;transition:none;padding-top:calc(20px + env(safe-area-inset-top))}
+ body.sheet-inline .sheet .handle{display:none}
+ body.sheet-inline .toast.toast{top:auto;bottom:24px;transform:translate(-50%,20px)}body.sheet-inline .toast.on{transform:translate(-50%,0)}
+ body.sheet-inline .library{width:calc((100vw - var(--side))/2)}body.sheet-inline .library .rail{right:calc((100vw + var(--side))/2 + 2px)}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 /* Classic theme: room time. */

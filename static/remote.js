@@ -23,7 +23,7 @@ function render(next){
  $('connection').textContent=state.theme==='classic'?(!tv?'Open /tv on a device':state.player_audio?'Device ready':'Tap Enable sound on the device'):tv?'TV connected':'TV offline';
  $('connection').classList.toggle('warn',!state.player_audio);$('connection').classList.toggle('off',!tv);
  $('tv-lost').hidden=tv||!state.current;$('tv-mute').hidden=!tv||state.player_audio;
- document.body.dataset.theme=state.theme||'default';showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);
+ document.body.dataset.theme=state.theme||'default';placeSheet();showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);
  const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
  if(ready!==readyKeys){readyKeys=ready;loadRecent();loadLibrary();classicUi?.loadBook();}
  markQueued();
@@ -107,7 +107,7 @@ function showControls(before){
  $('offset-value').textContent=`${state.offset>=0?'+':''}${state.offset.toFixed(1)}s`;
  for(const seg of SEGMENTED){
   for(const b of seg.querySelectorAll('button')){b.setAttribute('aria-pressed',b.dataset.value===state[seg.dataset.action]);if(seg.dataset.action==='guide')b.hidden=!(state.guides||[]).includes(b.dataset.value);}
-  if(document.body.classList.contains('sheet-open')||state.theme==='classic')placePill(seg);  // openSheet measures the rest; in Classic the settings are a page
+  if(document.body.matches('.sheet-open,.sheet-inline')||state.theme==='classic')placePill(seg);  // openSheet measures the rest; in Classic the settings are a page
  }
  syncRanges();
 }
@@ -156,8 +156,19 @@ addEventListener('resize',()=>SEGMENTED.forEach(placePill));
 {const sized=new ResizeObserver(entries=>entries.forEach(entry=>placePill(entry.target)));SEGMENTED.forEach(seg=>sized.observe(seg));}
 $('earlier').onclick=()=>send({action:'offset',delta:-0.5});$('later').onclick=()=>send({action:'offset',delta:0.5});
 $('lyric-version').onclick=()=>state?.current&&pickLyrics(state.current);
-function openSheet(){document.body.classList.add('sheet-open');$('sheet').inert=false;haptic(8);requestAnimationFrame(()=>SEGMENTED.forEach(placePill));}
-function closeSheet(){document.body.classList.remove('sheet-open');$('sheet').inert=true;}
+function openSheet(){
+ // Inline (laptop width) the sheet is always open: the settings buttons just bring it to the top.
+ if(document.body.classList.contains('sheet-inline')){$('sheet').scrollTo({top:0,behavior:REDUCED.matches?'auto':'smooth'});return;}
+ document.body.classList.add('sheet-open');$('sheet').inert=false;haptic(8);requestAnimationFrame(()=>SEGMENTED.forEach(placePill));}
+function closeSheet(){if(document.body.classList.contains('sheet-inline'))return;document.body.classList.remove('sheet-open');$('sheet').inert=true;}
+// From 1000px wide, Default shows the settings as a third column, always open.
+const WIDE=matchMedia('(min-width:1000px)');
+function placeSheet(){
+ const inline=WIDE.matches&&document.body.dataset.theme!=='classic',body=document.body;if(inline===body.classList.contains('sheet-inline'))return;
+ if(inline){body.classList.remove('sheet-open');body.classList.add('sheet-inline');$('sheet').inert=false;requestAnimationFrame(()=>SEGMENTED.forEach(placePill));}
+ else{body.classList.remove('sheet-inline');$('sheet').inert=true;}
+}
+WIDE.addEventListener('change',placeSheet);
 $('open-controls').onclick=$('dock-now').onclick=$('dock-settings').onclick=()=>document.body.dataset.theme==='classic'?classicUi.setTab('settings'):openSheet();
 $('scrim').onclick=$('sheet-handle').onclick=closeSheet;
 // Sound and Screen tabs split the sheet (Default only; Classic's 설정 page shows every group).
@@ -204,7 +215,7 @@ function dragToClose(panel,close,fade,scroller=panel,allowed=()=>true){
  };
  panel.addEventListener('pointerup',end);panel.addEventListener('pointercancel',end);
 }
-dragToClose($('sheet'),()=>{$('sheet').style.transform='';closeSheet();},f=>{$('scrim').style.transition=f==null?'':'none';$('scrim').style.opacity=f??'';},$('sheet'),()=>document.body.dataset.theme!=='classic');
+dragToClose($('sheet'),()=>{$('sheet').style.transform='';closeSheet();},f=>{$('scrim').style.transition=f==null?'':'none';$('scrim').style.opacity=f??'';},$('sheet'),()=>document.body.dataset.theme!=='classic'&&!document.body.classList.contains('sheet-inline'));
 // Queue. Rebuilt only when its songs or statuses change, so position reports never swap a button
 // out from under a tap; preparation progress updates in place. A drag holds rebuilds until it ends.
 let queueShape,dragging=null;
