@@ -168,7 +168,7 @@ body:not([data-theme=classic]) #queue .ring{display:none}
 body:not([data-theme=classic]) #queue h3{font:700 16px/1.25 'DM Sans','Noto Sans CJK SC','Noto Sans CJK KR',sans-serif;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 body:not([data-theme=classic]) #queue p{font-size:14px}
 body:not([data-theme=classic]) #queue .status{color:#ffd29e}body:not([data-theme=classic]) #queue .row.ready .status{color:inherit}body:not([data-theme=classic]) #queue .row.error .status{color:#ff9f8f}
-body:not([data-theme=classic]) #queue .row.error :is(.who,.sep,.error){display:none}
+body:not([data-theme=classic]) #queue .row.error .error{display:none}
 body:not([data-theme=classic]) #queue .retry{flex:none;height:36px;margin:0;padding:0 14px;border:0;border-radius:18px;background:#ffffff14;font-size:14px;font-weight:700}
 body:not([data-theme=classic]) #queue .row.error .grip{display:none}
 body:not([data-theme=classic]) #queue .grip{width:32px;color:#ffffff59}body:not([data-theme=classic]) #queue .grip svg{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
@@ -253,7 +253,8 @@ input[type=range]:disabled{opacity:.4;cursor:default}
 .tabs2{display:flex;gap:6px;margin:14px 0 4px}
 .tabs2 button{height:38px;padding:0 16px;border-radius:19px;background:#ffffff10;color:var(--muted);font-size:15px;transition:background .2s,color .2s}
 .tabs2 button[aria-selected=true]{background:var(--ink);color:#111;font-weight:700}
-body:not([data-theme=classic]) .sheet[data-pane=sound] .sg[data-pane=screen],body:not([data-theme=classic]) .sheet[data-pane=screen] .sg[data-pane=sound]{display:none}
+/* Sound, Screen and Lyrics tabs: groups (or single rows) carry the pane they belong to. Display's heading is redundant under the tabs. */
+body:not([data-theme=classic]) .sheet:not([data-pane=sound]) [data-pane=sound]:not([role=tab]),body:not([data-theme=classic]) .sheet:not([data-pane=screen]) [data-pane=screen]:not([role=tab]),body:not([data-theme=classic]) .sheet:not([data-pane=lyrics]) [data-pane=lyrics]:not([role=tab]),body:not([data-theme=classic]) #sg-display h4{display:none}
 body:not([data-theme=classic]) :is(#sg-position,#sg-mix>h4,#sg-display>h4,.row-end){display:none}
 body:not([data-theme=classic]) .sheet{background:#1d2220;border-color:transparent;border-radius:26px 26px 0 0;touch-action:pan-y}
 body:not([data-theme=classic]) .sheet .handle{width:40px;height:5px;margin:2px auto 14px;border-radius:3px;background:#ffffff40}
@@ -312,7 +313,7 @@ body.sheet-open .toast.on{transform:translate(-50%,0)}
 .lyric-option.current{border-color:var(--lime)}.lyric-option.busy{opacity:.6}
 .lyric-all{padding:12px;color:var(--muted);font-size:13px}
 /* A queued song's menu: the song, then its actions, in the same bottom sheet as the lyrics picker. */
-.lyric-sheet .handle{display:block;flex:none;width:40px;height:5px;margin:-4px auto 14px;border-radius:3px;background:#ffffff40}
+body:not([data-theme=classic]) .lyric-sheet .handle{display:block;flex:none;width:40px;height:5px;margin:-4px auto 14px;border-radius:3px;background:#ffffff40}
 .lyric-sheet-panel{touch-action:pan-y;transition:transform .45s var(--spring-soft)}
 .menu-song{display:flex;align-items:center;gap:12px;padding-bottom:8px}.menu-song .art{width:52px;height:52px;border-radius:10px}
 .menu-song div{min-width:0}.menu-song b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:16px;line-height:1.25}.menu-song small{display:block;margin-top:2px;font-size:14px;color:var(--muted)}
@@ -337,18 +338,18 @@ body.sheet-open .toast.on{transform:translate(-50%,0)}
  body:not([data-theme=classic]) .hero{margin-top:6px}
  body:not([data-theme=classic]) #queue-heading{margin-top:20px}
  /* The library covers the left column only, so the queue stays in view beside it. */
- .library{right:auto;width:50vw;padding-right:24px;padding-left:24px;border-right:1px solid var(--line)}
- .library .rail{right:calc(50vw + 2px)}
+ .library{--lib-w:50vw;right:auto;width:var(--lib-w);padding-right:24px;padding-left:24px;border-right:1px solid var(--line)}
+ .library .rail{right:calc(100vw - var(--lib-w) + 2px)}
 }
 @media(min-width:1000px){
  body:not([data-theme=classic]){--side:380px;--dock:0px;padding-bottom:24px}
  body:not([data-theme=classic]) .dock{display:none}
  body.sheet-inline{padding-right:var(--side)}
  body.sheet-inline .scrim{display:none}
- body.sheet-inline .sheet{top:0;bottom:0;left:auto;right:0;width:var(--side);max-width:none;max-height:none;margin:0;border:0;border-left:1px solid var(--line);border-radius:0;transform:none!important;transition:none;padding-top:calc(20px + env(safe-area-inset-top))}
+ body.sheet-inline .sheet{top:0;bottom:0;left:auto;right:0;width:var(--side);max-width:none;max-height:none;margin:0;border:0;border-left:1px solid var(--line);border-radius:0;transform:none;transition:none;padding-top:calc(20px + env(safe-area-inset-top))}
  body.sheet-inline .sheet .handle{display:none}
  body.sheet-inline .toast.toast{top:auto;bottom:24px;transform:translate(-50%,20px)}body.sheet-inline .toast.on{transform:translate(-50%,0)}
- body.sheet-inline .library{width:calc((100vw - var(--side))/2)}body.sheet-inline .library .rail{right:calc((100vw + var(--side))/2 + 2px)}
+ body.sheet-inline .library{--lib-w:calc((100vw - var(--side))/2)}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 /* Classic theme: room time. */
@@ -356,11 +357,9 @@ body.sheet-open .toast.on{transform:translate(-50%,0)}
 /* Past five songs the rest fold behind "Show N more". */
 body:not([data-theme=classic]) #queue .row.folded{display:none}
 /* Classic draws its own grabber on its sheets. */
-body[data-theme=classic] .lyric-sheet .handle{display:none}
 .menu-actions button:disabled{opacity:.45}
 /* Default rows say one thing under the title: the artist once ready, otherwise where it got to. The × lives in the menu. */
-body:not([data-theme=classic]) #queue .row.ready :is(.status,.sep),body:not([data-theme=classic]) #queue .row:not(.ready) :is(.who,.sep){display:none}
-body:not([data-theme=classic]) #queue .row-button:not(.grip){display:none}
+body:not([data-theme=classic]) #queue .row.ready .status,body:not([data-theme=classic]) #queue .row:not(.ready) .who{display:none}
 /* Ready to sing: song rows shared by home, the library and search. Tap a row or + to queue it; ••• for more. */
 body:not([data-theme=classic]) :is(#recent-heading,#recent){display:none}
 .heading h2 small{margin-left:6px;font:500 15px 'DM Sans',sans-serif;color:var(--muted)}
@@ -416,12 +415,13 @@ body:not([data-theme=classic]) .hero .react{background:#323a2b}
 .lv-scroll{position:relative;flex:1;overflow:hidden;touch-action:none;-webkit-mask-image:linear-gradient(transparent,#000 40px);mask-image:linear-gradient(transparent,#000 40px)}
 .lv-lines{padding:0 24px 50vh;font:700 30px/1.25 'DM Sans','Noto Sans KR','Noto Sans CJK SC',sans-serif;letter-spacing:-.02em;transition:transform .6s cubic-bezier(.3,.8,.3,1);will-change:transform}
 .lv-lines.dragging,.lv-lines.still{transition:none}
-.lv-lines p{margin:0 0 22px;color:#ffffff4d;transition:color .4s,font-size .4s var(--spring-soft)}
-.lv-lines p.past{color:#ffffff40}.lv-lines p.next{color:#ffffff73}.lv-lines p.now{font-size:33px;color:#ffffff59}
+.lv-lines p{margin:0 0 22px;color:#ffffff4d;cursor:pointer;transition:color .4s}  /* colour only: a size change would rewrap lines mid-song */
+.lv-lines p.past{color:#ffffff40}.lv-lines p.next{color:#ffffff73}.lv-lines p.now{color:#ffffff59}
 .lv-lines p:not(.now) .w{color:inherit}
 .lv-lines p.now .w.sung{color:var(--lime)}  /* lime like the TV's wipe */
 .lv-lines p.now .w.cur{background:linear-gradient(90deg,var(--lime) var(--f,0%),#ffffff59 var(--f,0%));-webkit-background-clip:text;background-clip:text;color:transparent}
-.lv-lines .lv-none{margin-top:20vh;text-align:center;font-size:20px;color:var(--muted)}
+.lv-lines .lv-none{display:grid;justify-items:center;gap:16px;margin-top:20vh;cursor:auto}.lv-none p{margin:0;font-size:20px;color:var(--muted);cursor:auto}
+.lv-find{height:48px;padding:0 24px;border-radius:24px;background:#323a2b;color:var(--lime);font:700 16px/1 inherit;transition:border-radius .4s var(--spring),transform .4s var(--spring)}.lv-find:active{border-radius:14px;transform:scale(.94)}
 .lv-foot{padding:16px 20px calc(18px + env(safe-area-inset-bottom));background:#1d2220;border-radius:28px 28px 0 0}
 .lv-prog{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .lv-track{flex:1;height:6px;border-radius:3px;background:#ffffff1f;overflow:hidden}.lv-track i{display:block;height:100%;border-radius:3px;background:var(--lime)}

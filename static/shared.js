@@ -38,3 +38,7 @@ document.addEventListener('input',e=>{if(e.target.type==='range')syncRanges();})
 export function newSongs(songs,now=Date.now()/1000){const week=songs.filter(s=>now-s.prepared<7*86400).sort((a,b)=>b.prepared-a.prepared);return (week.length?week:[...songs].sort((a,b)=>b.number-a.number)).slice(0,10);}
 // Pronunciation guides: the glyph on the TV's badge and the Classic handset's key, and the badge's label.
 export const GUIDE_BADGES={off:['–','Guide off'],latin:['Aa','Romanization'],jyutping:['粵','Jyutping'],hangul:['가','한글'],kana:['あ','Japanese kana']};
+// The wording for a song that isn't ready yet, shared by the TV and the remote.
+export function prepStatus(item){if(item.status==='error')return 'Error preparing';const {percent}=prepLabel(item);return percent==null?'Preparing':`Preparing ${percent}%`;}
+// Where the TV is in the song now: its last report, run forward at the song's speed while playing.
+export function livePosition(s){const c=s.current;if(!c)return 0;const run=s.playing&&s.position>0?(Date.now()/1000-s.received)*(s.speed||1):0;return Math.min(s.position+run,c.duration||Infinity);}

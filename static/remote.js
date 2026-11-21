@@ -1,6 +1,7 @@
 import {classicRemote,toastParts,emptyNote,secondsLeft} from './classic-remote.js';
-import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,prepStatus,livePosition,syncRanges,REDUCED,thumbnail} from './shared.js';
 import {openLyrics,lyricsState} from './remote-lyrics.js';
+const isClassic=()=>document.body.dataset.theme==='classic';
 let state,classicUi;
 const SPRING='cubic-bezier(.38,1.21,.22,1)';
 const haptic=pattern=>{try{navigator.vibrate?.(pattern);}catch{}};
@@ -9,7 +10,7 @@ function showImage(img,src){if(img.getAttribute('src')!==src){if(src)img.src=src
 let toastTimer;
 function toast(text,action,kind){
  // Classic dresses the same message as the machine's toast: a label key, the title in bold, a Korean line.
- if(document.body.dataset.theme==='classic'){const parts=toastParts(text,kind);$('toast-key').textContent=parts.key;$('toast-key').className=`toast-key classic-only ${parts.tone}`;$('toast-text').replaceChildren(...parts.body);$('toast').classList.toggle('err',kind==='err');}
+ if(isClassic()){const parts=toastParts(text,kind);$('toast-key').textContent=parts.key;$('toast-key').className=`toast-key classic-only ${parts.tone}`;$('toast-text').replaceChildren(...parts.body);$('toast').classList.toggle('err',kind==='err');}
  else $('toast-text').textContent=text;
  $('toast').style.setProperty('--toast-ms',`${action?6000:2600}ms`);$('toast-action').hidden=!action;
  if(action){$('toast-action').textContent=action.label;$('toast-action').onclick=()=>{$('toast').classList.remove('on');action.run();};}
@@ -25,8 +26,8 @@ function render(next){
  $('connection').classList.toggle('warn',!state.player_audio);$('connection').classList.toggle('off',!tv);
  $('tv-lost').hidden=tv||!state.current;$('tv-mute').hidden=!tv||state.player_audio;
  document.body.dataset.theme=state.theme||'default';placeSheet();showNow(!before);showControls(before);showQueue(before);showClassic();classicUi?.render(state);lyricsState(state);
- const ready=[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();
- if(ready!==readyKeys){readyKeys=ready;loadRecent();loadLibrary();classicUi?.loadBook();}
+ const ready=state.theme+[state.current,...state.upcoming].filter(i=>i?.status==='ready').map(i=>i.key).join();  // a theme switch loads that theme's lists
+ if(ready!==readyKeys){readyKeys=ready;if(isClassic()){loadRecent();classicUi?.loadBook();}else loadLibrary();}
  markQueued();
 }
 // Now playing: a card at the top, handing over to the dock once scrolled away.
@@ -56,8 +57,7 @@ function showHero(on,first){
 let scrubbing=false;
 function showPosition(){
  if(!state)return;
- const live=state.current&&state.playing&&state.position>0?Date.now()/1000-state.received:0;
- const position=Math.min(state.position+live,state.current?.duration||0),fraction=state.current?.duration?position/state.current.duration:0;
+ const position=livePosition(state),fraction=state.current?.duration?position/state.current.duration:0;
  for(const id of ['hero-bar','dock-bar'])$(id).style.setProperty('--p',fraction);
  $('hero-position').textContent=clock(position);$('hero-bar').setAttribute('aria-valuetext',clock(position));
  if(!scrubbing){$('scrub').value=position;$('position').textContent=clock(position);syncRanges();}
@@ -165,12 +165,12 @@ function closeSheet(){if(document.body.classList.contains('sheet-inline'))return
 // From 1000px wide, Default shows the settings as a third column, always open.
 const WIDE=matchMedia('(min-width:1000px)');
 function placeSheet(){
- const inline=WIDE.matches&&document.body.dataset.theme!=='classic',body=document.body;if(inline===body.classList.contains('sheet-inline'))return;
- if(inline){body.classList.remove('sheet-open');body.classList.add('sheet-inline');$('sheet').inert=false;requestAnimationFrame(()=>SEGMENTED.forEach(placePill));}
+ const inline=WIDE.matches&&!isClassic(),body=document.body;if(inline===body.classList.contains('sheet-inline'))return;
+ if(inline){body.classList.remove('sheet-open');body.classList.add('sheet-inline');$('sheet').style.transform=$('sheet').style.transition='';$('sheet').inert=false;requestAnimationFrame(()=>SEGMENTED.forEach(placePill));}
  else{body.classList.remove('sheet-inline');$('sheet').inert=true;}
 }
 WIDE.addEventListener('change',placeSheet);
-$('open-controls').onclick=$('dock-now').onclick=$('dock-settings').onclick=()=>document.body.dataset.theme==='classic'?classicUi.setTab('settings'):openSheet();
+$('open-controls').onclick=$('dock-now').onclick=$('dock-settings').onclick=()=>isClassic()?classicUi.setTab('settings'):openSheet();
 $('scrim').onclick=$('sheet-handle').onclick=closeSheet;
 // Sound and Screen tabs split the sheet (Default only; Classic's 설정 page shows every group).
 const PANES=document.querySelectorAll('.tabs2 button');
@@ -200,28 +200,29 @@ function dragToClose(panel,close,fade,scroller=panel,allowed=()=>true){
   if(!d.on){
    if(dy<-6||Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)){d=null;return;}  // scrolling up or sideways: not a dismiss
    if(dy<6)return;
-   d.on=true;try{panel.setPointerCapture(e.pointerId);}catch{}panel.style.transition='none';
+   d.on=true;d.h=panel.offsetHeight;try{panel.setPointerCapture(e.pointerId);}catch{}panel.style.transition='none';
   }
   d.prev=d.last;d.last={y:e.clientY,t:e.timeStamp};
   d.y=dy>0?dy:-12*(1-Math.exp(dy/40));  // upward only a little rubber band
-  panel.style.transform=`translateY(${d.y}px)`;fade(1-Math.max(0,d.y)/panel.offsetHeight);
+  panel.style.transform=`translateY(${d.y}px)`;fade(1-Math.max(0,d.y)/d.h);
  });
  // Once the sheet is following the finger, the page (or the sheet's own content) must not scroll as well.
  panel.addEventListener('touchmove',e=>{if(d?.on)e.preventDefault();},{passive:false});
  const end=e=>{
-  if(e.pointerId!==d?.id)return;const {on,y,last,prev}=d;d=null;if(!on)return;
+  if(e.pointerId!==d?.id)return;const {on,y,last,prev,h}=d;d=null;if(!on)return;
   const speed=(last.y-prev.y)/Math.max(1,last.t-prev.t);
   panel.style.transition='';fade(null);
-  if(y>panel.offsetHeight*.3||speed>.5&&y>0)close();else panel.style.transform='';
+  if(y>h*.3||speed>.5&&y>0)close();else panel.style.transform='';
  };
  panel.addEventListener('pointerup',end);panel.addEventListener('pointercancel',end);
 }
-dragToClose($('sheet'),()=>{$('sheet').style.transform='';closeSheet();},f=>{$('scrim').style.transition=f==null?'':'none';$('scrim').style.opacity=f??'';},$('sheet'),()=>document.body.dataset.theme!=='classic'&&!document.body.classList.contains('sheet-inline'));
+dragToClose($('sheet'),()=>{$('sheet').style.transform='';closeSheet();},f=>{$('scrim').style.transition=f==null?'':'none';$('scrim').style.opacity=f??'';},$('sheet'),()=>!isClassic()&&!document.body.classList.contains('sheet-inline'));
 // Queue. Rebuilt only when its songs or statuses change, so position reports never swap a button
 // out from under a tap; preparation progress updates in place. A drag holds rebuilds until it ends.
 let queueShape,dragging=null;
 const RING=2*Math.PI*23;
-const statusText=item=>{if(item.status==='ready')return 'Ready';if(item.status==='error')return 'Error preparing';const {percent}=prepLabel(item);return percent==null?'Preparing':`Preparing ${percent}%`;};
+const statusText=item=>item.status==='ready'?'Ready':prepStatus(item);
+const songCount=n=>n===1?'1 song':`${n} songs`;
 // Past five songs the Default queue folds the rest behind "Show N more".
 const FOLD=5;let queueOpen=false;
 // Classic shows the machine's Korean status beside it.
@@ -230,7 +231,7 @@ const statusKo=(item,index)=>index===0&&item.status==='ready'?'다음곡':STATUS
 function showQueue(before){
  const count=state.upcoming.length,classic=state.theme==='classic';$('queue-count').textContent=$('dock-count').textContent=count;
  // Default hides an empty queue altogether; Classic keeps its 예약곡 board with its empty notice.
- $('queue-heading').hidden=$('queue').hidden=!count&&!classic;$('queue-songs').textContent=count===1?'1 song':`${count} songs`;
+ $('queue-heading').hidden=$('queue').hidden=!count&&!classic;$('queue-songs').textContent=songCount(count);
  if(before&&count>before.upcoming.length&&!REDUCED.matches)for(const id of ['queue-count','dock-count']){const c=$(id);c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump');}
  const shape=JSON.stringify([!!state.current,...state.upcoming.map(i=>[i.key,i.title,i.artist,i.status,i.error])]);  // the empty notice reads differently while a song plays
  if(shape!==queueShape&&!dragging){
@@ -265,7 +266,7 @@ function showQueue(before){
 function emptyQueue(){
  const box=el('div',undefined,'empty'),icon=el('span',undefined,'empty-icon'),find=el('button','Find a song','empty-action');
  icon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>';
- find.onclick=()=>{if(document.body.dataset.theme==='classic')classicUi.setTab('book');$('search-form').scrollIntoView({behavior:REDUCED.matches?'auto':'smooth',block:'center'});$('query').focus({preventScroll:true});};
+ find.onclick=()=>{if(isClassic())classicUi.setTab('book');$('search-form').scrollIntoView({behavior:REDUCED.matches?'auto':'smooth',block:'center'});$('query').focus({preventScroll:true});};
  const lcd=el('span','00',`lcd classic-only${state.current?'':' dim'}`);lcd.dataset.ghost='88';
  box.append(lcd,icon,el('b','예약곡이 없어요','classic-only'),el('strong',state.current?'Nothing up next':'The queue is empty'),el('small',state.current?'Add a song and it plays when this one ends.':'Add a song and it starts right away.'),find);
  return box;
@@ -277,10 +278,10 @@ function queueRow(item,index,justReady){
  // The ring shows while the song prepares, and once more as it turns ready.
  if(item.status!=='ready'&&item.status!=='error'||justReady&&item.status==='ready')thumb.insertAdjacentHTML('beforeend',`<svg class="ring" viewBox="0 0 52 52" style="--c:${RING}" aria-hidden="true"><circle class="track" cx="26" cy="26" r="23"/><circle class="fill" cx="26" cy="26" r="23"/></svg>`);
  if(justReady&&item.status==='ready')haptic(10);
- const info=el('div',undefined,'info'),line=el('p');if(item.number)line.append(el('span',String(item.number),'qnum classic-only'),' ');line.append(el('span',item.artist,'who'),...(justReady&&item.status==='ready'?[el('em','준비 완료','ready-lamp classic-only')]:[]),el('span',' · ','sep'),el('span',statusKo(item,index),'status-ko classic-only'),el('span',statusText(item),'status'));info.append(el('h3',item.title),line);
+ const info=el('div',undefined,'info'),line=el('p');if(item.number)line.append(el('span',String(item.number),'qnum classic-only'),' ');line.append(el('span',item.artist,'who'),...(justReady&&item.status==='ready'?[el('em','준비 완료','ready-lamp classic-only')]:[]),el('span',' · ','sep classic-only'),el('span',statusKo(item,index),'status-ko classic-only'),el('span',statusText(item),'status'));info.append(el('h3',item.title),line);
  if(item.status!=='ready'&&item.status!=='error'){const bar=el('div',undefined,'prepbar classic-only');bar.append(el('i'));info.append(bar);}
  if(item.error){const retry=el('button','Retry','retry');retry.onclick=()=>send({action:'retry',key:item.key});info.append(el('p',item.error,'error'),retry);}
- const remove=el('button','×','row-button');remove.setAttribute('aria-label',`Remove ${item.title}`);
+ const remove=el('button','×','row-button classic-only');  // Default removes from the row menuremove.setAttribute('aria-label',`Remove ${item.title}`);
  remove.onclick=()=>{send({action:'remove',key:item.key});toast(`Removed ${item.title}`,{label:'Undo',run:()=>send({action:'undo'})});};
  const grip=el('button',undefined,'row-button grip');grip.innerHTML=GRIP;grip.setAttribute('aria-label',`Move ${item.title}. Arrow keys move it up or down.`);
  grip.onkeydown=e=>{const to=index+({ArrowUp:-1,ArrowDown:1}[e.key]||0);if(to!==index&&to>=0&&to<state.upcoming.length){e.preventDefault();move(index,to);}};
@@ -290,25 +291,36 @@ function queueRow(item,index,justReady){
  row.append(el('span',String(index+1),'num'),thumb,info,first,remove,grip);
  dragHandlers(row,grip);
  // Default: a tap on the row opens the song's menu (a long press still lifts it to reorder).
- row.addEventListener('click',e=>{if(document.body.dataset.theme==='classic'||e.target.closest('button')||row.dataset.dragged){delete row.dataset.dragged;return;}haptic(6);queueMenu(item.key);});
+ row.addEventListener('click',e=>{if(isClassic()||e.target.closest('button')||row.dataset.dragged){delete row.dataset.dragged;return;}haptic(6);queueMenu(item.key);});
  return row;
 }
-const MENU_ICONS={next:'<path d="M4 4.5v6l5-3zM13 7.5h7M4 14h16M4 19h16"/>',end:'<path d="M12 4v13M6 11l6 6 6-6M5 20h14"/>',lyrics:'<path d="M4 6h16M4 10h16M4 14h10M4 18h7"/>',remove:'<path d="M5 7h14M9 7V4.5h6V7M7 7l1 13h8l1-13"/>'};
+const MENU_ICONS={sync:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',next:'<path d="M4 4.5v6l5-3zM13 7.5h7M4 14h16M4 19h16"/>',end:'<path d="M12 4v13M6 11l6 6 6-6M5 20h14"/>',lyrics:'<path d="M4 6h16M4 10h16M4 14h10M4 18h7"/>',remove:'<path d="M5 7h14M9 7V4.5h6V7M7 7l1 13h8l1-13"/>'};
 // A queued song's menu, in a bottom sheet: play it next, send it to the end, fix its lyrics or take it out.
 function queueMenu(key){
  const index=state.upcoming.findIndex(i=>i.key===key),item=state.upcoming[index];if(!item)return;
- const {panel,shut}=bottomSheet(),last=state.upcoming.length-1;
- const song=el('div',undefined,'menu-song'),art=el('img',undefined,'art'),text=el('div');art.src=thumbnail(item.id);art.alt='';text.append(el('b',item.title),el('small',item.artist));song.append(art,text);
- const actions=el('div',undefined,'menu-actions');actions.setAttribute('role','menu');
- const action=(icon,label,run,off)=>{const b=el('button');b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[icon]}</svg>`;b.append(label);b.setAttribute('role','menuitem');b.disabled=!!off;if(off)b.classList.add('dim');b.onclick=()=>{haptic(8);shut();run();};actions.append(b);};
+ const action=menuSheet(item),last=state.upcoming.length-1;
  // The queue may have changed while the menu was open, so each action finds the song again.
  const at=()=>state.upcoming.findIndex(i=>i.key===key);
- action('next','Play next',()=>{const i=at();if(i>0)move(i,0);},index===0);
- action('end','Move to the end',()=>{const i=at();if(i>=0)move(i,state.upcoming.length-1);},index===last);
+ action('next','Play next',()=>{const i=at();if(i>0)move(i,0);},{off:index===0});
+ action('end','Move to the end',()=>{const i=at();if(i>=0)move(i,state.upcoming.length-1);},{off:index===last});
  action('lyrics','Wrong lyrics or language',()=>pickLyrics(item));
  action('remove','Remove from queue',()=>{send({action:'remove',key});toast(`Removed ${item.title}`,{label:'Undo',run:()=>send({action:'undo'})});});
- panel.append(song,actions);
 }
+// A bottom-sheet menu for one song: its art, title and artist, then actions. Returns action(icon,label,run,{off,dim}).
+function menuSheet(song){
+ const {panel,shut}=bottomSheet(),head=el('div',undefined,'menu-song'),art=el('img',undefined,'art'),text=el('div');
+ art.src=song.thumbnail||thumbnail(song.id);art.alt='';text.append(el('b',song.title),el('small',song.artist||song.sub||''));head.append(art,text);
+ const actions=el('div',undefined,'menu-actions');actions.setAttribute('role','menu');panel.append(head,actions);
+ return (icon,label,run,{off,dim}={})=>{const b=el('button');b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[icon]}</svg>`;b.append(label);b.setAttribute('role','menuitem');b.disabled=!!off;b.classList.toggle('dim',!!(off||dim));b.onclick=()=>{haptic(8);shut();run();};actions.append(b);};
+}
+// Lyrics view •••: swap wrong or missing lyrics, or nudge their timing in Settings.
+function lyricsMenu(){
+ const song=state.current;if(!song)return;const action=menuSheet(song);
+ action('lyrics','Wrong lyrics or language',()=>pickLyrics(song));
+ action('sync','Lyrics out of sync',()=>{document.querySelector('.tabs2 [data-pane=lyrics]').click();openSheet();});
+}
+$('lv-more').onclick=lyricsMenu;
+$('lv-lines').addEventListener('click',e=>{if(e.target.closest('.lv-find')&&state.current)pickLyrics(state.current);});
 function move(from,to){const keys=state.upcoming.map(i=>i.key);keys.splice(to,0,...keys.splice(from,1));send({action:'reorder',keys});}
 // Drag to reorder: the grip lifts a row at once; a long press anywhere else on it lifts it after 350 ms.
 document.addEventListener('touchmove',e=>{if(dragging)e.preventDefault();},{passive:false});
@@ -411,20 +423,16 @@ function markRow(row){
  else if(sub.textContent!==row.plain)sub.textContent=row.plain;
 }
 function songSheet(song,queue){
- const {panel,shut}=bottomSheet(),head=el('div',undefined,'menu-song'),art=el('img',undefined,'art'),text=el('div');
- art.src=song.thumbnail||thumbnail(song.id);art.alt='';text.append(el('b',song.title),el('small',song.artist||song.sub||''));head.append(art,text);
- const actions=el('div',undefined,'menu-actions');actions.setAttribute('role','menu');
- const action=(icon,label,run,cls)=>{const b=el('button',undefined,cls);b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS[icon]}</svg>`;b.append(label);b.setAttribute('role','menuitem');b.onclick=()=>{haptic(8);shut();run();};actions.append(b);};
+ const action=menuSheet(song);
  action('next','Play next',()=>queue('/api/queue/next'));
  // Only a prepared song has lyrics to swap and a download to delete.
  if(song.prepared||song.cached){
   action('lyrics','Wrong lyrics or language',()=>pickLyrics(song));
   action('remove','Delete download',async()=>{
-   try{await api(`/api/songs/${song.id}`,{method:'DELETE'});toast(`Deleted ${song.title}`);library=library.filter(s=>s.id!==song.id);for(const row of document.querySelectorAll(`.song-row[data-id="${song.id}"]`))row.remove();libraryRows.delete(song.id);showReady();showLibrary();showLocal();}
+   try{await api(`/api/songs/${song.id}`,{method:'DELETE'});toast(`Deleted ${song.title}`);library=library.filter(s=>s.id!==song.id);libraryRows.get(song.id)?.remove();libraryRows.delete(song.id);refreshSongs();}
    catch(error){toast(error.message,undefined,'err');}
-  },'dim');
+  },{dim:true});
  }
- panel.append(head,actions);
 }
 // The library: every prepared song (the songbook), fetched again whenever a song turns ready.
 let library=[],libraryRows=new Map(),homeSort='recent',librarySort='recent';
@@ -446,10 +454,17 @@ function sorted(sort){
 async function loadLibrary(){
  let songs;try{songs=await api('/api/songbook');}catch{return;}
  library=songs.map(s=>({...s,parsed:{artist:s.artist,title:s.title},letter:letterOf(s.title),find:`${s.title} ${s.artist}`.toLowerCase()}));
- libraryRows=new Map();showReady();showLibrary();showLocal();
+ // Keep built rows (they're reordered, not rebuilt); drop those for songs that went away.
+ const ids=new Map(library.map(s=>[s.id,s]));
+ for(const [id,row] of libraryRows){const song=ids.get(id);if(song)row.song=song;else{row.remove();libraryRows.delete(id);}}
+ refreshSongs();
 }
+function refreshSongs(){showReady();showLibrary();showLocal();}
+// Every word of the query appears in the song's title or artist.
+const matches=(words,song)=>words.every(w=>song.find.includes(w));
+const wordsOf=q=>q.trim().toLowerCase().split(/\s+/).filter(Boolean);
 function showReady(){
- const n=library.length;$('ready-block').hidden=!n;$('ready-count').textContent=n===1?'1 song':`${n} songs`;
+ const n=library.length;$('ready-block').hidden=!n;$('ready-count').textContent=songCount(n);
  $('ready').replaceChildren(...sorted(homeSort).slice(0,5).map(songRow));
  $('ready-all').hidden=n<=5;$('ready-all').textContent=`See all ${n}`;
 }
@@ -470,7 +485,7 @@ function showLibrary(){
 }
 function filterLibrary(){
  const words=$('library-filter').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
- for(const [id,row] of libraryRows)row.hidden=!words.every(w=>row.song.find.includes(w));
+ for(const row of libraryRows.values())row.hidden=!matches(words,row.song);
  const letters=[];
  for(const h of $('library-list').querySelectorAll('.letter')){
   let next=h.nextElementSibling,any=false;while(next&&!next.classList.contains('letter')){if(!next.hidden){any=true;break;}next=next.nextElementSibling;}
@@ -504,9 +519,9 @@ addEventListener('popstate',()=>{if(!$('library').hidden)closeLibrary();});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('library').hidden&&!document.querySelector('.lyric-sheet'))$('library-back').click();});
 // Search: songs already prepared that match, filtered here as you type, sit above YouTube's results.
 function showLocal(){
- const q=$('query').value.trim().toLowerCase(),on=!!q&&document.body.dataset.theme!=='classic';
+ const q=$('query').value.trim().toLowerCase(),on=!!q&&!isClassic();
  $('local-block').hidden=!on;if(!on)return;
- const words=q.split(/\s+/),hits=library.filter(s=>words.every(w=>s.find.includes(w))).sort((a,b)=>recency(b)-recency(a));
+ const words=wordsOf(q),hits=library.filter(s=>matches(words,s)).sort((a,b)=>recency(b)-recency(a));
  $('local-count').textContent=hits.length||'';
  $('local').replaceChildren(...(hits.length?hits.slice(0,5).map(songRow):[el('div','No matches','empty2')]));
  if(hits.length>5){const all=el('button',`See all ${hits.length}`,'seeall');all.onclick=()=>{$('library-filter').value=$('query').value;librarySort='recent';openLibrary();};$('local').append(all);}
@@ -519,7 +534,6 @@ const post=(path,song)=>api(path,{method:'POST',headers:{'Content-Type':'applica
 const ICONS={add:'<path d="M12 5v14M5 12h14"/>',added:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',failed:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'};
 function icon(node,name){node.className=`result-icon ${name}`;node.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;}
 // Play next: a song going in at the top of the list.
-const NEXT_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5v6l5-3zM13 7.5h7M4 14h16M4 19h16"/></svg>';
 const pick=(row,next)=>{const box=el('div',undefined,'pick');box.append(row,next);return box;};
 // One tap queues the song with the artist/title parsed from YouTube (or confirmed earlier, for recent songs);
 // its play-next key puts it at the front instead (moving it up if it is already waiting).
@@ -533,7 +547,7 @@ function showResult(song,list=$('results'),wrap=pick,index=-1){
   try{
    const item=await post(path,{id:song.id,...song.parsed});icon(status,'added');mark('added',...said);haptic([10,40,10]);flyToQueue(image);
    // Default: where it landed in the queue, with Undo. Classic keeps its own wording (classic-remote.js reads it).
-   if(document.body.dataset.theme==='classic')toast(message);else addedToast(item,path);
+   if(isClassic())toast(message);else addedToast(item,path);
   }
   catch(error){icon(status,'failed');mark('failed',"Couldn't add. Try again");toast(error.message,undefined,'err');}finally{button.disabled=false;}
  };
@@ -542,7 +556,7 @@ function showResult(song,list=$('results'),wrap=pick,index=-1){
   if(b.dataset.dragged){delete b.dataset.dragged;return;}if(b.parentElement?.classList.contains('open')){closeSwipe();return;}
   add(b,'/api/queue',[el('em','예약됨'),' · added'],`Added ${song.parsed.title}`);
  };
- const next=el('button',undefined,'play-next');next.innerHTML=NEXT_ICON;next.title='Play next';next.setAttribute('aria-label',`Play ${song.parsed.title} next`);
+ const next=el('button',undefined,'play-next');next.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICONS.next}</svg>`;next.title='Play next';next.setAttribute('aria-label',`Play ${song.parsed.title} next`);
  next.onclick=()=>add(next,'/api/queue/next',[el('em','우선예약'),' · plays next'],`${song.parsed.title} plays next`);
  const box=wrap(b,next);if(index>=0)box.style.setProperty('--i',index);  // the key rises in with its row
  list.append(box);
@@ -552,7 +566,7 @@ function showResult(song,list=$('results'),wrap=pick,index=-1){
 function flyToQueue(source){
  if(REDUCED.matches)return;
  const from=source.getBoundingClientRect(),count=$('queue-count').getBoundingClientRect();
- const target=(document.body.dataset.theme==='classic'?document.querySelector('#tabs [data-tab=queue]'):count.top>60&&count.bottom<innerHeight-90||$('dock').classList.contains('away')?$('queue-count'):$('dock-count')).getBoundingClientRect();
+ const target=(isClassic()?document.querySelector('#tabs [data-tab=queue]'):count.top>60&&count.bottom<innerHeight-90||$('dock').classList.contains('away')?$('queue-count'):$('dock-count')).getBoundingClientRect();
  const outer=el('div'),inner=source.cloneNode();
  inner.style.cssText=`display:block;width:${from.width}px;height:${from.height}px;border-radius:8px;object-fit:cover;box-shadow:0 10px 30px #000a`;
  outer.style.cssText=`position:fixed;left:${from.left}px;top:${from.top}px;z-index:55;pointer-events:none`;
@@ -568,7 +582,7 @@ document.addEventListener('pointerdown',e=>{if(openSwipe&&!openSwipe.contains(e.
 // Lyrics picker: every LRCLIB version that fits the song (languages, editions), with its first lines.
 // A bottom sheet over the page (song menu, lyrics picker): tap outside, the handle or Escape closes it, or swipe it down.
 function bottomSheet(onShut){
- const sheet=el('div',undefined,'lyric-sheet'),panel=el('div',undefined,'lyric-sheet-panel'),handle=el('button',undefined,'handle');
+ const sheet=el('div',undefined,'lyric-sheet'),panel=el('div',undefined,'lyric-sheet-panel'),handle=el('button',undefined,'handle default-only');
  handle.setAttribute('aria-label','Close');panel.append(handle);sheet.append(panel);document.body.append(sheet);
  let closing=false;
  const shut=()=>{
@@ -586,7 +600,7 @@ async function pickLyrics(song){
  let hold;  // counts down a wait LRCLIB asked for
  const {panel,shut}=bottomSheet(()=>clearInterval(hold)),list=el('div',undefined,'lyric-options'),close=el('button','Close');
  close.onclick=shut;
- const head=el('div',undefined,'lyric-sheet-head'),name=el('strong');name.append(el('small','가사 선택 · LYRICS','classic-only'),'Lyrics · ',el('span',song.title));head.append(name,close);close.setAttribute('aria-label','Close');
+ const head=el('div',undefined,'lyric-sheet-head'),name=el('strong');name.append(el('small','가사 선택 · LYRICS','classic-only'),...isClassic()?['Lyrics · ']:[],el('span',song.title));  // Default: no dot separatorshead.append(name,close);close.setAttribute('aria-label','Close');
  // Search LRCLIB by hand when the automatic lookup found nothing or the wrong song.
  const form=el('form',undefined,'lyric-search'),input=el('input'),go=el('button','Search');
  input.type='search';input.value=`${song.artist} ${song.title}`;input.placeholder='Artist and song title';input.setAttribute('aria-label','Search lyrics');go.type='submit';
@@ -680,13 +694,13 @@ async function loadPage(){
  const run=++searchRun,first=!search.page;
  $('more').disabled=true;if(first){$('results').dataset.state='loading';$('results-end').hidden=true;}
  // Placeholder rows hold the space while YouTube answers.
- $('more-head').hidden=document.body.dataset.theme==='classic';
+ $('more-head').hidden=isClassic();
  if(first)$('results').replaceChildren(...Array.from({length:3},()=>{const row=el('div',undefined,'skeleton');row.setAttribute('aria-hidden','true');row.innerHTML='<i></i><div><i></i><i></i></div>';return row;}));
  try{
   const results=(await api(`/api/search?q=${encodeURIComponent(search.query)}&page=${search.page}`)).filter(s=>!search.seen.has(s.id));
   if(run!==searchRun)return;
   if(first)$('results').replaceChildren();
-  const classic=document.body.dataset.theme==='classic';
+  const classic=isClassic();
   results.forEach((s,i)=>{search.seen.add(s.id);if(classic)showResult(s,$('results'),undefined,i);else $('results').append(songRow({...s,artist:s.parsed?.artist,sub:s.channel}));});
   $('more').hidden=results.length===0||search.page>=9;$('results').dataset.state=search.seen.size?'':'none';
   $('results-end').hidden=!$('more').hidden||!search.seen.size;
@@ -694,7 +708,7 @@ async function loadPage(){
   if(first)showResults();
  }catch(error){
   if(run!==searchRun)return;if(first){$('results').replaceChildren();$('results').dataset.state='';}
-  if(first&&document.body.dataset.theme!=='classic'){const note=el('div',undefined,'empty2 warn');note.append(el('b','Search unavailable'),el('small','Offline'));$('results').append(note);}else toast(error.message,undefined,'err');
+  if(first&&!isClassic()){const note=el('div',undefined,'empty2 warn');note.append(el('b','Search unavailable'),el('small','Offline'));$('results').append(note);}else toast(error.message,undefined,'err');
  }finally{$('more').disabled=false;}
 }
 // Autocomplete from YouTube's search box: type to see completions, tap or arrow+Enter to search one.
@@ -733,4 +747,4 @@ $('more').onclick=()=>{search.page++;loadPage();};
 // Keep the page's end clear of the dock, whatever its height.
 new ResizeObserver(()=>document.body.style.setProperty('--dock',`${$('dock').offsetHeight}px`)).observe($('dock'));
 classicUi=classicRemote({send,toast,haptic,swipeable});if(state)classicUi.render(state);
-$('open-lyrics').onclick=()=>openLyrics();
+$('open-lyrics').onclick=()=>openLyrics(send);

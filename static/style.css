@@ -204,8 +204,6 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]) .idle-prep{display:flex;flex-direction:column;align-items:center}
 .tv:not([data-theme=classic]) .idle-prep .prep-track{order:1;width:min(560px,calc(100vw - 2*(var(--queue-w) + var(--edge) + 24px)))}  /* clear of the Queue card in small windows */
 .tv:not([data-theme=classic]) .idle-prep .eyebrow{order:2;margin:16px 0 0;font-size:19px;color:#ffffffcc;text-transform:none}
-/* Between songs: the glass card squares off to the recipe's radius. */
-.tv:not([data-theme=classic]) :is(.next-card,.peek){border-radius:22px}
 /* While singing: one floating glass pill, play and skip, the time, then guide and mix, then fullscreen and the remote.
    The two launchers stay page-level buttons (they also show on an empty stage), so the pill keeps room at its right end and they sit in it. */
 .tv:not([data-theme=classic]) .tv-bottom{position:fixed;left:var(--bar-in);right:var(--bar-in);bottom:26px;gap:14px;padding:10px 152px 10px 14px;border-radius:999px}

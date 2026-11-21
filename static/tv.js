@@ -1,4 +1,4 @@
-import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs,GUIDE_BADGES} from './shared.js';
+import {$,el,connect,api,clock,throttle,prepLabel,syncRanges,REDUCED,thumbnail,newSongs,GUIDE_BADGES,prepStatus} from './shared.js';
 const music=$('instrumental'),voice=$('vocals'),video=$('backdrop');
 video.muted=true;
 let breather=0,guide,state,lyrics=[],firstLine=-1,stemGain=1,currentKey=null,context,musicGain,voiceGain,shifter,enabled=false,activeLine=-1,starting=false,generation=0,lastReport=0,seekTo=null,serverSkew=0,buffering=false,videoStarting=false,lyricsPositioned=false,lastSeek=0,shownPair='',fitKey='';
@@ -485,7 +485,6 @@ function cheer(emoji){
 // "G" on a keyboard or remote also flips the guide.
 addEventListener('keydown',e=>{if(e.key==='g'||e.key==='G')send({action:'guide',value:'cycle'});});
 // One matter-of-fact status for every step (download, separation, lyrics): the guests only need to know it's coming.
-function prepStatus(item){if(item.status==='error')return 'Error preparing';const {percent}=prepLabel(item);return percent==null?'Preparing':`Preparing ${percent}%`;}
 // Songs download and separate one at a time; show the one in progress so a wait never looks like a hang.
 // On an empty stage the song being prepared is the headline. During a song, preparation shows
 // only as small status text in the Queue card, so it never covers the lyrics.
