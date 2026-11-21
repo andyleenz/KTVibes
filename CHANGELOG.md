@@ -16,6 +16,14 @@ Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwy
 - `KTVIBES_OPEN_BROWSER=1` opens the TV page in the default browser when KTVibes starts. *(Jeff Shih)*
 - The tests run on every push and pull request. *(Jeff Shih)*
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to send a change.
+- A redesigned Default look for the remote and the TV. Classic is unchanged and still in Settings.
+  - Home lists the songs ready to sing; See all opens the library, sorted by Recent or A–Z, with a filter and a letter rail.
+  - Tapping + shows where the song landed ("Added at #3") with Undo.
+  - Now singing has its own card with play, skip, settings, lyrics and cheers. Queue rows open a menu (Play next, lyrics, Remove); hold and drag to reorder. Long queues fold after five.
+  - Settings split into Sound, Lyrics and Screen tabs, and sheets close with a swipe down.
+  - Live lyrics on the phone, filled word by word in step with the TV. Tap a word to jump the song there. ••• fixes wrong lyrics or timing, and a song without lyrics offers Find lyrics.
+  - On a tablet the library and the player sit side by side; from 1000px wide the settings stay open as a column.
+  - The TV shows a small Queue card with the QR code and a control bar that tucks away, with its buttons, after 3 seconds.
 
 ### Changed
 - When LRCLIB is busy or limiting requests, the lyrics picker says how long to wait and its Search button counts down, instead of reporting a failed lookup or a missing version. The automatic lookup stops asking as soon as LRCLIB says to slow down. *(Jeff Shih)*
