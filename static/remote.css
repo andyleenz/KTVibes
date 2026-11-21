@@ -21,8 +21,14 @@ p{margin:0}a{color:var(--ink);text-decoration:none}
 .connection::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .connection.online::before{background:#8fdc6a}.connection:is(.online.off,.lost){color:#ff9f8f}.connection:is(.online.off,.lost)::before{background:#ff9f8f}
 /* Banners under the header: the TV (or this phone's link) is lost, or the TV's sound is still off. */
-.banner{display:flex;align-items:center;gap:10px;margin-top:8px;padding:12px 14px;border-radius:14px;font-size:15px;background:#ffd29e1a;color:#ffd29e;animation:rise .4s var(--spring-soft) both}
-.banner.off{background:#ff9f8f1a;color:#ff9f8f}.banner button{margin-left:auto;height:32px;padding:0 14px;border-radius:16px;background:#ffffff14;color:var(--ink);font-weight:700;font-size:14px}
+/* Banners under the header: a tinted card with an icon, what's wrong in bold and, if there's something to do, how. */
+.banner{display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 12px;border-radius:20px;border:1px solid #ffd29e2e;background:linear-gradient(135deg,#ffd29e1f,#ffd29e0a);color:#ffd29e;animation:rise .45s var(--spring-soft) both}
+.banner .b-icon{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:14px;background:#ffd29e24}
+.banner svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.banner .b-text{display:grid;gap:1px;min-width:0}.banner b{font-size:16px;color:var(--ink)}.banner small{font-size:14px;opacity:.9}
+.banner.off{border-color:#ff9f8f2e;background:linear-gradient(135deg,#ff9f8f1f,#ff9f8f0a);color:#ff9f8f}.banner.off .b-icon{background:#ff9f8f24;animation:pulse-icon 1.6s ease-in-out infinite}
+@keyframes pulse-icon{50%{opacity:.55}}@media(prefers-reduced-motion:reduce){.banner.off .b-icon{animation:none}}
+.banner button{margin-left:auto;flex:none;height:36px;padding:0 16px;border-radius:18px;background:#ffffff1f;color:var(--ink);font-weight:700;font-size:14px;transition:transform .3s var(--bouncy)}.banner button:active{transform:scale(.94)}
 /* The socket itself is down: the TV is out of reach too, whatever the last state said. */
 body:not([data-theme=classic]):has(#connection.lost) #tv-lost{display:flex!important}body:has(#connection.lost) #tv-mute{display:none!important}
 
@@ -372,3 +378,8 @@ body.library-open{overflow:hidden}
 .letter{position:sticky;top:calc(-10px - env(safe-area-inset-top));z-index:1;padding:10px 0 2px;background:var(--bg);color:var(--lime);font:700 15px 'Space Grotesk',sans-serif}
 .rail{position:fixed;right:2px;top:50%;translate:0 -50%;z-index:2;display:flex;flex-direction:column;padding:4px 2px;touch-action:none;user-select:none}
 .rail button{width:26px;padding:1px 0;font-size:11px;font-weight:700;color:var(--muted);line-height:1.3}.rail button.on{color:var(--lime)}
+/* Song lengths on the thumbnail, YouTube-style; a muted second part on buttons and notes, never a dot. */
+.song-row .thumb{position:relative;flex:none;line-height:0}
+.song-row .len{position:absolute;right:3px;bottom:3px;padding:2px 4px;border-radius:5px;background:#000b;color:#fff;font-size:11px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+.seeall small{margin-left:8px;font-weight:500;color:var(--muted)}
+.empty2 b{color:inherit}.empty2 small{margin-left:auto;font-size:14px;opacity:.75}

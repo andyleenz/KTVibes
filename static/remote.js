@@ -233,7 +233,7 @@ function showQueue(before){
   if(count>FOLD&&!queueOpen){
    const rest=state.upcoming.slice(FOLD),minutes=Math.round(state.upcoming.reduce((sum,i)=>sum+(i.duration||0),0)/60);
    for(const row of [...$('queue').children].slice(FOLD))row.classList.add('folded');
-   const more=el('button',`Show ${rest.length} more${minutes?` · ${minutes} min in all`:''}`,'seeall default-only');
+   const more=el('button',`Show ${rest.length} more`,'seeall default-only');if(minutes)more.append(el('small',`${minutes} min`));
    more.onclick=()=>{haptic(6);queueOpen=true;queueShape=null;showQueue(state);};$('queue').append(more);
   }
   if(tops.size&&!REDUCED.matches)for(const row of $('queue').children){
@@ -356,23 +356,25 @@ async function loadRecent(){
   if(!songs.length)$('recent').append(emptyNote('♪','아직 부른 노래가 없어요','Nothing sung yet.'));
  }catch{}
 }
-// "Added · #N" with Undo (which takes the song back out), or "singing now" if it went straight on stage.
+// "Added at #N" with Undo (which takes the song back out), or "Singing now" if it went straight on stage.
 function addedToast(item,path){
- if(state.current?.key===item?.key)return toast('Added · singing now');
+ if(state.current?.key===item?.key)return toast('Singing now');
  const at=state.upcoming.findIndex(i=>i.key===item?.key);
- toast(`Added · #${at>=0?at+1:path.endsWith('next')?1:state.upcoming.length+1}`,{label:'Undo',run:()=>send({action:'remove',key:item.key})});
+ toast(`Added at #${at>=0?at+1:path.endsWith('next')?1:state.upcoming.length+1}`,{label:'Undo',run:()=>send({action:'remove',key:item.key})});
 }
 // Default song rows, one builder for home, the library and both halves of search. A song already queued trades
-// its + for "In queue · N" (and "Preparing" while it gets ready); ••• opens Play next, lyrics and Delete download.
+// its + for "#N in queue" (and "Preparing" in place of the artist while it gets ready); ••• opens Play next, lyrics and Delete download.
 const PLUS='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',MORE='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 function songRow(song){
  const row=el('div',undefined,'song-row'),art=el('img',undefined,'art'),text=el('div',undefined,'t'),sub=el('span');
  row.dataset.id=song.id;art.loading='lazy';art.alt='';art.src=song.thumbnail||thumbnail(song.id);
- sub.textContent=song.sub??[song.artist,song.duration?clock(song.duration):''].filter(Boolean).join(' · ');
+ sub.textContent=song.sub??song.artist??'';
  text.append(el('b',song.title),sub);
+ // The length sits on the thumbnail, as on YouTube, rather than after a separator.
+ const thumb=el('div',undefined,'thumb');thumb.append(art);if(song.duration)thumb.append(el('span',clock(song.duration),'len'));
  const add=el('button',undefined,'ib add'),tag=el('span',undefined,'tag'),more=el('button',undefined,'ib dots');
  add.innerHTML=PLUS;add.setAttribute('aria-label',`Add ${song.title}`);more.innerHTML=MORE;more.setAttribute('aria-label',`More for ${song.title}`);tag.hidden=true;
- row.append(art,text,add,tag,more);row.song=song;row.plain=sub.textContent;
+ row.append(thumb,text,add,tag,more);row.song=song;row.plain=sub.textContent;
  const queue=async path=>{
   if(add.disabled)return;add.disabled=true;
   try{const item=await post(path,{id:song.id,...song.parsed});haptic([10,40,10]);flyToQueue(art);addedToast(item,path);}
@@ -392,8 +394,8 @@ function markQueued(){
 }
 function markRow(row){
  const at=placed.get(row.dataset.id),[,text,add,tag]=row.children,sub=text.lastChild;
- add.hidden=!!at;tag.hidden=!at;tag.textContent=at?(at.n?`In queue · ${at.n}`:'Singing'):'';
- if(at&&at.item.status!=='ready'){sub.replaceChildren(`${row.song.artist||row.plain} · `,el('em',at.item.status==='error'?'Error preparing':'Preparing'));}
+ add.hidden=!!at;tag.hidden=!at;tag.textContent=at?(at.n?`#${at.n} in queue`:'Singing'):'';
+ if(at&&at.item.status!=='ready'){sub.replaceChildren(el('em',at.item.status==='error'?'Error preparing':'Preparing'));}
  else if(sub.textContent!==row.plain)sub.textContent=row.plain;
 }
 function songSheet(song,queue){
@@ -600,9 +602,9 @@ async function pickLyrics(song){
    for(const o of options){
     const first=!seen.has(o.language);seen.add(o.language);
     const b=el('button',undefined,'lyric-option'+(o.current?' current':'')),top=el('div');
-    const gap=Math.abs(o.difference)>10?` · ${Math.abs(o.difference)}s ${o.difference>0?'longer':'shorter'} than this video`:'';
-    const lines=el('span',undefined,'cnt classic-only'),figure=el('span',String(o.lines),'lcd');figure.dataset.ghost='88';lines.append(figure,'LINES',...(gap?[el('span',gap.slice(3),'gap')]:[]));
-    top.append(el('b',o.language),el('span',[o.track,o.artist,o.album].filter(Boolean).join(' · ')),...(o.current?[el('em','In use')]:[]),lines);
+    const gap=Math.abs(o.difference)>10?`, ${Math.abs(o.difference)}s ${o.difference>0?'longer':'shorter'} than this video`:'';
+    const lines=el('span',undefined,'cnt classic-only'),figure=el('span',String(o.lines),'lcd');figure.dataset.ghost='88';lines.append(figure,'LINES',...(gap?[el('span',gap.slice(2),'gap')]:[]));
+    top.append(el('b',o.language),el('span',[o.track,o.artist,o.album].filter(Boolean).join(', ')),...(o.current?[el('em','In use')]:[]),lines);
     b.append(top,...o.preview.map(line=>el('small',line)),el('small',`${o.lines} lines${gap}`,'count'));
     b.onclick=async()=>{
      for(const other of list.children)other.disabled=true;b.classList.add('busy');
@@ -673,14 +675,14 @@ async function loadPage(){
   if(run!==searchRun)return;
   if(first)$('results').replaceChildren();
   const classic=document.body.dataset.theme==='classic';
-  results.forEach((s,i)=>{search.seen.add(s.id);if(classic)showResult(s,$('results'),undefined,i);else $('results').append(songRow({...s,artist:s.parsed?.artist,sub:`${s.channel} · ${clock(s.duration)}`}));});
+  results.forEach((s,i)=>{search.seen.add(s.id);if(classic)showResult(s,$('results'),undefined,i);else $('results').append(songRow({...s,artist:s.parsed?.artist,sub:s.channel}));});
   $('more').hidden=results.length===0||search.page>=9;$('results').dataset.state=search.seen.size?'':'none';
   $('results-end').hidden=!$('more').hidden||!search.seen.size;
   if(!search.seen.size)$('results').append(classic?emptyNote('없음','검색 결과가 없어요','No songs found. Try the title in its original language, or just the artist.'):el('div','No matches','empty2'));
   if(first)showResults();
  }catch(error){
   if(run!==searchRun)return;if(first){$('results').replaceChildren();$('results').dataset.state='';}
-  if(first&&document.body.dataset.theme!=='classic')$('results').append(el('div','Search unavailable · offline','empty2 warn'));else toast(error.message,undefined,'err');
+  if(first&&document.body.dataset.theme!=='classic'){const note=el('div',undefined,'empty2 warn');note.append(el('b','Search unavailable'),el('small','Offline'));$('results').append(note);}else toast(error.message,undefined,'err');
  }finally{$('more').disabled=false;}
 }
 // Autocomplete from YouTube's search box: type to see completions, tap or arrow+Enter to search one.

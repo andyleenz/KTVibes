@@ -249,3 +249,4 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]) .open-remote:focus-visible{outline:3px solid var(--lime);outline-offset:3px;border-radius:16px;opacity:1}
 /* Inside the glass bar they sit flush and take the tint only under the pointer. */
 .tv:not([data-theme=classic]):has(#tv-bottom:not([hidden])) .open-remote:hover{background:#ffffff1f}
+.tv:not([data-theme=classic]) .peek small{margin-left:.8em;font-size:.85em;font-weight:500;color:#ffffff99}

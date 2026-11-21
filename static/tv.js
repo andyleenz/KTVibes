@@ -63,7 +63,7 @@ function render(next){
  const prepping=state.current?null:queued.find(i=>i.status!=='ready'&&i.status!=='queued')||queued.find(i=>i.status==='queued');
  const listed=state.upcoming.map((item,n)=>({item,n})).filter(({item})=>item!==prepping);
  $('top-queue').querySelector('.eyebrow').textContent=prepping?'Up next':'Queue';
- $('on-deck').replaceChildren(...listed.slice(0,3).map(({item:i,n})=>{const artist=el('span',i.artist);if(i.status!=='ready')artist.append(' · ',el('em',prepStatus(i)));const text=el('div');text.append(el('b',i.title),artist);const row=el('li');row.append(el('i',String(n+1)),text);return row;}));
+ $('on-deck').replaceChildren(...listed.slice(0,3).map(({item:i,n})=>{const artist=el('span');artist.append(i.status==='ready'?i.artist:el('em',prepStatus(i)));  // status in place of the artist, no separatorconst text=el('div');text.append(el('b',i.title),artist);const row=el('li');row.append(el('i',String(n+1)),text);return row;}));
  if(listed.length>3)$('on-deck').append(el('li',`+${listed.length-3} more`,'more'));
  if(!listed.length)$('on-deck').append(el('li','Queue empty','more'));
  // An empty stage says "Pick a song." beside the big QR; an empty card would only repeat it. While a song is
@@ -71,7 +71,7 @@ function render(next){
  $('top-queue').hidden=!state.current&&!prepping&&!listed.length;
  $('top-queue').classList.toggle('join-only',!!prepping&&!listed.length);
  // The two songs after the next one peek out from under its card between songs.
- [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),`${item.title} · ${item.artist}`);peek.replaceChildren(line);}});
+ [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),item.title,el('small',item.artist));peek.replaceChildren(line);}});
  showPrep(prepping);showBoard(state,queued);setAmbient(!state.current);
  $('now-card').hidden=!state.current;
  // The idle screen already shows a large QR code (Default hides it while a song is being prepared).
