@@ -276,7 +276,7 @@ body:not([data-theme=classic]) .roll{height:44px;font-size:34px;line-height:44px
 body:not([data-theme=classic]) .sheet .sg>.seg-row{margin:0;padding:12px 0;border-top:1px solid #ffffff1a;font-size:16px}body:not([data-theme=classic]) .sheet .sg>h4+.seg-row,body:not([data-theme=classic]) #sg-display>.seg-row:nth-child(2){border-top:0}
 body:not([data-theme=classic]) .seg{border:0;background:#ffffff12}body:not([data-theme=classic]) .seg .pill{border-radius:10px;background:#ffffff26}
 body:not([data-theme=classic]) .seg button{font-size:15px}body:not([data-theme=classic]) .seg button[aria-pressed=true]{color:var(--ink)}
-body:not([data-theme=classic]) .offset{gap:12px;margin-top:6px}body:not([data-theme=classic]) .offset span{order:1;text-align:center}body:not([data-theme=classic]) #later{order:2}
+body:not([data-theme=classic]) .offset{gap:12px;margin:6px 0 14px}body:not([data-theme=classic]) .offset span{order:1;text-align:center}body:not([data-theme=classic]) #later{order:2}
 body:not([data-theme=classic]) .offset button{width:52px;height:52px;padding:0;border:0;border-radius:26px;background:#ffffff14;font-size:15px}
 body:not([data-theme=classic]) .offset b{display:block;font:700 28px 'Space Grotesk',sans-serif;color:var(--ink)}body:not([data-theme=classic]) .offset small{font-size:14px;color:var(--muted)}
 
