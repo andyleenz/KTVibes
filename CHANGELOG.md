@@ -4,6 +4,8 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-21
+
 Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwynn), brought over from [his fork](https://github.com/JeffShih-wiwynn/KTVibes) and adapted here. Entries marked *(Jeff Shih)* are his; thank you, Jeff.
 
 ### Added
@@ -24,10 +26,13 @@ Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwy
   - Live lyrics on the phone, filled word by word in step with the TV. Tap a word to jump the song there. ••• fixes wrong lyrics or timing, and a song without lyrics offers Find lyrics.
   - On a tablet the library and the player sit side by side; from 1000px wide the settings stay open as a column.
   - The TV shows a small Queue card with the QR code and a control bar that tucks away, with its buttons, after 3 seconds.
+  - An empty remote shows one line, "Search for a song to get started", under the search bar.
 
 ### Changed
 - When LRCLIB is busy or limiting requests, the lyrics picker says how long to wait and its Search button counts down, instead of reporting a failed lookup or a missing version. The automatic lookup stops asking as soon as LRCLIB says to slow down. *(Jeff Shih)*
 - Classic's 가이드 key shows which pronunciation guide is on. *(Jeff Shih)*
+- New songs prepare in about half the time. The vocal separation and word timing models load when KTVibes starts, word timing runs on the GPU of Apple Silicon Macs, and the vocal and music tracks are saved side by side.
+- While a song prepares, the remote and the TV name the step and show its progress: Downloading, Separating vocals, Finding lyrics, Timing lyrics.
 - Songs without Korean lyrics no longer load the Korean pronunciation model, so they prepare faster. *(Jeff Shih)*
 - `http://localhost:8765` opens the TV, so someone on a laptop can start singing without a phone and open the remote from the TV's remote button. The phone remote moves to `/remote`; the QR code points there. `/tv` still works.
 
@@ -141,7 +146,8 @@ Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwy
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/andyleenz/KTVibes/compare/v0.6.2...v0.9.0
 [0.6.2]: https://github.com/andyleenz/KTVibes/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/andyleenz/KTVibes/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/andyleenz/KTVibes/compare/v0.5.0...v0.6.0
