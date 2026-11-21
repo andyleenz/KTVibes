@@ -160,22 +160,24 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 /* Default theme: frosted glass cards over the stage, sentence-case labels, one Queue card top right, one floating control bar.
    Scoped away from Classic, which shares this markup. :where keeps the glass easy to override per card. */
 /* --glass is a solid tonal surface (M3 Expressive, no frosted blur); the name stays so the rules using it don't churn. */
-.tv{--glass:#1c211ebf;--glass-line:#ffffff17;--glass-shadow:0 12px 32px #0008;--mut:#ffffffa6;--bar-in:max(var(--edge),calc(50% - 590px))}
+.tv{--tv-spring:cubic-bezier(.34,1.25,.64,1);--glass:#1c211ebf;--glass-line:#ffffff17;--glass-shadow:0 12px 32px #0008;--mut:#ffffffa6;--bar-in:max(var(--edge),calc(50% - 590px))}
 .tv:not([data-theme=classic]) :where(.top-queue,#idle .join,.next-card,.peek,.osd,.tv-bottom,#reconnecting,#no-lyrics){background:var(--glass);border:0;border-radius:22px;box-shadow:var(--glass-shadow);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}  /* frosted, so the video reads through */
 .tv:not([data-theme=classic]) :is(#peek-1,#peek-2){background:var(--glass)}  /* beat the ids' solid fills */
 /* Labels: sentence case, muted, directly above what they label. */
 .tv:not([data-theme=classic]) .eyebrow{font-size:17px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--mut);margin-bottom:8px}
 .tv:not([data-theme=classic]) #up-next .eyebrow{font-size:21px}.tv:not([data-theme=classic]) .top-queue .eyebrow{font-size:13px;margin-bottom:6px}
 /* Now playing, top left: title over artist. The logo steps aside while a song is on. */
-.tv:not([data-theme=classic]) #now-card:not([hidden]){display:block;white-space:nowrap;font-size:inherit;max-width:min(760px,calc(100vw - var(--queue-w) - 3*var(--edge)))}
-.tv:not([data-theme=classic]) #now-card #song-title{display:block;font:700 clamp(26px,2.4vw,40px)/1.12 'Space Grotesk','Noto Sans KR',sans-serif;letter-spacing:-.02em;text-shadow:0 2px 10px #000}
-.tv:not([data-theme=classic]) #now-card #song-artist{display:block;min-width:0;margin-top:6px;font:400 clamp(17px,1.45vw,26px)/1.3 'DM Sans','Noto Sans KR',sans-serif;letter-spacing:0;color:var(--mut);text-shadow:0 2px 10px #000}
+.tv:not([data-theme=classic]) #now-card:not([hidden]){display:block;white-space:nowrap;font-size:inherit;max-width:min(640px,calc(100vw - var(--queue-w) - 3*var(--edge) - 140px))}
+.tv:not([data-theme=classic]) #now-card #song-title{display:block;flex:0 1 auto;min-width:0;font:700 clamp(17px,1.3vw,22px)/1.2 'Space Grotesk','Noto Sans KR',sans-serif;letter-spacing:-.02em;text-shadow:0 2px 10px #000}
+.tv:not([data-theme=classic]) #now-card #song-artist{display:block;flex:0 1 auto;min-width:3em;margin:0;overflow:hidden;text-overflow:ellipsis;font:400 clamp(15px,1.1vw,19px)/1.2 'DM Sans','Noto Sans KR',sans-serif;letter-spacing:0;color:var(--mut);text-shadow:0 2px 10px #000}
 .tv:not([data-theme=classic]) #now-card #song-artist::before{content:none}
-.tv:not([data-theme=classic]):has(#now-card:not([hidden])):not(.between) .now-playing .brand{display:none}
-.tv:not([data-theme=classic]) .now-playing{height:40px;align-items:flex-start}  /* the logo's height: the two-line card hangs below without pushing the lyrics down */
+/* The logo stays top left, small, while a song plays; title and artist share one line beside it. */
+.tv:not([data-theme=classic]) header .brand{font-size:19px;line-height:26px;letter-spacing:-1px}
+.tv:not([data-theme=classic]) .now-playing{gap:18px;filter:drop-shadow(0 1px 2px #000a) drop-shadow(0 2px 10px #0008)}.tv:not([data-theme=classic]) .now-playing .brand,.tv:not([data-theme=classic]) #now-card :is(#song-title,#song-artist){text-shadow:none}  /* one shadow for logo and title; a text-shadow is cropped by the ellipsis */.tv:not([data-theme=classic]) #now-card:not([hidden]){display:flex;align-items:baseline;gap:10px;padding-left:18px;border-left:1px solid #ffffff33;line-height:26px}.tv:not([data-theme=classic]) #now-card :is(#song-title,#song-artist){line-height:26px}
+.tv:not([data-theme=classic]) .now-playing{height:40px;align-items:center}  /* logo and the one-line title share a centre line */
 /* The Queue card, top right: numbered rows of title over artist, a preparing song's progress on its artist line, and the QR as its last row. */
 .tv{--queue-w:clamp(220px,19vw,340px)}
-.tv:not([data-theme=classic]) .tv-stack{margin-top:10px;width:var(--queue-w);max-width:none}
+.tv:not([data-theme=classic]) .tv-stack{margin-top:2px;width:var(--queue-w);max-width:none}
 .tv:not([data-theme=classic]) .tv-side .top-queue{width:100%;padding:12px 14px 14px;text-align:left}
 .tv:not([data-theme=classic]) #on-deck{display:grid;gap:8px}
 .tv:not([data-theme=classic]) #on-deck li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;margin:0;font-size:inherit;color:var(--ink);text-shadow:none;white-space:normal}
@@ -185,13 +187,16 @@ body:has(#enable:not([hidden])) #tv-bottom{visibility:hidden}@media (max-height:
 .tv:not([data-theme=classic]) #on-deck b{font-size:16px;line-height:20px}
 .tv:not([data-theme=classic]) #on-deck span{font-size:13px;color:var(--mut)}
 .tv:not([data-theme=classic]) #on-deck em{color:#ffd29e}
-.tv:not([data-theme=classic]) #on-deck li.more{display:block;font-size:13px;color:var(--mut)}
-.tv:not([data-theme=classic]) .corner-join{flex-direction:row;align-items:center;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--glass-line);color:var(--ink);text-shadow:none;line-height:1.3}
-.tv:not([data-theme=classic]) .corner-join img{width:clamp(56px,4vw,80px);padding:5px;border-radius:10px}
-.tv:not([data-theme=classic]) .corner-join b{display:block;font-size:15px}.tv:not([data-theme=classic]) .corner-join small{font-size:13px;color:var(--mut)}
+.tv:not([data-theme=classic]) #on-deck li.more{display:block;justify-self:start;margin:2px 0 0 26px;padding:3px 10px;border-radius:999px;background:#ffffff14;font-size:12px;font-weight:600;line-height:18px;color:var(--mut)}  /* lined up with the titles, a small tonal chip */
 /* Empty stage: the join card. While a song is being prepared, the Queue card's QR row takes over joining. */
 .tv:not([data-theme=classic]) #idle:has(#idle-prep:not([hidden])) .join{display:none}
-.tv:not([data-theme=classic]) .top-queue.join-only :is(.eyebrow,#on-deck){display:none}.tv:not([data-theme=classic]) .top-queue.join-only .corner-join{margin:0;padding:0;border:0}  /* nothing else queued: just the QR row */
+/* Default's queue is one line of text at top right (Next, the title, +N), mirroring the title on the left. The QR sits under it and never moves. */
+.tv:not([data-theme=classic]) .tv-side .top-queue{display:flex;align-items:center;width:fit-content;max-width:100%;height:36px;padding:0;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;filter:drop-shadow(0 1px 2px #000a) drop-shadow(0 2px 10px #0008)}  /* plain text, shadowed like the title on the left */.tv:not([data-theme=classic]) .q-full{display:none}.tv:not([data-theme=classic]) .top-queue.empty{visibility:hidden}
+.q-pill{display:flex;align-items:baseline;gap:8px;min-width:0;min-height:20px;line-height:20px;white-space:nowrap;font-size:15px}
+.q-pill small{color:var(--lime);font-weight:700;font-size:13px}.q-pill b{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:600}.q-pill span{color:var(--mut)}
+/* The QR sits apart under the queue: just the code on its own white margin, no caption. */
+.tv:not([data-theme=classic]) .corner-join img{display:block;width:clamp(80px,5.4vw,108px);padding:6px;border-radius:12px;background:#fff;box-shadow:0 6px 20px #0007}
+.tv:not([data-theme=classic]) .tv-stack{gap:10px}
 .tv:not([data-theme=classic]) #idle .join{display:inline-flex;gap:26px;padding:20px 30px 20px 20px}
 .tv:not([data-theme=classic]) .join img{width:min(200px,24vh);padding:9px;border-radius:14px}
 .tv:not([data-theme=classic]) .join strong{font-size:28px}.tv:not([data-theme=classic]) .join p{margin:8px 0 0;font-size:21px}.tv:not([data-theme=classic]) .join small{display:block;margin-top:8px;font-size:17px;color:var(--mut)}

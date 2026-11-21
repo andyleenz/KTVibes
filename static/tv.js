@@ -66,10 +66,12 @@ function render(next){
  // The artist line shows the status instead while a song isn't ready.
  $('on-deck').replaceChildren(...listed.slice(0,3).map(({item:i,n})=>{const artist=el('span');artist.append(i.status==='ready'?i.artist:el('em',prepStatus(i)));const text=el('div');text.append(el('b',i.title),artist);const row=el('li');row.append(el('i',String(n+1)),text);return row;}));
  if(listed.length>3)$('on-deck').append(el('li',`+${listed.length-3} more`,'more'));
+ // Default shows only a one-line pill (what's next, and how many after it); Classic keeps the list.
+ const first=listed[0]?.item;$('q-pill').replaceChildren(...first?[el('small','Next'),el('b',first.title),...listed.length>1?[el('span',`+${listed.length-1}`)]:[]]:[]);
  // An empty stage says "Pick a song." beside the big QR; an empty card would only repeat it. While a song is
  // being prepared the big QR steps aside, so the card stays as the way to join, even with nothing else queued.
- $('top-queue').hidden=!state.current&&!prepping&&!listed.length;
- $('top-queue').classList.toggle('join-only',!listed.length);  // nothing queued: no Queue heading, just the way to join
+ // Classic hides an idle card. Default keeps the pill's slot while a song plays, invisible when nothing is queued, so the QR under it never moves.
+ $('top-queue').hidden=!state.current&&!prepping&&!listed.length;$('top-queue').classList.toggle('empty',!listed.length);
  // The two songs after the next one peek out from under its card between songs.
  [1,2].forEach(n=>{const item=queued[n-1],peek=$(`peek-${n}`),line=el('span');peek.hidden=!item;if(item){line.append(el('b',String(n+1)),item.title,el('small',item.artist));peek.replaceChildren(line);}});
  showPrep(prepping);showBoard(state,queued);setAmbient(!state.current);
