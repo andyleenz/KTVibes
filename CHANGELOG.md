@@ -4,6 +4,11 @@ Notable changes to KTVibes. To get the latest version, see [Updating](README.md#
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-22
+
+### Fixed
+- On a laptop or other wide screen (1000px and wider), the Default remote's settings panel beside the queue responds to the mouse again. Its sliders and buttons ignored clicks after the remote first received the room's state.
+
 ## [0.9.0] - 2026-11-21
 
 Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwynn), brought over from [his fork](https://github.com/JeffShih-wiwynn/KTVibes) and adapted here. Entries marked *(Jeff Shih)* are his; thank you, Jeff.
@@ -146,7 +151,8 @@ Most of this release is the work of [Jeff Shih](https://github.com/JeffShih-wiwy
 
 First public release: YouTube search from a phone remote, AI vocal removal, synced lyrics with per-word timing, pronunciation guides (pinyin, jyutping, Korean romanization, romaji, Hangul), key and speed control, and one-line installers for Linux, macOS and Windows.
 
-[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/andyleenz/KTVibes/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/andyleenz/KTVibes/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/andyleenz/KTVibes/compare/v0.6.2...v0.9.0
 [0.6.2]: https://github.com/andyleenz/KTVibes/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/andyleenz/KTVibes/compare/v0.6.0...v0.6.1

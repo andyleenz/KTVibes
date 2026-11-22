@@ -1,7 +1,7 @@
 #define AppName "KTVibes"
 ; The release workflow passes /DAppVersion=<version from pyproject.toml>; this is only the default for local builds.
 #ifndef AppVersion
-  #define AppVersion "0.9.0"
+  #define AppVersion "0.9.1"
 #endif
 #define AppPublisher "Andrew Lee"
 
